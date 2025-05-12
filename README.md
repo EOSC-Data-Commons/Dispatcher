@@ -1,7 +1,7 @@
 **Dispatcher**
 ===============
 
-A **WORK-IN-PROGRESS** prototype of Dispatcher that serves as an API endpoint to launch the Galaxy landing page and return its URL.
+A **WORK-IN-PROGRESS** prototype of Dispatcher that serves as an API endpoint to launch the Galaxy landing page and return its URL, supporting ROCrate as its input format.
 
 **Overview**
 ------------
