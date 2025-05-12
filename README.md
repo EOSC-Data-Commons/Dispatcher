@@ -36,7 +36,7 @@ This will start the API server on `localhost:8000`. You can then send a POST req
 **Example API Call**
 --------------------
 
-You can use `curl` to test the API endpoint, for example:
+You can use following `curl` request to test the API endpoint. It creates a landing page with simple workflow, that accepts a `txt` file and creates its reversed copy:
 ```bash
 curl localhost:8000/requests/ -X POST -H "Content-Type: application/json" --data '{
     "@context": "https://w3id.org/ro/crate/1.1/context",
