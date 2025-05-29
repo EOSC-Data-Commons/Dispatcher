@@ -6,6 +6,11 @@ import uuid
 import requests
 from rocrate.rocrate import ROCrate
 import json
+import zipfile
+
+import logging
+logger = logging.getLogger('django')
+
 
 class CreateRequestView(APIView):
     def post(self, request):
@@ -19,7 +24,28 @@ class CreateRequestView(APIView):
             return result
 
         request_id = str(uuid.uuid4())
-        crate = ROCrate(source=json.loads(request.body)) 
+        logger.debug(f'{request_id}: {request.content_type}')
+
+        if request.content_type == 'application/json':
+            metadata = request.body
+        elif request.content_type.split(';')[0] == 'multipart/form-data':
+            zip_file = next(iter(request.FILES.values()))
+            if not zipfile.is_zipfile(zip_file):
+                return Response({'error': 'not a zip'})
+
+            metadata = None
+            with zipfile.ZipFile(zip_file) as zfile:
+                for filename in zfile.namelist():
+                    if filename == 'ro-crate-metadata.json':
+                        with zfile.open(filename) as file:
+                            metadata = file.read()
+
+            if metadata is None:
+                return Response({'error': f'ro-crate-metadata.json not found in zip'})
+        else:
+            return Response({'error': f'Unrecognized content_type = {request.content_type}'})
+
+        crate = ROCrate(source=json.loads(metadata)) 
         public = False
         workflows = [e for e in crate.get_entities() if e.type == ['File', 'SoftwareSourceCode', 'ComputationalWorkflow']]
         files = [e for e in crate.get_entities() if e.type == 'File']
