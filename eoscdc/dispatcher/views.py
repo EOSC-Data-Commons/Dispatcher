@@ -8,6 +8,9 @@ from rocrate.rocrate import ROCrate
 import json
 import zipfile
 
+from .vre import vre_factory
+from .galaxy import VREGalaxy
+
 import logging
 logger = logging.getLogger('django')
 
@@ -15,16 +18,8 @@ logger = logging.getLogger('django')
 class CreateRequestView(APIView):
     def post(self, request):
         # Generate a unique request_id
-        def modify_for_api_data_input(files):
-            result = dict(map(lambda f: (f.properties()['name'], {
-                "class": "File",
-                "filetype": f.properties()['encodingFormat'].split("/")[-1],
-                "location": f.id
-            }), files))
-            return result
-
         request_id = str(uuid.uuid4())
-        logger.debug(f'{request_id}: {request.content_type}')
+        zip_file = None
 
         if request.content_type == 'application/json':
             metadata = request.body
@@ -45,32 +40,14 @@ class CreateRequestView(APIView):
         else:
             return Response({'error': f'Unrecognized content_type = {request.content_type}'})
 
-        crate = ROCrate(source=json.loads(metadata)) 
-        public = False
-        workflows = [e for e in crate.get_entities() if e.type == ['File', 'SoftwareSourceCode', 'ComputationalWorkflow']]
-        files = [e for e in crate.get_entities() if e.type == 'File']
-        if workflows == []:    
-            return Response({"error": "No workflow present in request ROCrate"}, status=400)
-        if workflows[0].get("url") is None:
-            return Response({"error": "Missing URL for specified Workflow"}, status=400)
-        workflow_url = workflows[0].get("url")
-        url = 'https://test.galaxyproject.org/api/workflow_landings'
-
-        headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        }
-
-        data = {
-            "public": public,
-            "request_state": modify_for_api_data_input(files), 
-            "workflow_id": workflow_url,
-            "workflow_target_type": "trs_url"
-        }
-        response = requests.post(url, headers=headers, json=data)
-        landing_id = response.json()['uuid']
-        url = f"https://test.galaxyproject.org/workflow_landings/{landing_id}?public={public}"
-        return Response({"url": url})
+        try:
+            vre_handler = vre_factory(metadata=metadata,zip_file=zip_file)
+    
+            # XXX: tentative, should queue the request somehow and track its progress
+            return Response({'url',vre_handler.post()})
+        except Exception as e:
+            return Response({'error': f'Handling request {request_id} failed:\n{e}'})
+    
 
 class GetRequestStatusView(APIView):
     def get(self, request, request_id):

@@ -5,13 +5,12 @@
             "@id": "./",
             "@type": "Dataset",
             "datePublished": "2025-05-06T14:35:47+00:00",
+            "mainEntity" : { "@id": "#workflow" },
+            "runsOn" : { "@id": "#destination" },
             "hasPart": [
-                {
-                    "@id": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/PLAIN_GALAXY/descriptor//Galaxy-Workflow-reverse_file_galaxy_workflow.ga"
-                },
-                {
-                    "@id": "https://example-files.online-convert.com/document/txt/example.txt"
-                }
+                { "@id": "#workflow" },
+                { "@id": "#textfile" },
+                { "@id": "#destination" }
             ]
         },
         {
@@ -25,7 +24,7 @@
             }
         },
         {
-            "@id": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/PLAIN_GALAXY/descriptor//Galaxy-Workflow-reverse_file_galaxy_workflow.ga",
+            "@id": "#workflow",
             "@type": [
                 "File",
                 "SoftwareSourceCode",
@@ -35,7 +34,8 @@
             "programmingLanguage": {
                 "@id": "https://w3id.org/workflowhub/workflow-ro-crate#galaxy"
             },
-            "url": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/GALAXY/files?format=zip"
+            "url": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/GALAXY/files?format=zip",
+            "otherUrl": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/PLAIN_GALAXY/descriptor//Galaxy-Workflow-reverse_file_galaxy_workflow.ga"
         },
         {
             "@id": "https://w3id.org/workflowhub/workflow-ro-crate#galaxy",
@@ -49,10 +49,16 @@
             }
         },
         {
-            "@id": "https://example-files.online-convert.com/document/txt/example.txt",
+            "@id": "#textfile",
             "@type": "File",
             "name": "simpletext_input",
+            "url": "https://example-files.online-convert.com/document/txt/example.txt",
             "encodingFormat": "text/txt"
+        },
+        {
+            "@id": "#destination",
+            "@type" : "Service",
+            "url": "https://test.galaxyproject.org/"
         }
     ]
 }
