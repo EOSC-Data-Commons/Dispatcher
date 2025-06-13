@@ -1,6 +1,9 @@
 from .vre import VRE,vre_factory
 import requests
 
+import logging
+logger = logging.getLogger('django')
+
 default_service = 'https://test.galaxyproject.org/'
 
 class VREGalaxy(VRE):
@@ -11,7 +14,7 @@ class VREGalaxy(VRE):
             result = dict(map(lambda f: (f.properties()['name'], {
                 "class": "File",
                 "filetype": f.properties()['encodingFormat'].split("/")[-1],
-                "location": f.id
+                "location": f['url']
             }), files))
             return result
      
@@ -38,11 +41,14 @@ class VREGalaxy(VRE):
         else:
             url = svc['url'] 
 
-        url += 'api/workflow_landings'
+        url = url.rstrip('/')
 
-        response = requests.post(url, headers=headers, json=data)
+        logger.info(f'{self.__class__.__name__}: calling {url} with {data}')
+
+        response = requests.post(url + '/api/workflow_landings', headers=headers, json=data)
+        logger.info(f'{self.__class__.__name__}: returned {response}, {response.json()}')
         landing_id = response.json()['uuid']
-        url = f"{url}/{landing_id}?public={public}"
+        url = f"{url}/workflow_landings/{landing_id}?public={public}"
         return url
  
 
