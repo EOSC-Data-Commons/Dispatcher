@@ -10,6 +10,7 @@ import zipfile
 
 from .vre import vre_factory
 from .galaxy import VREGalaxy
+from .binder import VREBinder
 
 import logging
 logger = logging.getLogger('django')
