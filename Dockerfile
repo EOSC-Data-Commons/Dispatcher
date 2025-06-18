@@ -26,4 +26,5 @@ COPY . /app/
  
 # Expose the Django port
 EXPOSE 8000
-CMD ["python", "eoscdc/manage.py", "runserver", "0.0.0.0:8000"]
+#CMD ["ls", "app"]
+CMD ["fastapi", "run", "app/main.py", "--port", "8000"]

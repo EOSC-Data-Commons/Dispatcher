@@ -21,7 +21,7 @@ class VREGalaxy(VRE):
         files = [e for e in self.entities.values() if e.type == 'File']
         workflow_url = self.workflow.get("url")
         if workflow_url is None:
-            raise ValueError("Missing url in workflow entity")
+            raise HTTPException(status_code=400, detail="Missing url in workflow entity")
      
         headers = {
             'Content-Type': 'application/json',

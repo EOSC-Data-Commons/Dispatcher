@@ -51,6 +51,7 @@ class VREFactory:
 
 
         except Exception as e:
+            print(e)
             raise ValueError(f'VREFactory: parse ROCrate ({metadata})') from e
 
 
