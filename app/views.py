@@ -3,7 +3,7 @@ import requests
 from rocrate.rocrate import ROCrate
 import json
 import zipfile
-
+from fastapi import HTTPException
 from .vre import vre_factory
 from .galaxy import VREGalaxy
 from .binder import VREBinder
@@ -23,22 +23,18 @@ async def post_request(request):
     if content_type == 'application/json':
         metadata = await request.body()
     elif content_type.split(';')[0] == 'multipart/form-data':
-        zip_file = next(iter(request.FILES.values()))
-        if not zipfile.is_zipfile(zip_file):
-            raise HTTPException(status_code=400, detail='not a zip')
-
-
-        metadata = None
-        with zipfile.ZipFile(zip_file) as zfile:
-            for filename in zfile.namelist():
-                if filename == 'ro-crate-metadata.json':
-                    with zfile.open(filename) as file:
-                        metadata = file.read()
+        async with request.form(max_files=1000, max_fields=1000) as form:
+            metadata = None
+            with zipfile.ZipFile(form["zipfile"].file) as zfile:
+                for filename in zfile.namelist():
+                    if filename == 'ro-crate-metadata.json':
+                        with zfile.open(filename) as file:
+                            metadata = file.read()
 
         if metadata is None:
             raise HTTPException(status_code=400, detail=f'ro-crate-metadata.json not found in zip')
     else:
-        raise HTTPException(status_code=400, detail=f f'Unrecognized content_type = {request.content_type}')
+        raise HTTPException(status_code=400, detail=f'Unrecognized content_type = {content_type}')
 
     try:
         vre_handler = vre_factory(metadata=metadata,zip_file=zip_file)
