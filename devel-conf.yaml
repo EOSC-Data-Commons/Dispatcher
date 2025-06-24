@@ -1,0 +1,16 @@
+git:
+  # linux 
+  # backend: /usr/lib/git-core/git-http-backend
+  # macos
+  backend: /Library/Developer/CommandLineTools/usr/libexec/git-core/git-http-backend
+  repos: /var/tmp/dispatcher-git
+
+nginx:
+  prefix: nginx/
+  etc: /opt/homebrew/etc
+  master: 8000
+  api: 8001
+  logs: logs/
+  pid: temp/nginx.pid
+  fcgi: /tmp/fcgiwrap.socket
+

@@ -2,7 +2,9 @@ from .vre import VRE,vre_factory
 import requests
 
 import logging
-logger = logging.getLogger('django')
+logging.basicConfig(
+    level=logging.INFO
+    )
 
 default_service = 'https://test.galaxyproject.org/'
 
@@ -43,10 +45,10 @@ class VREGalaxy(VRE):
 
         url = url.rstrip('/')
 
-        logger.info(f'{self.__class__.__name__}: calling {url} with {data}')
+        logging.info(f'{self.__class__.__name__}: calling {url} with {data}')
 
         response = requests.post(url + '/api/workflow_landings', headers=headers, json=data)
-        logger.info(f'{self.__class__.__name__}: returned {response}, {response.json()}')
+        logging.info(f'{self.__class__.__name__}: returned {response}, {response.json()}')
         landing_id = response.json()['uuid']
         url = f"{url}/workflow_landings/{landing_id}?public={public}"
         return url
