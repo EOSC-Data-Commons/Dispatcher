@@ -1,13 +1,14 @@
 from rocrate.rocrate import ROCrate
 import sys
 import json
+import zipfile
 
 from abc import ABC, abstractmethod
 
 class VRE(ABC):
     def __init__(self,crate=None,metadata=None,zip_file=None):
         if crate is None:
-            self.crate = ROCrate(sourc=json.loads(metadata))
+            self.crate = ROCrate(source=json.loads(metadata))
         else:
             self.crate = crate
 
@@ -38,16 +39,16 @@ class VREFactory:
 
         self.table[vre_type] = cls
 
-    def __call__(self,metadata,**kwargs):
+    def __call__(self,crate,metadata=None,**kwargs):
         try:
-            crate = ROCrate(source=json.loads(metadata))
+            # crate = ROCrate(source=json.loads(metadata))
     
             emap = { e.id : e for e in crate.get_entities() } 
 
             ewf = emap['./']['mainEntity']
             elang = ewf['programmingLanguage']['identifier']
 
-            return self.table[elang](metadata=metadata,crate=crate,**kwargs)
+            return self.table[elang](crate=crate, metadata=metadata, **kwargs)
 
 
         except Exception as e:
