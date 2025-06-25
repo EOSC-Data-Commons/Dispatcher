@@ -53,7 +53,6 @@ class VREFactory:
             return self.table[elang](crate=crate, metadata=metadata, **kwargs)
 
         except Exception as e:
-            print(e)
             raise ValueError(f"VREFactory: parse ROCrate ({metadata})") from e
 
 

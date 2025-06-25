@@ -1,12 +1,13 @@
 from fastapi import FastAPI, Header, UploadFile, Depends
-from .views import post_request, prepare_galaxy_landing
-from pydantic import BaseModel
 from typing import Annotated
 from fastapi.exceptions import HTTPException
 from rocrate.rocrate import ROCrate
 import zipfile as zf
 import json
-
+import uuid
+from .vre import vre_factory
+from .galaxy import VREGalaxy
+from .binder import VREBinder
 
 app = FastAPI()
 
@@ -26,11 +27,15 @@ def zipfile_parser(zipfile: UploadFile):
 
 
 @app.post("/requests/zip_rocrate/")
-async def zip_rocrate(
-    parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser),
-    content_type: Annotated[str | None, Header()] = None,
-):
-    return prepare_galaxy_landing(*parsed_zipfile)
+async def zip_rocrate(parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser)):
+    try:
+        vre_handler = vre_factory(*parsed_zipfile)
+        # XXX: tentative, should queue the request somehow and track its progress
+        return {"url": vre_handler.post()}
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Handling request {request_id} failed:\n{e}"
+        )
 
 
 def checker(data: dict):
@@ -43,5 +48,12 @@ def checker(data: dict):
 
 
 @app.post("/requests/metadata_rocrate/")
-async def metadata_rocrate(data: dict = Depends(checker)):
-    return prepare_galaxy_landing(data)
+async def metadata_rocrate(data: ROCrate = Depends(checker)):
+    try:
+        request_id = str(uuid.uuid4())
+        vre_handler = vre_factory(crate=data)
+        return {"url": vre_handler.post()}
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Handling request {request_id} failed:\n{e}"
+        )
