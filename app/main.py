@@ -8,13 +8,16 @@ import uuid
 from .vre import vre_factory
 from .galaxy import VREGalaxy
 from .binder import VREBinder
+import io
 
 app = FastAPI()
 
 
-def zipfile_parser(zipfile: UploadFile):
+async def zipfile_parser(zipfile: UploadFile):
     metadata = None
-    with zf.ZipFile(zipfile.file) as zfile:
+    response = await zipfile.read()
+
+    with zf.ZipFile(io.BytesIO(response)) as zfile:
         for filename in zfile.namelist():
             if filename == "ro-crate-metadata.json":
                 with zfile.open(filename) as file:
@@ -52,7 +55,7 @@ async def metadata_rocrate(data: ROCrate = Depends(checker)):
     try:
         request_id = str(uuid.uuid4())
         vre_handler = vre_factory(crate=data)
-        return {"url": vre_handler.post()}
+        return {"url": await vre_handler.post()}
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Handling request {request_id} failed:\n{e}"

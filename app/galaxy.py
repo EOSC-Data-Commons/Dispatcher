@@ -1,6 +1,6 @@
 from .vre import VRE, vre_factory
 import requests
-
+import aiohttp
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -9,7 +9,7 @@ default_service = "https://test.galaxyproject.org/"
 
 
 class VREGalaxy(VRE):
-    def post(self):
+    async def post(self):
         public = False
 
         def modify_for_api_data_input(files):
@@ -54,13 +54,17 @@ class VREGalaxy(VRE):
 
         logging.info(f"{self.__class__.__name__}: calling {url} with {data}")
 
-        response = requests.post(
-            url + "/api/workflow_landings", headers=headers, json=data
-        )
-        logging.info(
-            f"{self.__class__.__name__}: returned {response}, {response.json()}"
-        )
-        landing_id = response.json()["uuid"]
+        response = None
+        async with aiohttp.ClientSession() as session:
+            pokemon_url = "https://pokeapi.co/api/v2/pokemon/151"
+            async with session.post(
+                url + "/api/workflow_landings", headers=headers, json=data
+            ) as resp:
+                response = await resp.json()
+                print(response)
+
+        logging.info(f"{self.__class__.__name__}: returned {response}")
+        landing_id = response["uuid"]
         url = f"{url}/workflow_landings/{landing_id}?public={public}"
         return url
 
