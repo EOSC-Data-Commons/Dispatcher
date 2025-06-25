@@ -5,8 +5,9 @@ import zipfile
 
 from abc import ABC, abstractmethod
 
+
 class VRE(ABC):
-    def __init__(self,crate=None,metadata=None,zip_file=None):
+    def __init__(self, crate=None, metadata=None, zip_file=None):
         if crate is None:
             self.crate = ROCrate(source=json.loads(metadata))
         else:
@@ -14,15 +15,16 @@ class VRE(ABC):
 
         self.metadata = metadata
         self.zip_file = zip_file
-        self.entities = { e.id : e for e in crate.get_entities() }
-        self.root = self.entities['./']
-        self.workflow = self.root['mainEntity']
+        self.entities = {e.id: e for e in crate.get_entities()}
+        self.root = self.entities["./"]
+        self.workflow = self.root["mainEntity"]
 
         # TODO: sanity check, type contains File,SoftwareSourceCode,ComputationalWorkflow
 
     @abstractmethod
     def post():
         pass
+
 
 class VREFactory:
     instance = None
@@ -33,32 +35,30 @@ class VREFactory:
             cls.instance = super(VREFactory, cls).__new__(cls, *args, **kwargs)
         return cls.instance
 
-    def register(self,vre_type,cls):
+    def register(self, vre_type, cls):
         if vre_type in self.table:
-            raise ValueError(f'{vre_type} already registered')
+            raise ValueError(f"{vre_type} already registered")
 
         self.table[vre_type] = cls
 
-    def __call__(self,crate,metadata=None,**kwargs):
+    def __call__(self, crate, metadata=None, **kwargs):
         try:
             # crate = ROCrate(source=json.loads(metadata))
-    
-            emap = { e.id : e for e in crate.get_entities() } 
 
-            ewf = emap['./']['mainEntity']
-            elang = ewf['programmingLanguage']['identifier']
+            emap = {e.id: e for e in crate.get_entities()}
+
+            ewf = emap["./"]["mainEntity"]
+            elang = ewf["programmingLanguage"]["identifier"]
 
             return self.table[elang](crate=crate, metadata=metadata, **kwargs)
 
-
         except Exception as e:
             print(e)
-            raise ValueError(f'VREFactory: parse ROCrate ({metadata})') from e
+            raise ValueError(f"VREFactory: parse ROCrate ({metadata})") from e
 
 
 vre_factory = VREFactory()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     with open(sys.argv[1]) as j:
         vre_factory(j.read())
-    
