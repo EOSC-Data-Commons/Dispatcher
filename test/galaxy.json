@@ -57,7 +57,7 @@
         {
             "@id": "#destination",
             "@type" : "Service",
-            "url": "https://test.galaxyproject.org/"
+            "url": "https://usegalaxy.org/"
         }
     ]
 }
