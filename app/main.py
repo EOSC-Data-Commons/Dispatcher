@@ -12,6 +12,21 @@ import io
 
 app = FastAPI()
 
+def parse_rocrate(data: dict):
+    try:
+        return ROCrate(source=data)
+    except (ValueError, KeyError) as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid ROCrate data. Reason: {e}"
+        )
+
+def parse_json_metadata(metadata: str):
+    try:
+        return json.loads(metadata)
+    except json.decoder.JSONDecodeError as json_exception:
+        raise HTTPException(
+            status_code=400, detail=f"Handling request failed. Invalid JSON format: \n{json_exception}"
+        )
 
 async def zipfile_parser(zipfile: UploadFile):
     metadata = None
@@ -26,8 +41,8 @@ async def zipfile_parser(zipfile: UploadFile):
         raise HTTPException(
             status_code=400, detail=f"ro-crate-metadata.json not found in zip"
         )
-    return (ROCrate(source=json.loads(metadata)), zipfile)
-
+    rocrate_json = parse_json_metadata(metadata)
+    return  (parse_rocrate(rocrate_json), zipfile)
 
 @app.post("/requests/zip_rocrate/")
 async def zip_rocrate(parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser)):
@@ -41,17 +56,8 @@ async def zip_rocrate(parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_pa
         )
 
 
-def checker(data: dict):
-    try:
-        return ROCrate(source=data)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid ROCrate data. Reason: {e}"
-        )
-
-
 @app.post("/requests/metadata_rocrate/")
-async def metadata_rocrate(data: ROCrate = Depends(checker)):
+async def metadata_rocrate(data: ROCrate = Depends(parse_rocrate)):
     try:
         request_id = str(uuid.uuid4())
         vre_handler = vre_factory(crate=data)
