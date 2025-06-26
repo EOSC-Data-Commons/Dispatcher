@@ -56,7 +56,6 @@ class VREGalaxy(VRE):
 
         response = None
         async with aiohttp.ClientSession() as session:
-            pokemon_url = "https://pokeapi.co/api/v2/pokemon/151"
             async with session.post(
                 url + "/api/workflow_landings", headers=headers, json=data
             ) as resp:
