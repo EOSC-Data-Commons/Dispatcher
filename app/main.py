@@ -34,7 +34,7 @@ async def zip_rocrate(parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_pa
     try:
         vre_handler = vre_factory(*parsed_zipfile)
         # XXX: tentative, should queue the request somehow and track its progress
-        return {"url": vre_handler.post()}
+        return {"url": await vre_handler.post()}
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Handling request {request_id} failed:\n{e}"
