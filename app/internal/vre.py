@@ -44,15 +44,18 @@ class VREFactory:
     def __call__(self, crate, metadata=None, **kwargs):
         try:
             # crate = ROCrate(source=json.loads(metadata))
-
+            print(f"crate {crate}")
             emap = {e.id: e for e in crate.get_entities()}
 
             ewf = emap["./"]["mainEntity"]
             elang = ewf["programmingLanguage"]["identifier"]
-
+            print(f"ewf {ewf}")
+            print(f"elang {elang}")
+            print(self.table[elang])
             return self.table[elang](crate=crate, metadata=metadata, **kwargs)
 
         except Exception as e:
+            print(f"exception {e}")
             raise ValueError(f"VREFactory: parse ROCrate ({metadata})") from e
 
 
