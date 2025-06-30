@@ -5,7 +5,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-default_service = "https://test.galaxyproject.org/"
+default_service = "https://usegalaxy.eu/"
 
 
 class VREGalaxy(VRE):
