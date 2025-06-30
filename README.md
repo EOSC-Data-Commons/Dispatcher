@@ -11,7 +11,7 @@ A **WORK-IN-PROGRESS** prototype of EDC Dispatcher, see also [Dispatcher page](h
 Dispatcher is a component which consumes a ROCrate object (either ZIP file or just its `ro-crate-metadata.json`) containing references to workflow and its input files, 
 and instantiates an environment for the user, where the data are available and the workflow can be started.
 
-The ROCrate profile Dispatcher recognizes is not fully defined yet, follow examples in [test/].
+The ROCrate profile Dispatcher recognizes is not fully defined yet, follow examples in [test/](test/).
 
 The endpoint accepts requests at the paths:
 - `/requests/zip_rocrate`: POST, ROCrate as a zip file in the body
@@ -36,7 +36,7 @@ To run Dispatcher, follow these steps:
 
 This will start the API server on `localhost:8000`.
 
-Alternatively, a Python virtual environment can be created, dependencies installed from [requirements.txt], and the server started with:
+Alternatively, a Python virtual environment can be created, dependencies installed from [requirements.txt](requirements.txt), and the server started with:
 ```
 uvicorn app.main:app --port 8000
 ```
@@ -45,7 +45,7 @@ uvicorn app.main:app --port 8000
 **Example API Call**
 --------------------
 
-Currently the only working example is [test/galaxy.json]. 
+Currently the only working example is [test/galaxy.json](test/galaxy.json). 
 It creates a landing page with simple workflow, that accepts a `txt` file and creates its reversed copy
 
 Just post it to the endpoint:
