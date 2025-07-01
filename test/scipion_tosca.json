@@ -1,0 +1,80 @@
+{
+    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "datePublished": "2025-05-06T14:35:47+00:00",
+            "mainEntity" : { "@id": "#workflow" },
+            "runsOn" : { "@id": "#destination" },
+            "hasPart": [
+                { "@id": "#workflow" },
+                { "@id": "#inputfile" },
+                { "@id": "#destination" }
+            ]
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {
+                "@id": "./"
+            },
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            }
+        },
+        {
+            "@id": "#workflow",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "ComputationalWorkflow"
+            ],
+            "name": "Example scipion workflow",
+            "programmingLanguage": {
+                "@id": "#scipion"
+            },
+            "url": "https://workflowhub.eu/workflows/69/git/1/raw/Relion_3_tutorial-betagal.json"
+        },
+        {
+            "@id": "#scipion",
+            "@type": "ComputerLanguage",
+            "name": "Scipion",
+            "url": {
+                "@id": "http://scipion.i2pc.es/"
+            }
+        },
+        {
+            "@id": "#textfile",
+            "@type": "File",
+            "name": "simpletext_input",
+            "url": "https://example-files.online-convert.com/document/txt/example.txt",
+            "encodingFormat": "text/txt"
+        },
+        {
+            "@id": "#destination",
+            "@type": [
+                "SoftwareApplication",
+                "SoftwareSourceCode"
+            ],
+            "name": "Scipion",
+            "description": "Cryo em image processing framework. Integration, traceability and analysis.",
+            "memoryRequirements": "4 GiB",
+            "processorRequirements": [
+                "2 vCPU",
+                "1 GPU"
+            ],
+            "storageRequirements": "200 GiB",
+            "hasPart": [
+                { "@id": "#scipion.yaml" }
+            ]
+        },
+        {
+            "@id": "#scipion.yaml",
+            "@type": "File",
+            "name": "Scipion TOSCA template file",
+            "encodingFormat": "text/yaml",
+            "url": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_beyond/templates/scipion.yaml"
+        }
+    ]
+}
