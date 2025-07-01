@@ -50,5 +50,5 @@ It creates a landing page with simple workflow, that accepts a `txt` file and cr
 
 Just post it to the endpoint:
 ```
-curl localhost:8000/requests/metadata_rocrate -X POST -H "Content-Type: application/json" --data @test/galaxy.json
+curl localhost:8000/requests/metadata_rocrate/ -X POST -H "Content-Type: application/json" --data @test/galaxy.json
 ```
