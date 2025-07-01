@@ -19,8 +19,8 @@ http {
         listen {{ nginx.master }};
         server_name localhost;
 
-        location /requests/ {
-            proxy_pass http://localhost:{{ nginx.api }}/requests/;
+        location / {
+            proxy_pass http://localhost:{{ api.port }}/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

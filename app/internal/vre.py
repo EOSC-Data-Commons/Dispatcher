@@ -5,6 +5,8 @@ import zipfile
 
 from abc import ABC, abstractmethod
 
+import logging
+logger = logging.getLogger("uvicorn.error")
 
 class VRE(ABC):
     def __init__(self, crate=None, metadata=None, zip_file=None):
@@ -44,19 +46,21 @@ class VREFactory:
     def __call__(self, crate, metadata=None, **kwargs):
         try:
             # crate = ROCrate(source=json.loads(metadata))
-            print(f"crate {crate}")
+            logger.debug(f"crate {crate}")
             emap = {e.id: e for e in crate.get_entities()}
 
             ewf = emap["./"]["mainEntity"]
             elang = ewf["programmingLanguage"]["identifier"]
-            print(f"ewf {ewf}")
-            print(f"elang {elang}")
-            print(self.table[elang])
+            logger.debug(f"ewf {ewf}")
+            logger.debug(f"elang {elang}")
+            logger.debug(self.table[elang])
             return self.table[elang](crate=crate, metadata=metadata, **kwargs)
+        except KeyError as k:
+            raise k
 
         except Exception as e:
             print(f"exception {e}")
-            raise ValueError(f"VREFactory: parse ROCrate ({metadata})") from e
+            raise ValueError(f"VREFactory: parse ROCrate") from e
 
 
 vre_factory = VREFactory()
