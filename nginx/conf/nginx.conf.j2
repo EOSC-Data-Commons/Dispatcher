@@ -16,7 +16,7 @@ http {
     keepalive_timeout  65;
 
     server {
-        listen {{ nginx.master }};
+        listen {{ nginx.port }};
         server_name localhost;
 
         location / {

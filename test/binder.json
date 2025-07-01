@@ -45,7 +45,7 @@
         {
             "@id": "#destination",
             "@type" : "Service",
-            "url": "https://mybinder.org/"
+            "url": "https://binderhub.cloud.e-infra.cz/v2" 
         }
     ]
 }

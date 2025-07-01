@@ -7,11 +7,16 @@ import sys
 
 zip_buffer = io.BytesIO()
 
-with open("test/galaxy.json") as pl:
+with open(sys.argv[2]) as pl:
     payload = pl.read()
 
 with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zfile:
     zfile.writestr("ro-crate-metadata.json", payload)
+    for fn in sys.argv[3:]:
+        with open(fn) as f:
+            data = f.read()
+            zfile.writestr(fn,data)
+
 
 zip_buffer.seek(0)
 
