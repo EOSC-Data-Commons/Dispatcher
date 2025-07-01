@@ -1,10 +1,6 @@
 FROM python:3.13  
  
-# Create the app directory
-RUN mkdir /app
- 
-# Set the working directory inside the container
-WORKDIR /app
+WORKDIR /usr/src
  
 # Set environment variables 
 # Prevents Python from writing pyc files to disk
@@ -17,14 +13,14 @@ RUN pip install --upgrade pip
  
 # Copy the Django project  and install dependencies
 COPY requirements.txt  /app/
- 
+COPY . /usr/src
+
 # run this command to install all dependencies 
 RUN pip install --no-cache-dir -r requirements.txt
  
 # Copy the Django project to the container
-COPY . /app/
  
-# Expose the Django port
-EXPOSE 8000
-#CMD ["ls", "app"]
-CMD ["fastapi", "run", "app/main.py", "--port", "8000"]
+# # Expose the Django port
+# EXPOSE 8000
+# #CMD ["ls", "app"]
+# CMD ["fastapi", "run", "app/main.py", "--port", "8000"]

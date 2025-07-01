@@ -14,17 +14,12 @@ router = APIRouter(
 )
 
 
+
+
 @router.post("/zip_rocrate/")
-async def zip_rocrate(parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser)):
-    try:
-        request_id = str(uuid.uuid4())
-        vre_handler = vre_factory(*parsed_zipfile)
-        # XXX: tentative, should queue the request somehow and track its progress
-        return {"url": await vre_handler.post()}
-    except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Handling request {request_id} failed:\n{e}"
-        )
+def zip_rocrate(parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser)):
+    task = galaxy_from_zipfile.delay(parsed_zipfile)
+    return JSONResponse({"task_id": task.id})
 
 
 @router.post("/metadata_rocrate/")
@@ -35,5 +30,5 @@ async def metadata_rocrate(data: ROCrate = Depends(parse_rocrate)):
         return {"url": await vre_handler.post()}
     except Exception as e:
         raise HTTPException(
-            status_code=400, detail=f"Handling request {request_id} failed:\n{e}"
+            status_code=400, detail=f"Handling request failed:\n{e}"
         )
