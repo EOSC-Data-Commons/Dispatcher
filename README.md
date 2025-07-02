@@ -42,13 +42,36 @@ uvicorn app.main:app --port 8000
 ```
 
 
-**Example API Call**
+**Example API Calls**
 --------------------
 
-Currently the only working example is [test/galaxy.json](test/galaxy.json). 
-It creates a landing page with simple workflow, that accepts a `txt` file and creates its reversed copy
+### Galaxy
 
-Just post it to the endpoint:
+Going to https://test.galaxyproject.org/,
+Dispatcher creates a landing page with simple workflow, that accepts a `txt` file and creates its reversed copy.
+
+Just post the metadata file to the endpoint:
 ```
-curl localhost:8000/requests/metadata_rocrate -X POST -H "Content-Type: application/json" --data @test/galaxy.json
+curl http://localhost:8000/requests/metadata_rocrate/ -X POST -H "Content-Type: application/json" --data @test/galaxy/ro-crate-metadata.json
+```
+
+### Simple Binder
+
+Trivial Jupyter notebook (print the Pi value). 
+The test talks to our Binder service; it would be better to use https://mybinder.org/ but it blocks communication to non-standard ports,
+which we use for testing typically.
+Change `#destination` in `ro-crate-metadata.json` eventually.
+
+```
+cd test/simple-binder
+../post_zip.py http://localhost:8000/requests/zip_rocrate/ notebook.ipynb
+```
+
+### More realistict Binder
+
+Testing notebook stolen from our other project, which takls to our service to find similar AlphaFold protein structures and displays their alignment.
+
+```
+cd test/alphafind-notebook
+../post_zip.py http://localhost:8000/requests/zip_rocrate/ multi-domain-search.ipynb requirements.txt
 ```
