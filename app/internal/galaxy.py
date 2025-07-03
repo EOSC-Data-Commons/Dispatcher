@@ -54,9 +54,9 @@ class VREGalaxy(VRE):
         logging.info(f"{self.__class__.__name__}: calling {url} with {data}")
 
         response = None
-        response = requests.post(f"{url}/api/workflow_landings", 
-        headers=headers, 
-        json=data).json()
+        response = requests.post(
+            f"{url}/api/workflow_landings", headers=headers, json=data
+        ).json()
         logging.info(f"{self.__class__.__name__}: returned {response}")
         landing_id = response["uuid"]
         url = f"{url}/workflow_landings/{landing_id}?public={public}"
