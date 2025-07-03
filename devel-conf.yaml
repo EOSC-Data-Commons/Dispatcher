@@ -8,9 +8,12 @@ git:
 nginx:
   prefix: nginx/
   etc: /opt/homebrew/etc
-  master: 8000
-  api: 8001
+  port: 8000
   logs: logs/
   pid: temp/nginx.pid
   fcgi: /tmp/fcgiwrap.socket
 
+api:
+  port: 8001
+
+hostname: balkis.ics.muni.cz

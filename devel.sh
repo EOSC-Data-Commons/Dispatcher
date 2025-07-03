@@ -18,4 +18,4 @@ rm $socket nginx/temp/fcgi.pid
 fcgiwrap -s unix:$socket &
 echo $! >nginx/temp/fcgi.pid
 
-uvicorn app.main:app --port $(yq .nginx.api $conf) --reload
+./driver.py --config $(dirname $0)/devel-conf.yaml --debug

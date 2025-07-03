@@ -1,0 +1,58 @@
+{
+    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "datePublished": "2025-05-06T14:35:47+00:00",
+            "mainEntity" : { "@id": "multi-domain-search.ipynb" },
+            "runsOn" : { "@id": "#destination" },
+            "hasPart": [
+                { "@id": "multi-domain-search.ipynb" },
+                { "@id": "requirements.txt" },
+                { "@id": "#destination" }
+            ]
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {
+                "@id": "./"
+            },
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            }
+        },
+        {
+            "@id": "multi-domain-search.ipynb",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "ComputationalWorkflow"
+            ],
+            "name": "Example jupyter notebook",
+            "programmingLanguage": {
+                "@id": "#jupyter"
+            }
+        },
+        {
+            "@id": "requirements.txt",
+            "@type": [
+                "File"
+            ]
+        },
+        {
+            "@id": "#jupyter",
+            "@type": "ComputerLanguage",
+            "identifier": {
+                "@id": "https://jupyter.org/binder/"
+            },
+            "name": "Jupyter Notebook"
+        },
+        {
+            "@id": "#destination",
+            "@type" : "Service",
+            "url": "https://binderhub.cloud.e-infra.cz/v2" 
+        }
+    ]
+}
