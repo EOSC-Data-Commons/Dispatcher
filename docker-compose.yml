@@ -19,7 +19,7 @@ services:
     build: .
     command: celery -A app.worker.celery worker --loglevel=info --logfile=app/logs/celery.log
     volumes:
-      - ./app:/usr/src/app
+      - .:/usr/src
     user: "celery"
     environment:
       # - C_FORCE_ROOT=true
