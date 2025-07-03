@@ -1,11 +1,13 @@
 from fastapi import APIRouter
 from app.internal.vre import vre_factory
-
+from fastapi.responses import JSONResponse
 from fastapi import UploadFile, Depends
 from rocrate.rocrate import ROCrate
 from fastapi.exceptions import HTTPException
 from app.dependencies import zipfile_parser, parse_rocrate
 import uuid
+from celery.result import AsyncResult
+from app.worker import galaxy_from_zipfile
 
 router = APIRouter(
     prefix="/requests",
@@ -14,11 +16,14 @@ router = APIRouter(
 )
 
 
+@router.get("/status")
+def status(id: str):
+    return AsyncResult(id).result
 
 
 @router.post("/zip_rocrate/")
 def zip_rocrate(parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser)):
-    task = galaxy_from_zipfile.delay(parsed_zipfile)
+    task = galaxy_from_zipfile.apply_async(args=[parsed_zipfile], serializer='pickle')
     return JSONResponse({"task_id": task.id})
 
 

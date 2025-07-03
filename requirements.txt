@@ -2,7 +2,7 @@ asgiref==3.8.1
 rocrate==0.13.0
 aiohttp
 aiofiles==23.1.0
-celery==5.2.7
+celery==5.4.0
 Jinja2==3.1.2
 pytest==7.2.2
 redis==4.5.4

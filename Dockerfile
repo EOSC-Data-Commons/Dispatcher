@@ -12,13 +12,14 @@ ENV PYTHONUNBUFFERED=1
 RUN pip install --upgrade pip 
  
 # Copy the Django project  and install dependencies
-COPY requirements.txt  /app/
-COPY . /usr/src
+COPY requirements.txt /usr/src
 
 # run this command to install all dependencies 
 RUN pip install --no-cache-dir -r requirements.txt
  
+
 # Copy the Django project to the container
+COPY . /usr/src
  
 # # Expose the Django port
 # EXPOSE 8000

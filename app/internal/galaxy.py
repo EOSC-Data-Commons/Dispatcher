@@ -9,7 +9,7 @@ default_service = "https://usegalaxy.eu/"
 
 
 class VREGalaxy(VRE):
-    async def post(self):
+    def post(self):
         public = False
 
         def modify_for_api_data_input(files):
@@ -43,7 +43,6 @@ class VREGalaxy(VRE):
             "workflow_id": workflow_url,
             "workflow_target_type": "trs_url",
         }
-
         svc = self.root.get("runsOn")
         if svc is None:
             url = default_service
@@ -55,13 +54,9 @@ class VREGalaxy(VRE):
         logging.info(f"{self.__class__.__name__}: calling {url} with {data}")
 
         response = None
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url + "/api/workflow_landings", headers=headers, json=data
-            ) as resp:
-                response = await resp.json()
-                print(response)
-
+        response = requests.post(f"{url}/api/workflow_landings", 
+        headers=headers, 
+        json=data).json()
         logging.info(f"{self.__class__.__name__}: returned {response}")
         landing_id = response["uuid"]
         url = f"{url}/workflow_landings/{landing_id}?public={public}"
