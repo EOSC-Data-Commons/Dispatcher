@@ -1,5 +1,6 @@
 FROM python:3.13  
- 
+
+RUN groupadd -r celery && useradd -r -g celery celery
 WORKDIR /usr/src
  
 # Set environment variables 

@@ -7,7 +7,7 @@ from fastapi.exceptions import HTTPException
 from app.dependencies import zipfile_parser, parse_rocrate
 import uuid
 from celery.result import AsyncResult
-from app.worker import galaxy_from_zipfile
+from app.tasks import galaxy_from_zipfile
 
 router = APIRouter(
     prefix="/requests",

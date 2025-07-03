@@ -20,11 +20,11 @@ services:
     command: celery -A app.worker.celery worker --loglevel=info --logfile=app/logs/celery.log
     volumes:
       - ./app:/usr/src/app
+    user: "celery"
     environment:
-      - C_FORCE_ROOT=true
+      # - C_FORCE_ROOT=true
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - CELERY_IMPORTS=("app.tasks")
     depends_on:
       - web
       - redis
