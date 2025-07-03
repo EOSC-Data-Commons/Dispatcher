@@ -2,6 +2,8 @@ from rocrate.rocrate import ROCrate
 import sys
 import json
 import zipfile
+from .im import IM
+from fastapi import HTTPException
 
 from abc import ABC, abstractmethod
 
@@ -20,6 +22,23 @@ class VRE(ABC):
         self.workflow = self.root["mainEntity"]
 
         # TODO: sanity check, type contains File,SoftwareSourceCode,ComputationalWorkflow
+
+    def get_service(self, svc: dict) -> dict:
+        if svc.get("type") == "Service":
+            return svc
+        elif svc.get("type") == "SoftwareApplication":
+            # Send this destination to the IM to deploy the service
+            # and get the URL of the deployed service
+            im = IM(self.access_token)
+            outputs = im.run_service(svc)
+            if outputs is None:
+                raise HTTPException(
+                    status_code=400, detail="Failed to deploy service"
+                )
+        else:
+            raise HTTPException(
+                status_code=400, detail="Invalid service type in runsOn"
+            )
 
     @abstractmethod
     def post():

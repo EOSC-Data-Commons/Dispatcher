@@ -1,5 +1,4 @@
 from .vre import VRE, vre_factory
-from .im import IM
 import aiohttp
 import logging
 from fastapi import HTTPException
@@ -49,21 +48,7 @@ class VREGalaxy(VRE):
         if svc is None:
             url = default_service
         else:
-            if svc.get("type") == "Service":
-                url = svc["url"]
-            elif svc.get("type") == "SoftwareApplication":
-                # Send this destination to the IM to deploy the service
-                # and get the URL of the deployed service
-                im = IM(self.access_token)
-                url = im.run_service(svc)
-                if url is None:
-                    raise HTTPException(
-                        status_code=400, detail="Failed to deploy service"
-                    )
-            else:
-                raise HTTPException(
-                    status_code=400, detail="Invalid service type in runsOn"
-                )
+            url = self.get_service(svc).get(["url"])
 
         url = url.rstrip("/")
 

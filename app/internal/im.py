@@ -130,14 +130,14 @@ class IM():
         else:
             raise Exception(f"Service did not reach 'configured' state. Current state: {state}")
 
-    def get_service_url(self) -> str:
+    def get_service_outputs(self) -> str:
         if self.inf_id is None:
             raise Exception("No service deployed yet.")
         success, res = self.client.get_infra_property(self.inf_id, "outputs")
         if not success:
-            raise Exception("Failed to get service URL.")
+            raise Exception("Failed to get service outputs.")
         # Assuming the service URL is the only output
-        return res[list(res.keys())[0]]
+        return res
 
     def destroy_service(self) -> None:
         if self.inf_id is None:
@@ -152,10 +152,12 @@ class IM():
         try:
             self.deploy_service(service)
             self.wait_for_service()
-            return self.get_service_url()
+            return self.get_service_outputs()
         except Exception as e:
             try:
                 logging.error(f"Error during service deployment: {e}")
+                inflog = self.client.get_infra_property(self.inf_id, "contmsg")
+                logging.debug(f"Deployment log: {inflog}")
                 self.destroy_service()
             except Exception as dex:
                 logging.error(f"Failed to destroy service after error: {dex}")
