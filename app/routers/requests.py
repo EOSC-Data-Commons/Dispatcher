@@ -10,6 +10,7 @@ from celery.result import AsyncResult
 from app.tasks import galaxy_from_zipfile, galaxy_from_rocrate
 
 import logging
+
 logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(
@@ -18,14 +19,17 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
 @router.get("/status")
 def status(id: str):
     return AsyncResult(id).result
+
 
 @router.post("/zip_rocrate/")
 def zip_rocrate(parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser)):
     task = galaxy_from_zipfile.apply_async(args=[parsed_zipfile], serializer="pickle")
     return JSONResponse({"task_id": task.id})
+
 
 @router.post("/metadata_rocrate/")
 def metadata_rocrate(data: ROCrate = Depends(parse_rocrate)):

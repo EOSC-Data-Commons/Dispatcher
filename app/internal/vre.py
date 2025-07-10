@@ -6,7 +6,9 @@ import zipfile
 from abc import ABC, abstractmethod
 
 import logging
+
 logger = logging.getLogger("uvicorn.error")
+
 
 class VRE(ABC):
     def __init__(self, crate=None, body=None):
