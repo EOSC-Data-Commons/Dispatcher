@@ -27,8 +27,12 @@
 
     - name: Checkout this repo
       ansible.builtin.git:
-        repo: 'https://github.com/EOSC-Data-Commons/Dispatcher.git'
-        dest: /opt/edc/dispatcher
+        repo: "{{ dispatcher.repo }}"
+        dest: "{{ dispatcher.dir }}"
         version: "{{ dispatcher.branch }}"
         update: yes
 
+    - name: Ensure docker-compose app is running
+      community.docker.docker_compose_v2:
+        project_src: "{{ dispatcher.dir }}"
+        state: present 
