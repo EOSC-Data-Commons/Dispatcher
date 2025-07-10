@@ -1,0 +1,34 @@
+---
+- hosts: dispatchers
+  become: true
+  become_user: root
+  tasks:
+    - name: Ensure docker and git are present
+      apt:
+        name:
+          - docker-ce
+          - git
+        state: present
+        update_cache: yes
+
+    - name: Create/update docker daemon.json
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "mtu": 1450
+          }
+        mode: '0644'
+
+    - name: Restart Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+
+    - name: Checkout this repo
+      ansible.builtin.git:
+        repo: 'https://github.com/EOSC-Data-Commons/Dispatcher.git'
+        dest: /opt/edc/dispatcher
+        version: "{{ dispatcher.branch }}"
+        update: yes
+
