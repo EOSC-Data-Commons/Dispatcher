@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+# FIXME: better usage
+
+# so far: 
+# ./post_zip <dispatcher_zip_rocrate_endpoint> <payload_file_1> ...
+
+# ro-crate-metadata.json is assumed to exist in cu
+
 import io
 import zipfile
 import requests
@@ -7,11 +14,16 @@ import sys
 
 zip_buffer = io.BytesIO()
 
-with open("test/galaxy.json") as pl:
+with open('ro-crate-metadata.json') as pl:
     payload = pl.read()
 
 with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zfile:
     zfile.writestr("ro-crate-metadata.json", payload)
+    for fn in sys.argv[2:]:
+        with open(fn) as f:
+            data = f.read()
+            zfile.writestr(fn,data)
+
 
 zip_buffer.seek(0)
 

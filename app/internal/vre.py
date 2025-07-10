@@ -5,16 +5,13 @@ import zipfile
 
 from abc import ABC, abstractmethod
 
+import logging
+logger = logging.getLogger("uvicorn.error")
 
 class VRE(ABC):
-    def __init__(self, crate=None, metadata=None, zip_file=None):
-        if crate is None:
-            self.crate = ROCrate(source=json.loads(metadata))
-        else:
-            self.crate = crate
-
-        self.metadata = metadata
-        self.zip_file = zip_file
+    def __init__(self, crate=None, body=None):
+        self.crate = crate
+        self.body = body
         self.entities = {e.id: e for e in crate.get_entities()}
         self.root = self.entities["./"]
         self.workflow = self.root["mainEntity"]
@@ -41,18 +38,21 @@ class VREFactory:
 
         self.table[vre_type] = cls
 
-    def __call__(self, crate, metadata=None, **kwargs):
+    def __call__(self, crate, body=None, **kwargs):
         try:
-            # crate = ROCrate(source=json.loads(metadata))
+            logger.debug(f"crate {crate}")
             emap = {e.id: e for e in crate.get_entities()}
 
             ewf = emap["./"]["mainEntity"]
             elang = ewf["programmingLanguage"]["identifier"]
+            logger.debug(f"ewf {ewf}")
+            logger.debug(f"elang {elang}")
+            logger.debug(self.table[elang])
             return self.table[elang](crate=crate, metadata=metadata, **kwargs)
 
         except Exception as e:
             print(f"exception {e}")
-            raise ValueError(f"VREFactory: parse ROCrate ({metadata})") from e
+            raise ValueError(f"VREFactory: parse ROCrate") from e
 
 
 vre_factory = VREFactory()
