@@ -1,2 +1,4 @@
 dispatcher:
-  branch: master
+  repo: https://github.com/EOSC-Data-Commons/Dispatcher.git
+  branch: ansible
+  dir: /opt/edc/dispatcher
