@@ -48,7 +48,7 @@ class VREFactory:
             logger.debug(f"ewf {ewf}")
             logger.debug(f"elang {elang}")
             logger.debug(self.table[elang])
-            return self.table[elang](crate=crate, metadata=metadata, **kwargs)
+            return self.table[elang](crate=crate, body=body, **kwargs)
 
         except Exception as e:
             print(f"exception {e}")

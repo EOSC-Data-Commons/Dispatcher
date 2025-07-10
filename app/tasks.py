@@ -4,7 +4,7 @@ from rocrate.rocrate import ROCrate
 from fastapi import UploadFile, Depends
 from app.internal.galaxy import VREGalaxy
 from app.internal.binder import VREBinder
-
+from fastapi.exceptions import HTTPException
 
 @celery.task(name="galaxy_from_zipfile")
 def galaxy_from_zipfile(parsed_zipfile: (ROCrate, UploadFile)):

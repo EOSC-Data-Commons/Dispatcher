@@ -38,4 +38,4 @@ def zipfile_parser(zipfile: UploadFile):
             status_code=400, detail="ro-crate-metadata.json not found in zip"
         )
     rocrate_json = parse_json_metadata(metadata)
-    return (parse_rocrate(rocrate_json), response)
+    return (parse_rocrate(rocrate_json), metadata)
