@@ -17,12 +17,5 @@ COPY requirements.txt /usr/src
 
 # run this command to install all dependencies 
 RUN pip install --no-cache-dir -r requirements.txt
- 
 
-# Copy the Django project to the container
 COPY . /usr/src
- 
-# # Expose the Django port
-# EXPOSE 8000
-# #CMD ["ls", "app"]
-# CMD ["fastapi", "run", "app/main.py", "--port", "8000"]

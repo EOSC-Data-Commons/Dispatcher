@@ -17,17 +17,15 @@ services:
 
   worker:
     build: .
-    command: celery -A app.worker.celery worker --loglevel=info --logfile=app/logs/celery.log
+    command: celery -A app.worker.celery worker --loglevel=info
     volumes:
       - .:/usr/src
-    user: "celery"
+    user: "celery" 
     environment:
-      # - C_FORCE_ROOT=true
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - web
       - redis
-
   redis:
     image: redis:7
