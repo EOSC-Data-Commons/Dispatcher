@@ -1,6 +1,13 @@
 asgiref==3.8.1
-requests==2.32.3
 rocrate==0.13.0
+aiohttp
+aiofiles==23.1.0
+celery==5.4.0
+Jinja2==3.1.2
+pytest==7.2.2
+redis==4.5.4
+requests==2.28.2
+uvicorn==0.21.1
+httpx==0.23.3
 fastapi[standard]>=0.113.0,<0.114.0
 pydantic>=2.7.0,<3.0.0
-aiohttp

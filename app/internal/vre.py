@@ -6,7 +6,9 @@ import zipfile
 from abc import ABC, abstractmethod
 
 import logging
+
 logger = logging.getLogger("uvicorn.error")
+
 
 class VRE(ABC):
     def __init__(self, crate=None, body=None):
@@ -49,8 +51,6 @@ class VREFactory:
             logger.debug(f"elang {elang}")
             logger.debug(self.table[elang])
             return self.table[elang](crate=crate, body=body, **kwargs)
-        except KeyError as k:
-            raise k
 
         except Exception as e:
             print(f"exception {e}")

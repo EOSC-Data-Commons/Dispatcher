@@ -1,13 +1,16 @@
 from fastapi import APIRouter
 from app.internal.vre import vre_factory
-
+from fastapi.responses import JSONResponse
 from fastapi import UploadFile, Depends
 from rocrate.rocrate import ROCrate
 from fastapi.exceptions import HTTPException
 from app.dependencies import zipfile_parser, parse_rocrate
 import uuid
+from celery.result import AsyncResult
+from app.tasks import galaxy_from_zipfile, galaxy_from_rocrate
 
 import logging
+
 logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(
@@ -17,33 +20,18 @@ router = APIRouter(
 )
 
 
+@router.get("/status")
+def status(id: str):
+    return AsyncResult(id).result
+
+
 @router.post("/zip_rocrate/")
-async def zip_rocrate(parsed_zipfile: (ROCrate, bytes) = Depends(zipfile_parser)):
-    try:
-        request_id = str(uuid.uuid4())
-        vre_handler = vre_factory(*parsed_zipfile)
-        # XXX: tentative, should queue the request somehow and track its progress
-        return {"url": await vre_handler.post(request_id)}
-    except Exception as e:
-        logger.exception(request_id)
-        raise HTTPException(
-            status_code=400, detail={ 'id': request_id, 'message' : 'Internal error, see uvicorn log' }
-        )
+def zip_rocrate(parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser)):
+    task = galaxy_from_zipfile.apply_async(args=[parsed_zipfile], serializer="pickle")
+    return JSONResponse({"task_id": task.id})
 
 
 @router.post("/metadata_rocrate/")
-async def metadata_rocrate(data: ROCrate = Depends(parse_rocrate)):
-    try:
-        request_id = str(uuid.uuid4())
-        vre_handler = vre_factory(crate=data)
-        return {"url": await vre_handler.post(request_id)}
-    except Exception as e:
-        logger.exception(request_id)
-        raise HTTPException(
-            status_code=400, detail={ 'id': request_id, 'message' : 'Internal error, see uvicorn log' }
-        )
-
-@router.post("/test")
-async def test():
-    logging.info("this is test")
-    return {"test": "ok"}
+def metadata_rocrate(data: ROCrate = Depends(parse_rocrate)):
+    task = galaxy_from_rocrate.apply_async(args=[data], serializer="pickle")
+    return JSONResponse({"task_id": task.id})
