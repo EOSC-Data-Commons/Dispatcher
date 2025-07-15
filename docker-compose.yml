@@ -32,3 +32,27 @@ services:
       - redis
   redis:
     image: redis:7
+
+  nginx:
+    image: nginxinc/nginx-unprivileged:latest
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx/conf/nginx.conf.j2:/etc/nginx/nginx.conf:ro
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    depends_on:
+      - web
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    entrypoint: ""
+    command: >
+      sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot \
+      --email vondrak.thomas@gmail.com --agree-tos --no-eff-email \
+      -d dispatcher.edc.cloud.e-infra.cz && \
+      cp /etc/letsencrypt/live/dispatcher.edc.cloud.e-infra.cz/fullchain.pem /etc/letsencrypt/fullchain.pem && \
+      cp /etc/letsencrypt/live/dispatcher.edc.cloud.e-infra.cz/privkey.pem /etc/letsencrypt/privkey.pem'
