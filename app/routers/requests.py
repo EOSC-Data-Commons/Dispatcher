@@ -22,8 +22,8 @@ router = APIRouter(
 )
 
 
-@router.get("/status")
-def status(id: str):
+@router.get("/{task_id}")
+def status(task_id: str = ""):
     return AsyncResult(id).result
 
 
