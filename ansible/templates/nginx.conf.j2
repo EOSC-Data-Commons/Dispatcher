@@ -25,7 +25,7 @@ http {
 
     server {
         listen 443 ssl;
-        server_name {{hostname}};
+        server_name {{inventory_hostname}};
 
         ssl_certificate {{nginx.cert}}/fullchain.pem;
         ssl_certificate_key {{nginx.cert}}/privkey.pem;

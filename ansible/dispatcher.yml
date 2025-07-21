@@ -37,6 +37,11 @@
         src: docker-compose.yml.j2
         dest: "{{ dispatcher.dir }}/docker-compose.yml"
 
+    - name: Install nginx.conf
+      ansible.builtin.template:
+        src: nginx.conf.j2
+        dest: "{{ dispatcher.dir }}/nginx/nginx.conf"
+
     - name: Install environment file
       ansible.builtin.copy:
         dest: "{{ dispatcher.dir }}/.env"

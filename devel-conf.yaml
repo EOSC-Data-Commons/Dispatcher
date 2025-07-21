@@ -1,20 +1,4 @@
-git:
-  # linux 
-  # backend: /usr/lib/git-core/git-http-backend
-  # macos
-  backend: /Library/Developer/CommandLineTools/usr/libexec/git-core/git-http-backend
-  repos: /var/tmp/dispatcher-git
+# moved to ansible/group_vars/dispatchers.yml
 
-nginx:
-  prefix: nginx
-  etc: /etc 
-  logs: /var/log
-  pid: /tmp/nginx.pid
-  fcgi: /tmp/fcgiwrap.socket
-  cert: /etc/letsencrypt 
-
-
-api:
-  port: 8000
-
-hostname: dispatcher.edc.cloud.e-infra.cz
+# XXX
+# hostname: dispatcher.edc.cloud.e-infra.cz
