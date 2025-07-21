@@ -6,14 +6,15 @@ git:
   repos: /var/tmp/dispatcher-git
 
 nginx:
-  prefix: nginx/
-  etc: /opt/homebrew/etc
-  port: 8000
-  logs: logs/
-  pid: temp/nginx.pid
+  prefix: nginx
+  etc: /etc 
+  logs: /var/log
+  pid: /tmp/nginx.pid
   fcgi: /tmp/fcgiwrap.socket
+  cert: /etc/letsencrypt 
+
 
 api:
-  port: 8001
+  port: 8000
 
-hostname: balkis.ics.muni.cz
+hostname: dispatcher.edc.cloud.e-infra.cz

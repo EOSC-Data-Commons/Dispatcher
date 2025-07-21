@@ -30,17 +30,36 @@ services:
   redis:
     image: redis:7
 
+  nginx_ephemeral:
+    image: nginxinc/nginx-unprivileged:latest  
+    ports:
+      - "80:80"
+    volumes: 
+      - ./nginx_helper/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/certbot/www:/var/www/certbot
+  modify_cert:
+    image: alpine:latest
+    volumes:
+     - ./nginx/certbot/conf:/etc/certbot
+    command: >
+     sh -c 'cp /etc/certbot/live/dispatcher.edc.cloud.e-infra.cz/fullchain.pem /etc/certbot && \
+            cp /etc/certbot/live/dispatcher.edc.cloud.e-infra.cz/privkey.pem /etc/certbot && \
+            chmod 444 /etc/certbot/*.pem'
+    depends_on: 
+      - certbot 
   nginx:
-    image: nginxinc/nginx-unprivileged:latest
+    build: 
+      dockerfile: ./nginx/Dockerfile
+      context: .
     ports:
       - "443:443"
     volumes:
-      - ./nginx/conf/nginx.conf.j2:/etc/nginx/nginx.conf:ro
+      - ./:/code
       - ./nginx/certbot/conf:/etc/letsencrypt
       - ./nginx/certbot/www:/var/www/certbot
     depends_on:
       - web
-
+      - modify_cert
   certbot:
     image: certbot/certbot
     volumes:
@@ -48,8 +67,9 @@ services:
       - ./nginx/certbot/www:/var/www/certbot
     entrypoint: ""
     command: >
-      sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot \
-      --email vondrak.thomas@gmail.com --agree-tos --no-eff-email \
-      -d dispatcher.edc.cloud.e-infra.cz && \
-      cp /etc/letsencrypt/live/dispatcher.edc.cloud.e-infra.cz/fullchain.pem /etc/letsencrypt/fullchain.pem && \
-      cp /etc/letsencrypt/live/dispatcher.edc.cloud.e-infra.cz/privkey.pem /etc/letsencrypt/privkey.pem'
+      sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d dispatcher.edc.cloud.e-infra.cz' 
+    depends_on: 
+      - nginx_ephemeral
+networks:
+  default:
+
