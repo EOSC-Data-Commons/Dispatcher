@@ -4,12 +4,12 @@ services:
 
   web:
     build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --ssl-keyfile /etc/letsencrypt/privkey.pem --ssl-certfile /etc/letsencrypt/fullchain.pem --reload 
     ports:
-      - 443:443
-    command: uvicorn app.main:app --host 0.0.0.0 --port 443 --ssl-keyfile /usr/src/ssl/key.pem --ssl-certfile /usr/src/ssl/cert.pem  --reload
+      - 8004:8000
     volumes:
       - ./app:/usr/src/app
-      - ./ssl:/usr/src/ssl
+      - ./nginx/certbot/conf:/etc/letsencrypt
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -17,6 +17,7 @@ services:
       - .env
     depends_on:
       - redis
+      - nginx_ephemeral
 
   worker:
     build: .

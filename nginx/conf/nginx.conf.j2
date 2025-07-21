@@ -30,21 +30,21 @@ http {
         ssl_certificate {{nginx.cert}}/fullchain.pem;
         ssl_certificate_key {{nginx.cert}}/privkey.pem;
         location /requests {
-            proxy_pass http://web:{{api.port}}/requests;
+            proxy_pass https://web:{{api.port}}/requests;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 	location /oauth2 {
-            proxy_pass http://web:{{api.port}}/oauth2;
+            proxy_pass https://web:{{api.port}}/oauth2;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
         location /docs {
-            proxy_pass http://web:{{api.port}}/docs;
+            proxy_pass https://web:{{api.port}}/docs;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -52,7 +52,7 @@ http {
             proxy_redirect http://web:8000/ https://dispatcher.edc.cloud.e-infra.cz/;
 	}
 	location /openapi.json {
-    	   proxy_pass http://web:{{api.port}}/openapi.json;
+    	   proxy_pass https://web:{{api.port}}/openapi.json;
     	   proxy_set_header Host $host;
     	   proxy_set_header X-Real-IP $remote_addr;
     	   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
