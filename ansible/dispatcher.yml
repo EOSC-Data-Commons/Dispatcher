@@ -32,6 +32,18 @@
         version: "{{ dispatcher.branch }}"
         update: yes
 
+    - name: Install docker-compose.yml
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{ dispatcher.dir }}/docker-compose.yml"
+
+    - name: Install environment file
+      ansible.builtin.copy:
+        dest: "{{ dispatcher.dir }}/.env"
+        content: |
+          CLIENT_ID="{{ oauth2.client_id }}"
+          CLIENT_SECRET="{{ oauth2.client_secret }}"
+
     - name: Ensure docker-compose app is running
       community.docker.docker_compose_v2:
         project_src: "{{ dispatcher.dir }}"

@@ -1,4 +1,4 @@
 dispatcher:
   repo: https://github.com/EOSC-Data-Commons/Dispatcher.git
-  branch: ansible
+  branch: feature/ssl_oidc_support
   dir: /opt/edc/dispatcher

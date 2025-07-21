@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+
+  web:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --ssl-keyfile /etc/letsencrypt/privkey.pem --ssl-certfile /etc/letsencrypt/fullchain.pem --reload 
+    ports:
+      - 8004:8000
+    volumes:
+      - ./app:/usr/src/app
+      - ./nginx/certbot/conf:/etc/letsencrypt
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - nginx_ephemeral
+
+  worker:
+    build: .
+    command: celery -A app.worker.celery worker --loglevel=info
+    volumes:
+      - .:/usr/src
+    user: "celery" 
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - web
+      - redis
+  redis:
+    image: redis:7
+
+  nginx_ephemeral:
+    image: nginxinc/nginx-unprivileged:latest  
+    ports:
+      - "80:80"
+    volumes: 
+      - ./nginx_helper/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/certbot/www:/var/www/certbot
+  modify_cert:
+    image: alpine:latest
+    volumes:
+     - ./nginx/certbot/conf:/etc/certbot
+    command: >
+     sh -c 'cp /etc/certbot/live/{{ inventory_hostname }}/fullchain.pem /etc/certbot && \
+            cp /etc/certbot/live/{{ inventory_hostname }}/privkey.pem /etc/certbot && \
+            chmod 444 /etc/certbot/*.pem'
+    depends_on: 
+      - certbot 
+  nginx:
+    build: 
+      dockerfile: ./nginx/Dockerfile
+      context: .
+    ports:
+      - "443:443"
+    volumes:
+      - ./:/code
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    depends_on:
+      - web
+      - modify_cert
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    entrypoint: ""
+    command: >
+      sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d {{ inventory_hostname }}' 
+    depends_on: 
+      - nginx_ephemeral
+networks:
+  default:
+
