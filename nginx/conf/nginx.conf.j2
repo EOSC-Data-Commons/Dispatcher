@@ -16,31 +16,37 @@ http {
     keepalive_timeout  65;
 
     server {
-        listen {{ nginx.port }};
-        server_name localhost;
+        listen 443 ssl;
+        server_name dispatcher.edc.cloud.e-infra.cz;
 
-        location / {
-            proxy_pass http://localhost:{{ api.port }}/;
+        ssl_certificate /etc/letsencrypt/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/privkey.pem;
+
+        location /requests/ {
+            proxy_pass http://web:8000/requests/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
-
+        location /docs/ {
+            proxy_pass http://web:8000/docs/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
         location /git/ {
-            alias {{ git.repos }};
-
-            include {{ nginx.etc }}/nginx/fastcgi_params;
-
-            fastcgi_pass  unix:{{ nginx.fcgi }};
-            fastcgi_param SCRIPT_FILENAME  {{ git.backend }};
-            fastcgi_param GIT_PROJECT_ROOT {{ git.repos }};
+            alias /git/repos;
+            include /etc/nginx/fastcgi_params;
+            fastcgi_pass unix:/nginx/temp/fcgi.sock;
+            fastcgi_param SCRIPT_FILENAME /usr/lib/git-core/git-http-backend;
+            fastcgi_param GIT_PROJECT_ROOT /git/repos;
             set $path_info $uri;
             if ($uri ~ ^/git(/.*)) {
                 set $path_info $1;
             }
             fastcgi_param PATH_INFO $path_info;
-
             fastcgi_param REMOTE_USER      $remote_user;
             fastcgi_param HTTP_AUTHORIZATION $http_authorization;
         }
