@@ -1,15 +1,11 @@
 venv
 pyvenv.cfg
-ssl/
-.env
-
 .vscode/tasks.json
-
 __pycache__/
 **/__pycache__/
 *.pyc
 *.pyo
 *.pyd
-
 ssl/
 .env
+.vault-password.txt
