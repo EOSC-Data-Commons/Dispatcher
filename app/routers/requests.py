@@ -24,7 +24,7 @@ router = APIRouter(
 
 @router.get("/{task_id}")
 def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
-    return AsyncResult(id).result
+    return AsyncResult(task_id).result
 
 
 @router.post("/zip_rocrate/")
