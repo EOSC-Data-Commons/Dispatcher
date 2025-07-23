@@ -1,0 +1,30 @@
+services:
+  nginx_helper:
+    image: nginxinc/nginx-unprivileged:latest  
+    ports:
+      - "80:80"
+    volumes: 
+      - ./nginx_helper/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/certbot/www:/var/www/certbot
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+    entrypoint: ""
+    command: >
+      sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d {{ inventory_hostname }}' 
+    depends_on: 
+      - nginx_helper
+
+  modify_cert:
+    image: alpine:latest
+    volumes:
+     - ./nginx/certbot/conf:/etc/certbot
+    command: >
+     sh -c 'cp /etc/certbot/live/{{ inventory_hostname }}/fullchain.pem /etc/certbot && \
+            cp /etc/certbot/live/{{ inventory_hostname }}/privkey.pem /etc/certbot && \
+            chmod 444 /etc/certbot/*.pem'
+    depends_on: 
+      - certbot 
