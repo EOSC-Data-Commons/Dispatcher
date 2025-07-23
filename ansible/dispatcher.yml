@@ -51,8 +51,8 @@
 
     - name: Install api-config file
       ansible.builtin.template:
-        src: api-config.yml.j2
-        dest: "{{ dispatcher.dir }}/app/api-config.yml"
+        src: config.py.j2
+        dest: "{{ dispatcher.dir }}/app/config.py"
 
     - name: Start docker init
       community.docker.docker_compose_v2:

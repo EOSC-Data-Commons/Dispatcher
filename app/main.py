@@ -24,16 +24,14 @@ import ssl
 import os
 from fastapi.responses import RedirectResponse
 import yaml
-
-with open("./app/api-config.yml", "r") as f:
-    config = yaml.safe_load(f)
+from app.config import settings
 
 app = FastAPI()
 app.include_router(oauth2_router)
 app.include_router(requests.router)
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain(config['CERT_CHAIN_FILE'], keyfile=config['PRIVATE_KEY_FILE'])
+ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_key_file)
 
 class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
     CHECKIN_ENV = config['EGI_CHECKIN_ENV']
@@ -41,9 +39,9 @@ class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
 client = OAuth2Client(
     backend=TestEGICheckinOpenIdConnect,
     scope=["openid email"],
-    client_id=config["CLIENT_ID"],
-    client_secret=config["CLIENT_SECRET"],
-    redirect_uri=config["REDIRECT_URI"],
+    client_id=settings.client_id,
+    client_secret=settings.client_secret,
+    redirect_uri=settings.redirect_uri,
     claims=Claims(
         identity=lambda user: f"{user.provider}:{user.id}",
     )
@@ -63,7 +61,6 @@ def read_config():
 async def test(request: Request):
     print(request)
     return RedirectResponse("/oauth2/egi-checkin/authorize")
-
 
 @app.get("/oauth2/token")
 async def get_token(token: Annotated[str, Depends(oauth2_scheme)]):
