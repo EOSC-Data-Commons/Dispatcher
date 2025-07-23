@@ -29,7 +29,7 @@ app.include_router(oauth2_router)
 app.include_router(requests.router)
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain('/usr/src/ssl/cert.pem', keyfile='/usr/src/ssl/key.pem')
+ssl_context.load_cert_chain('/etc/letsencrypt/fullchain.pem', keyfile='/etc/letsencrypt/privkey.pem')
 
 class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
     CHECKIN_ENV = "dev"
@@ -37,8 +37,6 @@ class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
     ACCESS_TOKEN_URL = "https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/token"
 
 
-oicd_discovery_url = "https://aai-dev.egi.eu/auth/realms/egi" 
-authlib_oauth = OAuth()
 client = OAuth2Client(
     backend=TestEGICheckinOpenIdConnect,
     scope=["openid email"],
@@ -50,31 +48,7 @@ client = OAuth2Client(
     )
 )
 
-
-
-
-origins = [
-    "http://dispatcher.edc.cloud.e-infra.cz/*",
-    "https://dispatcher.edc.cloud.e-infra.cz/*",
-    "https://aai-dev.egi.eu/*"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-def on_auth_success(auth, user):
-    print(f"success login of {user.email}")
-    return {"message": user.email}
-
-
-
-app.add_middleware(OAuth2Middleware, callback=on_auth_success, config=OAuth2Config(clients=[client]))
-app.add_middleware(SessionMiddleware, secret_key="secret-string")
+app.add_middleware(OAuth2Middleware, config=OAuth2Config(clients=[client]))
 
 @app.get("/")
 async def root():
@@ -87,11 +61,7 @@ def read_config():
 @app.get("/oauth2/login")
 async def test(request: Request):
     print(request)
-    return RedirectResponse("https://dispatcher.edc.cloud.e-infra.cz/oauth2/egi-checkin/authorize")
-
-#oauth2_scheme = OAuth2AuthorizationCodeBearer(authorizationUrl="https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/auth", tokenUrl="/authenticated")
-#oauth2_scheme = OAuth2AuthorizationCodeBearer(authorizationUrl="/oauth2/login", tokenUrl="/oauth2/egi-checkin/token")
-#oauth2_scheme = OAuth2AuthorizationCodeBearer(authorizationUrl="https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/auth", tokenUrl="https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/token")
+    return RedirectResponse("/oauth2/egi-checkin/authorize")
 
 
 @app.get("/oauth2/token")
