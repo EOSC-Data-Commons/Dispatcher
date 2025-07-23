@@ -43,6 +43,7 @@
         src: docker-compose.yml.j2
         dest: "{{ dispatcher.dir }}/docker-compose.yml"
 
+
     - name: Install nginx.conf
       ansible.builtin.template:
         src: nginx.conf.j2
@@ -72,3 +73,10 @@
       community.docker.docker_compose_v2:
         project_src: "{{ dispatcher.dir }}"
         state: present 
+
+    - name: Ensure certbot renewal job that runs at midnight exists."
+      ansible.builtin.cron:
+        name: "certbot renew"
+        minute: "0"
+        hour: "0"
+        job: "docker compose -f {{ dispatcher.dir }}/docker-compose.yml run --rm certbot && docker compose -f {{ dispatcher.dir }}/docker-compose.yml exec nginx nginx -s reload > /dev/null"
