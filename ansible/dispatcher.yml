@@ -49,12 +49,10 @@
         src: nginx.conf.j2
         dest: "{{ dispatcher.dir }}/nginx/nginx.conf"
 
-    - name: Install environment file
-      ansible.builtin.copy:
-        dest: "{{ dispatcher.dir }}/.env"
-        content: |
-          CLIENT_ID="{{ oauth2.client_id }}"
-          CLIENT_SECRET="{{ oauth2.client_secret }}"
+    - name: Install api-config file
+      ansible.builtin.template:
+        src: api-config.yml.j2
+        dest: "{{ dispatcher.dir }}/app/api-config.yml"
 
     - name: Start docker init
       community.docker.docker_compose_v2:

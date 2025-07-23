@@ -21,3 +21,4 @@ nginx:
 
 api:
   port: 8000
+  environment: dev

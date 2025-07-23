@@ -23,26 +23,27 @@ from app.dependencies import oauth2_scheme
 import ssl
 import os
 from fastapi.responses import RedirectResponse
+import yaml
+
+with open("api-config.yml", "r") as f:
+    config = yaml.safe_load(f)
 
 app = FastAPI()
 app.include_router(oauth2_router)
 app.include_router(requests.router)
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain('/etc/letsencrypt/fullchain.pem', keyfile='/etc/letsencrypt/privkey.pem')
+ssl_context.load_cert_chain(config['CERT_CHAIN_FILE'], keyfile=config['PRIVATE_KEY_FILE'])
 
 class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
-    CHECKIN_ENV = "dev"
-    AUTHORIZATION_URL = "https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/auth"
-    ACCESS_TOKEN_URL = "https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/token"
-
+    CHECKIN_ENV = config['EGI_CHECKIN_ENV']
 
 client = OAuth2Client(
     backend=TestEGICheckinOpenIdConnect,
     scope=["openid email"],
-    client_id=os.environ.get("CLIENT_ID"),
-    client_secret=os.environ.get("CLIENT_SECRET"),
-    redirect_uri="https://dispatcher.edc.cloud.e-infra.cz/docs",
+    client_id=config["CLIENT_ID"],
+    client_secret=config["CLIENT_SECRET"],
+    redirect_uri=config["REDIRECT_URI"],
     claims=Claims(
         identity=lambda user: f"{user.provider}:{user.id}",
     )

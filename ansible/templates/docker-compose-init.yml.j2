@@ -10,7 +10,7 @@ services:
   certbot:
     image: certbot/certbot
     volumes:
-      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/conf:{{nginx.cert}}
       - ./nginx/certbot/www:/var/www/certbot
     entrypoint: ""
     command: >
