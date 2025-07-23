@@ -25,7 +25,7 @@ import os
 from fastapi.responses import RedirectResponse
 import yaml
 
-with open("api-config.yml", "r") as f:
+with open("./app/api-config.yml", "r") as f:
     config = yaml.safe_load(f)
 
 app = FastAPI()
