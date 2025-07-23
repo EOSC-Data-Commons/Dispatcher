@@ -28,7 +28,7 @@ Since we are defining the profile, we can decide on the approach:
     * ✅ The crates are not sensitive and can be published.
     * ❌ We need to maintain an infrastructure of keys between different components and partners.
       Or a system of permissions / access control.
-3. See the [auth out-of-band](#auth-4) proposition. 
+3. See the [auth transmitted separately](#auth-4) proposition. 
 
 ##### Pros and cons
 
@@ -78,7 +78,7 @@ The `contentUrl` could be given as a fallback for clients that do not understand
           prepare a package for a VRE that does not need authentication, such as creating
           a Onedata Remote in Galaxy. This may not be viable for all VREs.
         * ⚠️ On the level of every component/VRE - may be problematic to implement.
-2. See the [auth out-of-band](#auth-4) proposition. 
+2. See the [auth transmitted separately](#auth-4) proposition. 
 
 ##### Pros and cons
 
@@ -145,7 +145,7 @@ as a data access service using the DCAT vocabulary:
 * ❌ The same interoperability and implementation considerations as 2).
 
 
-### 4. URL references & out-of-band Auth
+### 4. URL references & Auth transmitted separately 
 
 Use standard URL references to data in Onedata. Develop a flexible reference system
 on the level of Onedata to move the implementation weight away from clients.
@@ -195,7 +195,7 @@ data references to be placed in the RO-Crate.
 
 ##### Auth (4)
 
-Credentials are transmitted out-of-band:
+Credentials are transmitted separately:
 * ✅ We split the dataset/tool/VRE (analysis) description from the auth, which make sense as 
     they can be perceived orthogonal.
     * ✅ Different people can reuse the same RO-Crate and have different auths for running it.
