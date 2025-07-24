@@ -1,0 +1,57 @@
+services:
+  redis:
+    image: redis:7
+
+  web:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --reload 
+    ports:
+      - 8004:8000
+    volumes:
+      - ./app:/usr/src/app
+      - ./nginx/certbot/conf:{{nginx.cert}}
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - redis
+
+  worker:
+    build: .
+    command: celery -A app.worker.celery worker --loglevel=info
+    volumes:
+      - .:/usr/src
+    user: "celery" 
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - web
+      - redis
+
+  nginx:
+    image: nginxinc/nginx-unprivileged:latest
+    ports:
+      - "443:443"
+    volumes:
+      - ./:/code
+      - ./nginx/certbot/conf:{{nginx.cert}}
+      - ./nginx/certbot/www:/var/www/certbot
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - web
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./nginx/certbot/conf:{{nginx.cert}}
+      - ./nginx/certbot/www:/var/www/certbot
+    entrypoint: ""
+    command: >
+      sh -c 'certbot certonly --reinstall --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d {{ inventory_hostname }}' 
+    depends_on: 
+      - nginx
+networks:
+  default:
+

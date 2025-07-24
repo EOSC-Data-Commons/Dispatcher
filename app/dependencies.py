@@ -4,7 +4,9 @@ import json
 import io
 from fastapi import UploadFile
 from fastapi.exceptions import HTTPException
+from fastapi_oauth2.security import OAuth2AuthorizationCodeBearer
 
+oauth2_scheme = OAuth2AuthorizationCodeBearer(authorizationUrl="/oauth2/login", tokenUrl="/oauth2/egi-checkin/token")
 
 def parse_rocrate(data: dict):
     try:
