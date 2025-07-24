@@ -41,6 +41,18 @@ Alternatively, a Python virtual environment can be created, dependencies install
 uvicorn app.main:app --port 8000
 ```
 
+**Deployment**
+-------------------
+
+To deploy your own Dispatcher instance you need:
+
+1. EGI Checkin client with PKCE option disabled
+2. Client credentials saved in Ansible vault inansible/host_vars/dispatcher.edc.cloud.e-infra.cz/secrets.yml
+3. Ubuntu VM with public ip, domain and ports 80 and 443 open.
+4. SSH access to the VM
+5. `cd /ansible`
+6. `ansible-playbook dispatcher.yml`
+
 
 **Example API Calls**
 --------------------
