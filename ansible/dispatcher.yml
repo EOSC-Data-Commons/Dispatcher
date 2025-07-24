@@ -71,7 +71,14 @@
       community.docker.docker_compose_v2:
         project_src: "{{ dispatcher.dir }}"
         state: present 
-
+        build: "always"
+    
+    - name: Clean dangling images
+      community.docker.docker_prune:
+        images: true
+        images_filters:
+          dangling: true
+    
     - name: Ensure certbot renewal job that runs at midnight exists."
       ansible.builtin.cron:
         name: "certbot renew"
