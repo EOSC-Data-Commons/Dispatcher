@@ -54,7 +54,7 @@ Then it lands back to https://DISPATCHER_HOSTNAME/docs, where API calls are avai
 
 ### Galaxy
 
-Going to https://test.galaxyproject.org/,
+Going to https://usegalaxy.eu/,
 Dispatcher creates a landing page with simple workflow, that accepts a `txt` file and creates its reversed copy.
 
 1. `POST /requests/metadata_rocrate`. Use [test/galaxy/ro-crate-metadata.json](test/galaxy/ro-crate-metadata.json) as payload.
