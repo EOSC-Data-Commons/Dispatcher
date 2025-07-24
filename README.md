@@ -50,8 +50,9 @@ To deploy your own Dispatcher instance you need:
 2. Client credentials saved in Ansible vault inansible/host_vars/dispatcher.edc.cloud.e-infra.cz/secrets.yml
 3. Ubuntu VM with public ip, domain and ports 80 and 443 open.
 4. SSH access to the VM
-5. `cd /ansible`
-6. `ansible-playbook dispatcher.yml`
+5. Your server's domain defined in `/ansible/hosts.yml` 
+6. `cd /ansible`
+7. `ansible-playbook dispatcher.yml`
 
 
 **Example API Calls**
