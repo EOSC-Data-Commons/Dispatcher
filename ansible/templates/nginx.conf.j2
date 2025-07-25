@@ -1,0 +1,76 @@
+worker_processes  1;
+pid {{nginx.pid}};
+error_log {{nginx.logs}}/{{nginx.prefix}}/error.log;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       {{ nginx.etc }}/{{nginx.prefix}}/mime.types;
+    access_log {{nginx.logs}}/{{nginx.prefix}}/access.log;
+
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    server {
+        listen 80;
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+
+    }
+
+    server {
+        listen 443 ssl;
+        server_name {{inventory_hostname}};
+
+        ssl_certificate {{nginx.cert}}/fullchain.pem;
+        ssl_certificate_key {{nginx.cert}}/privkey.pem;
+        location /requests {
+            proxy_pass https://web:{{api.port}}/requests;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+	location /oauth2 {
+            proxy_pass https://web:{{api.port}}/oauth2;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location /docs {
+            proxy_pass https://web:{{api.port}}/docs;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_redirect http://web:8000/ https://{{ inventory_hostname }}/;
+	}
+	location /openapi.json {
+    	   proxy_pass https://web:{{api.port}}/openapi.json;
+    	   proxy_set_header Host $host;
+    	   proxy_set_header X-Real-IP $remote_addr;
+    	   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    	   proxy_set_header X-Forwarded-Proto $scheme;
+	}
+        location /git/ {
+            alias /git/repos;
+            include /etc/nginx/fastcgi_params;
+            fastcgi_pass unix:/nginx/temp/fcgi.sock;
+            fastcgi_param SCRIPT_FILENAME /usr/lib/git-core/git-http-backend;
+            fastcgi_param GIT_PROJECT_ROOT /git/repos;
+            set $path_info $uri;
+            if ($uri ~ ^/git(/.*)) {
+                set $path_info $1;
+            }
+            fastcgi_param PATH_INFO $path_info;
+            fastcgi_param REMOTE_USER      $remote_user;
+            fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        }
+    }
+}

@@ -1,0 +1,24 @@
+dispatcher:
+  repo: https://github.com/EOSC-Data-Commons/Dispatcher.git
+  branch: feature/ssl_oidc_support
+  dir: /opt/edc/dispatcher
+
+git:
+  # macos
+  # backend: /Library/Developer/CommandLineTools/usr/libexec/git-core/git-http-backend
+  # linux 
+  backend: /usr/lib/git-core/git-http-backend
+  repos: /var/tmp/dispatcher-git
+
+nginx:
+  prefix: nginx
+  etc: /etc 
+  logs: /var/log
+  pid: /tmp/nginx.pid
+  fcgi: /tmp/fcgiwrap.socket
+  cert: /etc/letsencrypt 
+
+
+api:
+  port: 8000
+  environment: dev
