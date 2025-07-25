@@ -1,7 +1,7 @@
 from .vre import VRE, vre_factory
-import requests
 import aiohttp
 import logging
+from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,7 +47,7 @@ class VREGalaxy(VRE):
         if svc is None:
             url = default_service
         else:
-            url = svc["url"]
+            url = self.get_service(svc).get(["url"])
 
         url = url.rstrip("/")
 
