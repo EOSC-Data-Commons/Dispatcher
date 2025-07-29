@@ -10,9 +10,7 @@ logging.basicConfig(level=logging.INFO)
 default_im_service = "https://im.egi.eu/im"
 default_cloud_provider = {"name": "CESNET", "VO": "eosc-datacommons.eu"}
 
-
 class IM():
-
     def __init__(self, access_token: str):
         auth = [
             {"type": "InfrastructureManager", "token": access_token}

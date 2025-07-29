@@ -11,7 +11,8 @@ from fastapi.exceptions import HTTPException
 def galaxy_from_zipfile(parsed_zipfile: (ROCrate, UploadFile)):
     try:
         vre_handler = vre_factory(*parsed_zipfile)
-        return {"url": vre_handler.post()}
+        service = service_factory(vre_handler)
+        return {"url": vre_handler.post(service)}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Handling request failed:\n{e}")
 
@@ -20,6 +21,7 @@ def galaxy_from_zipfile(parsed_zipfile: (ROCrate, UploadFile)):
 def galaxy_from_rocrate(data):
     try:
         vre_handler = vre_factory(crate=data)
-        return {"url": vre_handler.post()}
+        service = service_factory(vre_handler)
+        return {"url": vre_handler.post(service)}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Handling request failed:\n{e}")

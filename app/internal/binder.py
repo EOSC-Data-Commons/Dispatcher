@@ -17,8 +17,7 @@ default_service = "https://mybinder.org/v2"
 
 
 class VREBinder(VRE):
-    async def post(self, request_id):
-        svc = self.root.get("runsOn")
+    async def post(self, svc, request_id):
         if svc is None:
             url = default_service
         else:

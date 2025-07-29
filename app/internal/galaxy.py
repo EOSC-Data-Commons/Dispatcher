@@ -9,7 +9,7 @@ default_service = "https://usegalaxy.eu/"
 
 
 class VREGalaxy(VRE):
-    def post(self):
+    def post(self, svc):
         public = False
 
         def modify_for_api_data_input(files):
@@ -43,7 +43,6 @@ class VREGalaxy(VRE):
             "workflow_id": workflow_url,
             "workflow_target_type": "trs_url",
         }
-        svc = self.root.get("runsOn")
         if svc is None:
             url = default_service
         else:
