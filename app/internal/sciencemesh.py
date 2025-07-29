@@ -1,0 +1,69 @@
+from .vre import VRE, vre_factory
+import requests
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+default_sciencemensh_service = "https://cernbox.cern.ch/"
+# This is a placeholder
+default_dispatcher_public_fqdn = "dispatcher.egi.eu"
+
+
+class VREScienceMesh(VRE):
+    def __init__(self, crate=None, body=None):
+        super().__init__(crate, body)
+        self.service = self.root.get("runsOn")
+        if self.service is None:
+            self.service = {"url": default_sciencemensh_service}
+        else:
+            self.service["url"] = self.service["url"].rstrip("/")
+
+    def post(self):
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        data = self.create_ocm_share_request()
+        url = self.service["url"]
+        logging.info(f"{self.__class__.__name__}: calling {url}")
+        response = requests.post(
+            f"{url}/ocm/shares", headers=headers, json=data
+        ).json()
+        logging.info(f"{self.__class__.__name__}: returned {response}")
+        return response
+
+    def create_ocm_share_request(self):
+        receiver = self.entities.get("#receiver")
+        owner = self.entities.get("#owner")
+        sender = self.entities.get("#sender")
+        destination = self.entities.get("#destination")
+
+        if destination is None:
+            destination = {"url": self.service["url"]}
+        if not receiver or not owner or not sender or not destination:
+            raise ValueError("Missing required entities (receiver, owner, sender, destination) for OCM share request")
+
+        # The sender user ID needs to be altered to match the dispatcher's public FQDN
+        # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@<dispatcher public FQDN>
+        sender_userid = sender.get("userid")
+        if sender_userid and "@" in sender_userid:
+            sender_userid = sender_userid.split("@")[0] + "@" + default_dispatcher_public_fqdn
+
+        # Create OCM share request JSON structure
+        ocm_share_request = {
+            "shareWith": receiver.get("userid"),
+            "name": self.root.get("name"),
+            "description": self.root.get("description"),
+            "providerId": "n/a",
+            "resourceId": "n/a",
+            "owner": owner.get("userid"),
+            "senderDisplayName": sender.get("name"),
+            "sender": sender_userid,
+            "resourceType": "ro-crate",
+            "shareType": "user",
+            "protocols": {
+            "name": "multi",
+            "rocrate": self.crate.metadata.generate()
+            }
+        }
+        return ocm_share_request
+
+
+vre_factory.register("https://cernbox.cern.ch/", VREScienceMesh)
