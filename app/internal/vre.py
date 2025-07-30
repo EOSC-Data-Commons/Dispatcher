@@ -20,7 +20,7 @@ class VRE(ABC):
         self.entities = {e.id: e for e in crate.get_entities()}
         self.root = self.entities["./"]
         self.workflow = self.root["mainEntity"]
-        self.svc_url = setup_service()
+        self.svc_url = self.setup_service()
         # TODO: sanity check, type contains File,SoftwareSourceCode,ComputationalWorkflow
 
     @abstractmethod
