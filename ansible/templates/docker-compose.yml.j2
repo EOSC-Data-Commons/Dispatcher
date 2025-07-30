@@ -20,7 +20,7 @@ services:
 
   worker:
     build: .
-    command: celery -A app.worker.celery worker --loglevel=info
+    command: celery -A app.worker.celery worker --loglevel=info --reload 
     volumes:
       - .:/usr/src
     user: "celery" 
