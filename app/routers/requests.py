@@ -29,11 +29,11 @@ def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
 
 @router.post("/zip_rocrate/")
 def zip_rocrate(token: str = Depends(oauth2_scheme), parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser)):
-    task = galaxy_from_zipfile.apply_async(args=[parsed_zipfile], serializer="pickle")
+    task = galaxy_from_zipfile.apply_async(args=[parsed_zipfile, token], serializer="pickle")
     return JSONResponse({"task_id": task.id})
 
 
 @router.post("/metadata_rocrate/")
 def metadata_rocrate(token: str = Depends(oauth2_scheme), data: ROCrate = Depends(parse_rocrate)):
-    task = galaxy_from_rocrate.apply_async(args=[data], serializer="pickle")
+    task = galaxy_from_rocrate.apply_async(args=[data, token], serializer="pickle")
     return JSONResponse({"task_id": task.id})

@@ -13,14 +13,43 @@ logger = logging.getLogger("uvicorn.error")
 
 
 class VRE(ABC):
-    def __init__(self, crate=None, body=None):
+    def __init__(self, crate=None, body=None, token=None):
         self.crate = crate
         self.body = body
+        self.token = token
         self.entities = {e.id: e for e in crate.get_entities()}
         self.root = self.entities["./"]
         self.workflow = self.root["mainEntity"]
-
+        self.svc_url = setup_service()
         # TODO: sanity check, type contains File,SoftwareSourceCode,ComputationalWorkflow
+
+    @abstractmethod
+    def get_default_service(self):
+        pass
+
+    def setup_service(self):
+        svc = self.root.get("runsOn")
+   
+        if svc is None:
+            return self.get_default_service()
+        if svc.get("type") == "Service":
+            return svc.get("url", self.get_default_service())
+        elif svc.get("type") == "SoftwareApplication":
+            # Send this destination to the IM to deploy the service
+            # and get the URL of the deployed service
+            # For now only IM, should be extended to other service providers
+            im = IM(self.token)
+            outputs = im.run_service(svc)
+            if outputs is None:
+                raise HTTPException(
+                    status_code=400, detail="Failed to deploy service"
+                )
+            return outputs.get("url")
+        else:
+            raise HTTPException(
+                status_code=400, detail="Invalid service type in runsOn"
+            )
+
 
     @abstractmethod
     def post():
