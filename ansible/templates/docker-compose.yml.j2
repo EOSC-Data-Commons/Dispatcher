@@ -4,7 +4,7 @@ services:
 
   web:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --reload 
+    command: uvicorn app.main:app --host 0.0.0.0 --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level debug --reload 
     ports:
       - 8004:8000
     volumes:
