@@ -72,20 +72,22 @@ class VREFactory:
         self.table[vre_type] = cls
 
     def __call__(self, crate, body=None, **kwargs):
+        elang = self.get_elang(crate)
+        logger.debug(f"crate {crate}")
+        logger.debug(f"elang {elang}")
+        if elang not in self.table:
+            raise HTTPException(status_code=400, detail="Unsupported workflow language")
+        logger.debug(self.table[elang])
+        return self.table[elang](crate=crate, body=body, **kwargs)
+    
+    def get_elang(self,crate):
         try:
-            logger.debug(f"crate {crate}")
             emap = {e.id: e for e in crate.get_entities()}
-
-            ewf = emap["./"]["mainEntity"]
-            elang = ewf["programmingLanguage"]["identifier"]
-            logger.debug(f"ewf {ewf}")
-            logger.debug(f"elang {elang}")
-            logger.debug(self.table[elang])
-            return self.table[elang](crate=crate, body=body, **kwargs)
-
-        except Exception as e:
-            print(f"exception {e}")
-            raise ValueError(f"VREFactory: parse ROCrate") from e
+            elang = emap["./"]["mainEntity"]["programmingLanguage"]["identifier"]
+            return elang
+        except (KeyError, ValueError) as e:
+            logger.debug(f"Error parsing ROCrate reason: {e}")
+            raise HTTPException(status_code=400, detail="Failed to parse ROCrate")
 
 
 vre_factory = VREFactory()
