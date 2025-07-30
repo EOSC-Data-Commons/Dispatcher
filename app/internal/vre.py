@@ -32,9 +32,9 @@ class VRE(ABC):
    
         if svc is None:
             return self.get_default_service()
-        if svc.get("type") == "Service":
+        if svc.get("@type") == "Service":
             return svc.get("url", self.get_default_service())
-        elif svc.get("type") == "SoftwareApplication":
+        elif svc.get("@type") == "SoftwareApplication":
             # Send this destination to the IM to deploy the service
             # and get the URL of the deployed service
             # For now only IM, should be extended to other service providers
