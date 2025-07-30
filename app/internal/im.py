@@ -2,7 +2,6 @@ import logging
 import time
 import yaml
 from imclient import IMClient
-from mock import MagicMock
 
 
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +23,6 @@ class IM():
             "token": access_token
         })
         self.client = IMClient.init_client(default_im_service, auth)
-        self.client = MagicMock()
         self.inf_id = None
 
     @staticmethod
