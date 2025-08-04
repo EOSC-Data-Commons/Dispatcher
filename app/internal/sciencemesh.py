@@ -18,6 +18,9 @@ class VREScienceMesh(VRE):
         else:
             self.service["url"] = self.service["url"].rstrip("/")
 
+    def get_default_service(self):
+        return default_sciencemensh_service
+
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = self.create_ocm_share_request()
