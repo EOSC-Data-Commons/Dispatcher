@@ -1,14 +1,14 @@
 from .vre import VRE, vre_factory
 import requests
-import aiohttp
 import logging
+from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO)
 
-default_service = "https://usegalaxy.eu/"
-
-
 class VREGalaxy(VRE):
+    def get_default_service(self):
+        return "https://usegalaxy.eu/"
+
     def post(self):
         public = False
 
@@ -43,11 +43,7 @@ class VREGalaxy(VRE):
             "workflow_id": workflow_url,
             "workflow_target_type": "trs_url",
         }
-        svc = self.root.get("runsOn")
-        if svc is None:
-            url = default_service
-        else:
-            url = svc["url"]
+        url = self.svc_url
 
         url = url.rstrip("/")
 

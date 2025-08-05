@@ -11,18 +11,15 @@ logger = logging.getLogger("uvicorn.error")
 
 # TODO: cleanup the created repos
 
-default_service = "https://mybinder.org/v2"
-
 # touch .git/git-daemon-export-ok
 
 
 class VREBinder(VRE):
+    def get_default_service(self):
+        return "https://mybinder.org/v2"
+
     async def post(self, request_id):
-        svc = self.root.get("runsOn")
-        if svc is None:
-            url = default_service
-        else:
-            url = svc["url"]
+        url = self.svc_url
 
         url = url.rstrip("/")
 

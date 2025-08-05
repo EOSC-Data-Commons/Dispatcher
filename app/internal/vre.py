@@ -2,6 +2,8 @@ from rocrate.rocrate import ROCrate
 import sys
 import json
 import zipfile
+from .im import IM
+from fastapi import HTTPException
 
 from abc import ABC, abstractmethod
 
@@ -11,14 +13,43 @@ logger = logging.getLogger("uvicorn.error")
 
 
 class VRE(ABC):
-    def __init__(self, crate=None, body=None):
+    def __init__(self, crate=None, body=None, token=None):
         self.crate = crate
         self.body = body
+        self.token = token
         self.entities = {e.id: e for e in crate.get_entities()}
         self.root = self.entities["./"]
         self.workflow = self.root["mainEntity"]
-
+        self.svc_url = self.setup_service()
         # TODO: sanity check, type contains File,SoftwareSourceCode,ComputationalWorkflow
+
+    @abstractmethod
+    def get_default_service(self):
+        pass
+
+    def setup_service(self):
+        svc = self.root.get("runsOn")
+   
+        if svc is None:
+            return self.get_default_service()
+        if svc.get("@type") == "Service":
+            return svc.get("url", self.get_default_service())
+        elif svc.get("@type") == "SoftwareApplication":
+            # Send this destination to the IM to deploy the service
+            # and get the URL of the deployed service
+            # For now only IM, should be extended to other service providers
+            im = IM(self.token)
+            outputs = im.run_service(svc)
+            if outputs is None:
+                raise HTTPException(
+                    status_code=400, detail="Failed to deploy service"
+                )
+            return outputs.get("url")
+        else:
+            raise HTTPException(
+                status_code=400, detail="Invalid service type in runsOn"
+            )
+
 
     @abstractmethod
     def post():
@@ -41,20 +72,22 @@ class VREFactory:
         self.table[vre_type] = cls
 
     def __call__(self, crate, body=None, **kwargs):
+        elang = self.get_elang(crate)
+        logger.debug(f"crate {crate}")
+        logger.debug(f"elang {elang}")
+        if elang not in self.table:
+            raise HTTPException(status_code=400, detail="Unsupported workflow language")
+        logger.debug(self.table[elang])
+        return self.table[elang](crate=crate, body=body, **kwargs)
+    
+    def get_elang(self,crate):
         try:
-            logger.debug(f"crate {crate}")
             emap = {e.id: e for e in crate.get_entities()}
-
-            ewf = emap["./"]["mainEntity"]
-            elang = ewf["programmingLanguage"]["identifier"]
-            logger.debug(f"ewf {ewf}")
-            logger.debug(f"elang {elang}")
-            logger.debug(self.table[elang])
-            return self.table[elang](crate=crate, body=body, **kwargs)
-
-        except Exception as e:
-            print(f"exception {e}")
-            raise ValueError(f"VREFactory: parse ROCrate") from e
+            elang = emap["./"]["mainEntity"]["programmingLanguage"]["identifier"]
+            return elang
+        except (KeyError, ValueError) as e:
+            logger.debug(f"Error parsing ROCrate reason: {e}")
+            raise HTTPException(status_code=400, detail="Failed to parse ROCrate")
 
 
 vre_factory = VREFactory()
