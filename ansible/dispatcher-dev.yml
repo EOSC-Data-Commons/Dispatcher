@@ -1,0 +1,56 @@
+---
+- hosts: dispatchers
+  become: true
+  become_user: root
+  tasks:
+    - name: Copy local version of repo
+      synchronize:
+        src: ../../
+        dest: "{{ dispatcher.dir }}"
+
+    - name: Install docker-compose-init.yml
+      ansible.builtin.template:
+        src: docker-compose-init.yml.j2
+        dest: "{{ dispatcher.dir }}/docker-compose-init.yml"
+
+
+    - name: Install docker-compose.yml
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{ dispatcher.dir }}/docker-compose.yml"
+
+
+    - name: Install nginx.conf
+      ansible.builtin.template:
+        src: nginx.conf.j2
+        dest: "{{ dispatcher.dir }}/nginx/nginx.conf"
+
+    - name: Install api-config file
+      ansible.builtin.template:
+        src: config.py.j2
+        dest: "{{ dispatcher.dir }}/app/config.py"
+
+    - name: Start docker init
+      community.docker.docker_compose_v2:
+        project_src: "{{ dispatcher.dir }}"
+        state: present 
+        files: ["docker-compose-init.yml"]
+        remove_orphans: true
+
+    - name: Stop docker init
+      community.docker.docker_compose_v2:
+        project_src: "{{ dispatcher.dir }}"
+        state: absent 
+        files: ["docker-compose-init.yml"]
+
+    - name: Ensure docker-compose app is running
+      community.docker.docker_compose_v2:
+        project_src: "{{ dispatcher.dir }}"
+        state: present 
+        build: "always"
+    
+    - name: Clean dangling images
+      community.docker.docker_prune:
+        images: true
+        images_filters:
+          dangling: true
