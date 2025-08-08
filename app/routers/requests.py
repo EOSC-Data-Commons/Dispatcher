@@ -23,17 +23,32 @@ router = APIRouter(
 def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
     task = AsyncResult(task_id)
     if task.failed():
-        raise HTTPException(status_code=400, detail=f"Handling request failed:\n{task.result}")
-    return JSONResponse({"task_id": task_id, "status": AsyncResult(task_id).status, "result": AsyncResult(task_id).result})
+        raise HTTPException(
+            status_code=400, detail=f"Handling request failed:\n{task.result}"
+        )
+    return JSONResponse(
+        {
+            "task_id": task_id,
+            "status": AsyncResult(task_id).status,
+            "result": AsyncResult(task_id).result,
+        }
+    )
 
 
 @router.post("/zip_rocrate/")
-def zip_rocrate(token: str = Depends(oauth2_scheme), parsed_zipfile: (ROCrate, UploadFile) = Depends(parse_zipfile)):
-    task = vre_from_zipfile.apply_async(args=[parsed_zipfile, token], serializer="pickle")
+def zip_rocrate(
+    token: str = Depends(oauth2_scheme),
+    parsed_zipfile: (ROCrate, UploadFile) = Depends(parse_zipfile),
+):
+    task = vre_from_zipfile.apply_async(
+        args=[parsed_zipfile, token], serializer="pickle"
+    )
     return JSONResponse({"task_id": task.id})
-    
+
 
 @router.post("/metadata_rocrate/")
-def metadata_rocrate(token: str = Depends(oauth2_scheme), data: ROCrate = Depends(parse_rocrate)):
+def metadata_rocrate(
+    token: str = Depends(oauth2_scheme), data: ROCrate = Depends(parse_rocrate)
+):
     task = vre_from_rocrate.apply_async(args=[data, token], serializer="pickle")
     return JSONResponse({"task_id": task.id})

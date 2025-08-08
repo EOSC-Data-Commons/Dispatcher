@@ -7,8 +7,10 @@ import logging
 
 logger = logging.getLogger("uvicorn.error")
 
+
 class ROCrateValidationError(Exception):
     pass
+
 
 class VRE(ABC):
     def __init__(self, crate=None, body=None, token=None):
@@ -23,7 +25,7 @@ class VRE(ABC):
 
     def setup_service(self):
         dest = self.crate.root_dataset.get("runsOn")
-   
+
         if dest is None:
             return self.get_default_service()
         if dest.type == "Service":
@@ -35,15 +37,12 @@ class VRE(ABC):
             im = IM(self.token)
             outputs = im.run_service(dest)
             if outputs is None:
-                raise HTTPException(
-                    status_code=400, detail="Failed to deploy service"
-                )
+                raise HTTPException(status_code=400, detail="Failed to deploy service")
             return outputs.get("url")
         else:
             raise HTTPException(
                 status_code=400, detail="Invalid service type in runsOn"
             )
-
 
     @abstractmethod
     def post():
@@ -66,7 +65,7 @@ class VREFactory:
         if self.is_registered(vre_type):
             raise ValueError(f"{vre_type} already registered")
         self.table[vre_type] = cls
-        
+
     def __call__(self, crate, body=None, **kwargs):
         elang = crate.mainEntity.get("programmingLanguage").get("identifier")
         if not self.is_registered(elang):
@@ -75,7 +74,6 @@ class VREFactory:
         logger.debug(f"elang {elang}")
         logger.debug(self.table[elang])
         return self.table[elang](crate=crate, body=body, **kwargs)
-
 
 
 vre_factory = VREFactory()

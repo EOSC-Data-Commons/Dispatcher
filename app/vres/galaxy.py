@@ -5,6 +5,7 @@ from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO)
 
+
 class VREGalaxy(VRE):
     def get_default_service(self):
         return "https://usegalaxy.eu/"

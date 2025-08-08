@@ -5,15 +5,17 @@ from fastapi import UploadFile
 from fastapi.exceptions import HTTPException
 from typing import Dict
 
+
 def parse_rocrate(rocrate_data: Dict) -> ROCrate:
     try:
         crate = ROCrate(source=rocrate_data)
         validate_rocrate(crate)
         return crate
     except (ValueError, KeyError) as e:
-         raise HTTPException(
+        raise HTTPException(
             status_code=400, detail=f"Invalid ROCrate data. Reason: {e}"
         )
+
 
 def validate_rocrate(crate: ROCrate):
     check_main_entity(crate)
@@ -21,25 +23,33 @@ def validate_rocrate(crate: ROCrate):
     check_workflow_language_object(crate)
     check_workflow_lang(crate)
 
+
 def check_main_entity(crate: ROCrate):
     if crate.mainEntity is None:
         raise HTTPException(
-            status_code=400, detail=f"Missing mainEntity inside ROCrate")
+            status_code=400, detail=f"Missing mainEntity inside ROCrate"
+        )
+
 
 def check_workflow_object(crate: ROCrate):
     if type(crate.mainEntity) is str:
-        raise HTTPException(
-            status_code=400, detail=f"Missing main entiy object")
+        raise HTTPException(status_code=400, detail=f"Missing main entiy object")
+
 
 def check_workflow_language_object(crate: ROCrate):
-     if type(crate.mainEntity.get("programmingLanguage")) is str:
+    if type(crate.mainEntity.get("programmingLanguage")) is str:
         raise HTTPException(
-            status_code=400, detail=f"Missing main entiy programmingLanguage object")
+            status_code=400, detail=f"Missing main entiy programmingLanguage object"
+        )
+
 
 def check_workflow_lang(crate: ROCrate):
     if crate.mainEntity.get("programmingLanguage", {}).get("identifier") is None:
         raise HTTPException(
-            status_code=400, detail=f"Missing programmingLanguage identifier inside ROCrate's mainEntity")
+            status_code=400,
+            detail=f"Missing programmingLanguage identifier inside ROCrate's mainEntity",
+        )
+
 
 def parse_json_metadata(metadata: str):
     try:

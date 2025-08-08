@@ -20,8 +20,10 @@ app.include_router(auth.router)
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_key_file)
 
+
 class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
     CHECKIN_ENV = settings.egi_checkin_env
+
 
 client = OAuth2Client(
     backend=TestEGICheckinOpenIdConnect,
@@ -31,16 +33,17 @@ client = OAuth2Client(
     redirect_uri=settings.redirect_uri,
     claims=Claims(
         identity=lambda user: f"{user.provider}:{user.id}",
-    )
+    ),
 )
 
 app.add_middleware(OAuth2Middleware, config=OAuth2Config(clients=[client]))
+
 
 @app.get("/")
 async def root():
     return {"message": "API running"}
 
+
 @app.get("/config")
 def read_config():
     return config.config
-

@@ -10,10 +10,12 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
 @router.get("/login")
 async def test(request: Request):
     print(request)
     return RedirectResponse("/oauth2/egi-checkin/authorize")
+
 
 @router.get("/token")
 async def get_token(token: Annotated[str, Depends(oauth2_scheme)]):
