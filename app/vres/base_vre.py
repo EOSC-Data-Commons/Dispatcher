@@ -1,8 +1,5 @@
-from rocrate.rocrate import ROCrate
 import sys
-import json
-import zipfile
-from .im import IM
+from app.services.im import IM
 from fastapi import HTTPException
 from abc import ABC, abstractmethod
 
@@ -68,12 +65,12 @@ class VREFactory:
     def register(self, vre_type, cls):
         if self.is_registered(vre_type):
             raise ValueError(f"{vre_type} already registered")
-
         self.table[vre_type] = cls
-
+        
     def __call__(self, crate, body=None, **kwargs):
         elang = crate.mainEntity.get("programmingLanguage").get("identifier")
-
+        if not self.is_registered(elang):
+            raise ValueError(f"Unsupported workflow language {elang}")
         logger.debug(f"crate {crate}")
         logger.debug(f"elang {elang}")
         logger.debug(self.table[elang])

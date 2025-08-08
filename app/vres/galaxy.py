@@ -1,4 +1,4 @@
-from .vre import VRE, vre_factory
+from .base_vre import VRE, vre_factory
 import requests
 import logging
 from fastapi import HTTPException

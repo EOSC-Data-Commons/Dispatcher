@@ -1,18 +1,15 @@
 from fastapi import APIRouter
-from app.internal.vre import vre_factory
 from fastapi.responses import JSONResponse
 from fastapi import UploadFile, Depends
 from rocrate.rocrate import ROCrate
 from fastapi.exceptions import HTTPException
-from app.dependencies import zipfile_parser, parse_rocrate
-import uuid
+from .utils import parse_zipfile, parse_rocrate
 from celery.result import AsyncResult
-from app.tasks import vre_from_zipfile, vre_from_rocrate
+from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 import logging
 
 logger = logging.getLogger("uvicorn.error")
 
-from typing import Annotated
 from app.dependencies import oauth2_scheme
 
 router = APIRouter(
@@ -31,7 +28,7 @@ def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
 
 
 @router.post("/zip_rocrate/")
-def zip_rocrate(token: str = Depends(oauth2_scheme), parsed_zipfile: (ROCrate, UploadFile) = Depends(zipfile_parser)):
+def zip_rocrate(token: str = Depends(oauth2_scheme), parsed_zipfile: (ROCrate, UploadFile) = Depends(parse_zipfile)):
     task = vre_from_zipfile.apply_async(args=[parsed_zipfile, token], serializer="pickle")
     return JSONResponse({"task_id": task.id})
     

@@ -1,16 +1,6 @@
-from fastapi import FastAPI
 from app.routers import requests
-import app.internal.config as config
-from fastapi.security.open_id_connect_url import OpenIdConnect
-from starlette.middleware.sessions import SessionMiddleware
-from authlib.integrations.starlette_client import OAuth
-from fastapi import HTTPException
-from fastapi import Request
-from fastapi import Depends
-from fastapi import status
-import string
-import random
-from fastapi.middleware.cors import CORSMiddleware
+from app.routers import auth
+import app.vres.config as config
 from fastapi import FastAPI
 from typing import Annotated
 from fastapi_oauth2.middleware import OAuth2Middleware
@@ -19,16 +9,13 @@ from fastapi_oauth2.config import OAuth2Config
 from fastapi_oauth2.client import OAuth2Client
 from fastapi_oauth2.claims import Claims
 from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
-from app.dependencies import oauth2_scheme
 import ssl
-import os
-from fastapi.responses import RedirectResponse
-import yaml
 from app.config import settings
 
 app = FastAPI()
 app.include_router(oauth2_router)
 app.include_router(requests.router)
+app.include_router(auth.router)
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_key_file)
@@ -57,11 +44,3 @@ async def root():
 def read_config():
     return config.config
 
-@app.get("/oauth2/login")
-async def test(request: Request):
-    print(request)
-    return RedirectResponse("/oauth2/egi-checkin/authorize")
-
-@app.get("/oauth2/token")
-async def get_token(token: Annotated[str, Depends(oauth2_scheme)]):
-    return {"token": token}

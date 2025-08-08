@@ -1,10 +1,7 @@
-from app.worker import celery
-from app.internal.vre import vre_factory
+from .worker import celery
+from app.vres.base_vre import vre_factory
 from rocrate.rocrate import ROCrate
-from fastapi import UploadFile, Depends
-from app.internal.galaxy import VREGalaxy
-from app.internal.binder import VREBinder
-from fastapi.exceptions import HTTPException
+from fastapi import UploadFile
 
 
 @celery.task(name="vre_from_zipfile")

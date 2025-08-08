@@ -1,14 +1,9 @@
 from rocrate.rocrate import ROCrate
 import zipfile as zf
 import json
-import io
 from fastapi import UploadFile
 from fastapi.exceptions import HTTPException
-from fastapi_oauth2.security import OAuth2AuthorizationCodeBearer
-from app.internal.vre import vre_factory, ROCrateValidationError
 from typing import Dict
-
-oauth2_scheme = OAuth2AuthorizationCodeBearer(authorizationUrl="/oauth2/login", tokenUrl="/oauth2/egi-checkin/token")
 
 def parse_rocrate(rocrate_data: Dict) -> ROCrate:
     try:
@@ -16,8 +11,7 @@ def parse_rocrate(rocrate_data: Dict) -> ROCrate:
         validate_rocrate(crate)
         return crate
     except (ValueError, KeyError) as e:
-        print(data)
-        raise HTTPException(
+         raise HTTPException(
             status_code=400, detail=f"Invalid ROCrate data. Reason: {e}"
         )
 
@@ -26,7 +20,6 @@ def validate_rocrate(crate: ROCrate):
     check_workflow_object(crate)
     check_workflow_language_object(crate)
     check_workflow_lang(crate)
-    check_vre_registered(crate)
 
 def check_main_entity(crate: ROCrate):
     if crate.mainEntity is None:
@@ -48,12 +41,6 @@ def check_workflow_lang(crate: ROCrate):
         raise HTTPException(
             status_code=400, detail=f"Missing programmingLanguage identifier inside ROCrate's mainEntity")
 
-def check_vre_registered(crate: ROCrate):
-    lang = crate.mainEntity.get("programmingLanguage").get("identifier")
-    if not vre_factory.is_registered(lang):
-        raise HTTPException(
-            status_code=400, detail=f"Unsupported workflow language {lang}")
-
 def parse_json_metadata(metadata: str):
     try:
         return json.loads(metadata)
@@ -64,7 +51,7 @@ def parse_json_metadata(metadata: str):
         )
 
 
-def zipfile_parser(zipfile: UploadFile):
+def parse_zipfile(zipfile: UploadFile):
     metadata = None
     with zf.ZipFile(zipfile.file) as zfile:
         for filename in zfile.namelist():

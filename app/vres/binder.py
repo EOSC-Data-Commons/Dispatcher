@@ -1,11 +1,11 @@
-from .vre import VRE, vre_factory
+from .base_vre import VRE, vre_factory
 import zipfile as zf
 import io
 import logging
 import os
 import subprocess
 import urllib
-import app.internal.config as config
+import app.vres.config as config
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -18,7 +18,8 @@ class VREBinder(VRE):
     def get_default_service(self):
         return "https://mybinder.org/v2"
 
-    async def post(self, request_id):
+    def post(self):
+        request_id = str(uuid.uuid4())
         url = self.svc_url
 
         url = url.rstrip("/")
