@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from fastapi import UploadFile, Depends
+from fastapi import UploadFile, Depends, Request
 from rocrate.rocrate import ROCrate
 from fastapi.exceptions import HTTPException
 from .utils import parse_zipfile, parse_rocrate
@@ -10,7 +10,7 @@ import logging
 
 logger = logging.getLogger("uvicorn.error")
 
-from app.dependencies import oauth2_scheme
+from .utils import oauth2_scheme
 
 router = APIRouter(
     prefix="/requests",
