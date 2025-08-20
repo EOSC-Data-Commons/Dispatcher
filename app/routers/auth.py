@@ -18,5 +18,5 @@ async def test(request: Request):
 
 
 @router.get("/token")
-async def get_token(token: Annotated[str, Depends(oauth2_scheme)]):
-    return {"token": token}
+async def get_token(token: Annotated[str, Depends(oauth2_scheme)], request: Request = None):
+    return {"token": request.auth.provider.access_token}

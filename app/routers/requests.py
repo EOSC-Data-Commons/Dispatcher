@@ -39,16 +39,19 @@ def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
 def zip_rocrate(
     token: str = Depends(oauth2_scheme),
     parsed_zipfile: (ROCrate, UploadFile) = Depends(parse_zipfile),
+    request: Request = None
 ):
     task = vre_from_zipfile.apply_async(
-        args=[parsed_zipfile, token], serializer="pickle"
+        args=[parsed_zipfile, request.auth.provider.access_token], serializer="pickle"
     )
     return JSONResponse({"task_id": task.id})
 
 
 @router.post("/metadata_rocrate/")
 def metadata_rocrate(
-    token: str = Depends(oauth2_scheme), data: ROCrate = Depends(parse_rocrate)
+    token: str = Depends(oauth2_scheme),
+    data: ROCrate = Depends(parse_rocrate),
+    request : Request = None
 ):
-    task = vre_from_rocrate.apply_async(args=[data, token], serializer="pickle")
+    task = vre_from_rocrate.apply_async(args=[data, request.auth.provider.access_token], serializer="pickle")
     return JSONResponse({"task_id": task.id})
