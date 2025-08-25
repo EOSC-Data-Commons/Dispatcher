@@ -19,16 +19,15 @@ class VREScienceMesh(VRE):
         logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
         response = requests.post(
             f"{self.svc_url}/ocm/shares", headers=headers, json=data
-        ).json()
-        logging.info(f"{self.__class__.__name__}: returned {response}")
-        return response
+        )
+        logging.info(f"{self.__class__.__name__}: returned {response.text}")
+        return response.json()
 
     def create_ocm_share_request(self):
-        receiver = self.entities.get("#receiver")
-        owner = self.entities.get("#owner")
-        sender = self.entities.get("#sender")
-        destination = self.entities.get("#destination")
-
+        receiver = self.crate.get("#receiver")
+        owner = self.crate.get("#owner")
+        sender = self.crate.get("#sender")
+        destination = self.crate.get("#destination")
         if destination is None:
             destination = {"url":self.svc_url}
         if not receiver or not owner or not sender or not destination:
@@ -43,8 +42,8 @@ class VREScienceMesh(VRE):
         # Create OCM share request JSON structure
         ocm_share_request = {
             "shareWith": receiver.get("userid"),
-            "name": self.root.get("name"),
-            "description": self.root.get("description"),
+            "name": self.crate.mainEntity.get("name"),
+            "description": self.crate.mainEntity.get("description"),
             "providerId": "n/a",
             "resourceId": "n/a",
             "owner": owner.get("userid"),
