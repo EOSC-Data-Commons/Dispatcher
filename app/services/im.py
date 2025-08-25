@@ -6,22 +6,23 @@ from imclient import IMClient
 
 logging.basicConfig(level=logging.INFO)
 
-default_im_service = "https://im.egi.eu/im"
+default_im_service = "https://appsgrycap.i3m.upv.es/im-dev/"
 default_cloud_provider = {"name": "CESNET", "VO": "eosc-datacommons.eu"}
 
-class IM():
+
+class IM:
     def __init__(self, access_token: str):
-        auth = [
-            {"type": "InfrastructureManager", "token": access_token}
-        ]
+        auth = [{"type": "InfrastructureManager", "token": access_token}]
         # Add cloud provider information
-        auth.append({
-            "id": "egi",
-            "type": "EGI",
-            "host": default_cloud_provider["name"],
-            "vo": default_cloud_provider["VO"],
-            "token": access_token
-        })
+        auth.append(
+            {
+                "id": "egi",
+                "type": "EGI",
+                "host": default_cloud_provider["name"],
+                "vo": default_cloud_provider["VO"],
+                "token": access_token,
+            }
+        )
         self.client = IMClient.init_client(default_im_service, auth)
         self.inf_id = None
 
@@ -29,6 +30,7 @@ class IM():
     def _get_tosca_template(url: str) -> str:
         try:
             import requests
+
             response = requests.get(url)
             response.raise_for_status()
             return response.text
@@ -43,20 +45,20 @@ class IM():
         tosca_dict = yaml.safe_load(tosca_template)
         num_cpus = 1  # Default value
         num_gpus = 0  # Default value
-        if isinstance(cpus, str) and 'vCPU' in cpus:
-            num_cpus = int(cpus.replace('vCPU', '').strip())
+        if isinstance(cpus, str) and "vCPU" in cpus:
+            num_cpus = int(cpus.replace("vCPU", "").strip())
         elif isinstance(cpus, list):
             for cpu in cpus:
-                if 'vCPU' in cpu:
-                    num_cpus = int(cpu.replace('vCPU', '').strip())
-                if 'GPU' in cpu:
-                    num_gpus = int(cpu.replace('GPU', '').strip())
+                if "vCPU" in cpu:
+                    num_cpus = int(cpu.replace("vCPU", "").strip())
+                if "GPU" in cpu:
+                    num_gpus = int(cpu.replace("GPU", "").strip())
 
-        inputs = tosca_dict['topology_template']['inputs']
-        inputs['mem_size']['default'] = memory
-        inputs['num_gpus']['default'] = num_gpus
-        inputs['num_cpus']['default'] = num_cpus
-        inputs['disk_size']['default'] = storage
+        inputs = tosca_dict["topology_template"]["inputs"]
+        inputs["mem_size"]["default"] = memory
+        inputs["num_gpus"]["default"] = num_gpus
+        inputs["num_cpus"]["default"] = num_cpus
+        inputs["disk_size"]["default"] = storage
         return yaml.dump(tosca_dict)
 
     def _gen_tosca_template(self, service: dict) -> str:
@@ -107,7 +109,7 @@ class IM():
             success, res = self.client.get_infra_property(self.inf_id, "state")
 
             if success:
-                state = res['state']
+                state = res["state"]
             else:
                 state = "unknown"
 
@@ -124,7 +126,9 @@ class IM():
         elif wait >= max_time:
             raise TimeoutError("Timeout waiting for service to be ready.")
         else:
-            raise Exception(f"Service did not reach 'configured' state. Current state: {state}")
+            raise Exception(
+                f"Service did not reach 'configured' state. Current state: {state}"
+            )
 
     def get_service_outputs(self) -> str:
         if self.inf_id is None:
