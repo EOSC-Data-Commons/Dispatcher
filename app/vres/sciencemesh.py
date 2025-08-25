@@ -10,24 +10,15 @@ default_dispatcher_public_fqdn = "dispatcher.egi.eu"
 
 
 class VREScienceMesh(VRE):
-    def __init__(self, crate=None, body=None):
-        super().__init__(crate, body)
-        self.service = self.root.get("runsOn")
-        if self.service is None:
-            self.service = {"url": default_sciencemensh_service}
-        else:
-            self.service["url"] = self.service["url"].rstrip("/")
-
     def get_default_service(self):
         return default_sciencemensh_service
 
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = self.create_ocm_share_request()
-        url = self.service["url"]
-        logging.info(f"{self.__class__.__name__}: calling {url}")
+        logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
         response = requests.post(
-            f"{url}/ocm/shares", headers=headers, json=data
+            f"{self.svc_url}/ocm/shares", headers=headers, json=data
         ).json()
         logging.info(f"{self.__class__.__name__}: returned {response}")
         return response
@@ -39,7 +30,7 @@ class VREScienceMesh(VRE):
         destination = self.entities.get("#destination")
 
         if destination is None:
-            destination = {"url": self.service["url"]}
+            destination = {"url":self.svc_url}
         if not receiver or not owner or not sender or not destination:
             raise ValueError("Missing required entities (receiver, owner, sender, destination) for OCM share request")
 
