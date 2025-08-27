@@ -72,6 +72,7 @@
         {
             "@id": "#destination",
             "@type": "Service",
+            "serviceType": "PublicService",
             "name": "ScienceMesh Service",
             "url": "http://localhost:5000",
             "description": "ScienceMesh federated storage and collaboration platform"

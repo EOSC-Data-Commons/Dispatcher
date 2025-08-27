@@ -45,6 +45,7 @@
         {
             "@id": "#destination",
             "@type" : "Service",
+            "serviceType": "PublicService",
             "url": "https://replay.notebooks.egi.eu/v2"
         }
     ]

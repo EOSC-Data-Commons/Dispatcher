@@ -29,12 +29,9 @@ class VRE(ABC):
 
         if dest is None:
             return self.get_default_service()
-        if dest.type == "Service":
+        if dest.get("serviceType") == "PublicService":
             return dest.get("url", self.get_default_service())
-        elif dest.type == "SoftwareApplication":
-            # Send this destination to the IM to deploy the service
-            # and get the URL of the deployed service
-            # For now only IM, should be extended to other service providers
+        elif dest.get("serviceType") == "InfrastructureManager":
             im = IM(self.token)
             outputs = im.run_service(dest)
             if outputs is None:
