@@ -29,7 +29,7 @@ class VRE(ABC):
 
         if dest is None:
             return self.get_default_service()
-        if dest.get("serviceType") == "PublicService":
+        if dest.get("serviceType") is None:
             return dest.get("url", self.get_default_service())
         elif dest.get("serviceType") == "InfrastructureManager":
             im = IM(self.token)

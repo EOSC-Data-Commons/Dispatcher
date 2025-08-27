@@ -57,7 +57,6 @@
         {
             "@id": "#destination",
             "@type" : "Service",
-            "serviceType": "PublicService",
             "url": "https://usegalaxy.eu/"
         }
     ]

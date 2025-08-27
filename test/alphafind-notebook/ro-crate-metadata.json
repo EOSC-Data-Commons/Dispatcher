@@ -52,7 +52,6 @@
         {
             "@id": "#destination",
             "@type" : "Service",
-            "serviceType": "PublicService",
             "url": "https://binderhub.cloud.e-infra.cz/v2" 
         }
     ]
