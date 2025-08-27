@@ -75,4 +75,4 @@ def parse_zipfile(zipfile: UploadFile):
     rocrate_json = parse_json_metadata(metadata)
     rocrate = parse_rocrate(rocrate_json)
     validate_rocrate(rocrate)
-    return (rocrate, metadata)
+    return (rocrate, zipfile.file)

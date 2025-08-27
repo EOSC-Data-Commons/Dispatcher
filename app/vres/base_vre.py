@@ -15,6 +15,7 @@ class ROCrateValidationError(Exception):
 class VRE(ABC):
     def __init__(self, crate=None, body=None, token=None):
         self.crate = crate
+        self.body = body
         self.token = token
         self.svc_url = self.setup_service().rstrip("/")
         # TODO: sanity check, type contains File,SoftwareSourceCode,ComputationalWorkflow

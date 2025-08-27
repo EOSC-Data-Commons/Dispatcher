@@ -29,9 +29,8 @@ class VREBinder(VRE):
         repo = f"{gitrepos}/{request_id}"
 
         os.mkdir(repo)
-
         logger.debug(f"{__class__.__name__}: unzipping ROCrate")
-        with zf.ZipFile(io.BytesIO(self.body)) as zfile:
+        with zf.ZipFile(self.body) as zfile:
             for filename in zfile.namelist():
                 logger.debug("  " + filename)
                 if filename != "ro-crate-metadata.json":
