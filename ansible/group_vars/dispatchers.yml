@@ -1,6 +1,6 @@
 dispatcher:
   repo: https://github.com/EOSC-Data-Commons/Dispatcher.git
-  branch: feature/ssl_oidc_support
+  branch: master
   dir: /opt/edc/dispatcher
 
 git:
