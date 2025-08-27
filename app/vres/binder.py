@@ -6,6 +6,7 @@ import os
 import subprocess
 import urllib
 import app.vres.config as config
+import uuid
 
 logger = logging.getLogger("uvicorn.error")
 
