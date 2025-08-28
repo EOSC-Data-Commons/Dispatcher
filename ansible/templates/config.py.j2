@@ -7,5 +7,6 @@ class Settings(BaseSettings):
     redirect_uri: str = "https://{{ inventory_hostname }}/docs"
     cert_chain_file: str = "{{ nginx.cert }}/fullchain.pem"
     private_key_file: str = "{{ nginx.cert }}/privkey.pem"
-
+    host: str = "{{ inventory_hostname }}"
+    git_repos: str = "{{ git.repos }}"
 settings = Settings()

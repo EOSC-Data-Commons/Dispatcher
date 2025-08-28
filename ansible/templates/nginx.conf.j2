@@ -36,7 +36,7 @@ http {
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
-	location /oauth2 {
+	    location /oauth2 {
             proxy_pass https://web:{{api.port}}/oauth2;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -51,19 +51,20 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_redirect http://web:8000/ https://{{ inventory_hostname }}/;
 	}
-	location /openapi.json {
-    	   proxy_pass https://web:{{api.port}}/openapi.json;
-    	   proxy_set_header Host $host;
-    	   proxy_set_header X-Real-IP $remote_addr;
-    	   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    	   proxy_set_header X-Forwarded-Proto $scheme;
-	}
-        location /git/ {
+        location /openapi.json {
+            proxy_pass https://web:{{api.port}}/openapi.json;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location /git {
             alias /git/repos;
             include /etc/nginx/fastcgi_params;
             fastcgi_pass unix:/nginx/temp/fcgi.sock;
-            fastcgi_param SCRIPT_FILENAME /usr/lib/git-core/git-http-backend;
-            fastcgi_param GIT_PROJECT_ROOT /git/repos;
+            fastcgi_param SCRIPT_FILENAME {{git.backend}};
+            fastcgi_param GIT_HTTP_EXPORT_ALL "";
+            fastcgi_param GIT_PROJECT_ROOT {{git.repos}};
             set $path_info $uri;
             if ($uri ~ ^/git(/.*)) {
                 set $path_info $1;

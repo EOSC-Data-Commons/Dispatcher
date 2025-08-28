@@ -1,11 +1,12 @@
-from .vre import VRE, vre_factory
+from .base_vre import VRE, vre_factory
 import zipfile as zf
 import io
 import logging
 import os
 import subprocess
 import urllib
-import app.internal.config as config
+import uuid
+from app.config import settings
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -18,18 +19,18 @@ class VREBinder(VRE):
     def get_default_service(self):
         return "https://mybinder.org/v2"
 
-    async def post(self, request_id):
+    def post(self):
+        request_id = str(uuid.uuid4())
         url = self.svc_url
 
         url = url.rstrip("/")
 
-        gitrepos = config.config["git"]["repos"]
+        gitrepos = settings.git_repos
         repo = f"{gitrepos}/{request_id}"
 
         os.mkdir(repo)
-
         logger.debug(f"{__class__.__name__}: unzipping ROCrate")
-        with zf.ZipFile(io.BytesIO(self.body)) as zfile:
+        with zf.ZipFile(self.body) as zfile:
             for filename in zfile.namelist():
                 logger.debug("  " + filename)
                 if filename != "ro-crate-metadata.json":
@@ -39,7 +40,7 @@ class VREBinder(VRE):
                         f.write(z.read())
 
         result = subprocess.run(
-            f'cd {repo} && git init && git add * && git commit -m "on the fly"',
+            f'cd {repo} && git init && git config user.email "dispatcher@dispatcher.com" && git config user.name "dispatcher" && git add * && git commit -m "on the fly"',
             shell=True,
             capture_output=True,
             text=True,
@@ -53,7 +54,7 @@ class VREBinder(VRE):
         with open(f"{repo}/.git/git-daemon-export-ok", "w") as f:
             f.write("I am here\n")
 
-        git = f'http://{config.config["hostname"]}:{config.config["nginx"]["port"]}/git/{request_id}'
+        git = f'https://{settings.host}/git/{request_id}'
         logger.debug(git)
         return f"{url}/git/{urllib.parse.quote_plus(git)}/HEAD"
 
