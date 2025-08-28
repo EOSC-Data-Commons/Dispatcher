@@ -5,8 +5,8 @@ import logging
 import os
 import subprocess
 import urllib
-import app.vres.config as config
 import uuid
+from app.config import settings
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -25,7 +25,7 @@ class VREBinder(VRE):
 
         url = url.rstrip("/")
 
-        gitrepos = config.config["git"]["repos"]
+        gitrepos = settings.git_repos
         repo = f"{gitrepos}/{request_id}"
 
         os.mkdir(repo)
@@ -40,7 +40,7 @@ class VREBinder(VRE):
                         f.write(z.read())
 
         result = subprocess.run(
-            f'cd {repo} && git init && git add * && git commit -m "on the fly"',
+            f'cd {repo} && git init && git config user.email "dispatcher@dispatcher.com" && git config user.name "dispatcher" && git add * && git commit -m "on the fly"',
             shell=True,
             capture_output=True,
             text=True,
@@ -54,7 +54,7 @@ class VREBinder(VRE):
         with open(f"{repo}/.git/git-daemon-export-ok", "w") as f:
             f.write("I am here\n")
 
-        git = f'http://{config.config["hostname"]}:{config.config["nginx"]["port"]}/git/{request_id}'
+        git = f'https://{settings.host}/git/{request_id}'
         logger.debug(git)
         return f"{url}/git/{urllib.parse.quote_plus(git)}/HEAD"
 
