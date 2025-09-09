@@ -41,6 +41,7 @@ services:
       - ./nginx/certbot/conf:{{nginx.cert}}
       - ./nginx/certbot/www:/var/www/certbot
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ocm:/etc/nginx/.well-known/ocm
       - fcgi-socket:/nginx/temp
     depends_on:
       - web
