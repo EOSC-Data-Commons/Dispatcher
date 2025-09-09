@@ -7,7 +7,7 @@ from imclient import IMClient
 logging.basicConfig(level=logging.INFO)
 
 default_im_service = "https://appsgrycap.i3m.upv.es/im-dev/"
-default_cloud_provider = {"name": "CESNET", "VO": "eosc-datacommons.eu"}
+default_cloud_provider = {"name": "IISAS-FedCloud", "VO": "vo.access.egi.eu"}
 
 
 class IM:
