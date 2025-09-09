@@ -2,12 +2,12 @@ import logging
 import time
 import yaml
 from imclient import IMClient
+from app.config import settings
 
 
 logging.basicConfig(level=logging.INFO)
 
-default_im_service = "https://appsgrycap.i3m.upv.es/im-dev/"
-default_cloud_provider = {"name": "CESNET", "VO": "eosc-datacommons.eu"}
+default_im_endpoint = "https://appsgrycap.i3m.upv.es/im-dev/"
 
 
 class IM:
@@ -16,14 +16,21 @@ class IM:
         # Add cloud provider information
         auth.append(
             {
-                "id": "egi",
-                "type": "EGI",
-                "host": default_cloud_provider["name"],
-                "vo": default_cloud_provider["VO"],
-                "token": access_token,
+                "id": "eodccloud",
+                "type": "OpenStack",
+                "host": settings.im_cloud_provider["host"],
+                "username": settings.im_cloud_provider["username"],
+                "auth_version": settings.im_cloud_provider["auth_version"],
+                "tenant": settings.im_cloud_provider["tenant"],
+                "password": settings.im_cloud_provider["password"],
+                "domain": settings.im_cloud_provider["domain"]
             }
         )
-        self.client = IMClient.init_client(default_im_service, auth)
+        if settings.im_endpoint:
+            im_endpoint = settings.im_endpoint
+        else:
+            im_endpoint = default_im_endpoint
+        self.client = IMClient.init_client(im_endpoint, auth)
         self.inf_id = None
 
     @staticmethod
