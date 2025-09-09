@@ -22,3 +22,14 @@ nginx:
 api:
   port: 8000
   environment: dev
+
+im:
+  endpoint: https://appsgrycap.i3m.upv.es/im-dev/
+  # We can set in in secret vars to avoid exposing credentials
+  cloud_provider:
+    host: "https://keystone:5000/"
+    username: "your_app_credential_id"
+    auth_version: 3.x_appcred
+    tenant: "project_name"
+    password: "your_app_credential_secret"
+    domain: default
