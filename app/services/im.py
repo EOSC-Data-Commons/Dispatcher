@@ -134,6 +134,12 @@ class IM:
         elif wait >= max_time:
             raise TimeoutError("Timeout waiting for service to be ready.")
         else:
+            if state == "unconfigured":
+                success, inflog = self.client.get_infra_property(self.inf_id, "contmsg")
+                if success:
+                    logging.debug(f"Deployment log: {inflog}")
+                else:
+                    logging.debug("Failed to get deployment log.")
             raise Exception(
                 f"Service did not reach 'configured' state. Current state: {state}"
             )
