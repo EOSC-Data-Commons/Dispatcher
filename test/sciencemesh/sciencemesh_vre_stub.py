@@ -19,32 +19,36 @@ app = Flask(__name__)
 received_shares = []
 
 
-@app.route('/', methods=['GET'])
+@app.route("/", methods=["GET"])
 def home():
     """Home endpoint showing basic information about the service."""
-    return jsonify({
-        "service": "ScienceMesh OCM Share Receiver",
-        "version": "1.0.0",
-        "description": "Simple Flask app to receive OCM share requests",
-        "endpoints": {
-            "health": "/health",
-            "ocm_share": "/ocm/share",
-            "list_shares": "/shares"
+    return jsonify(
+        {
+            "service": "ScienceMesh OCM Share Receiver",
+            "version": "1.0.0",
+            "description": "Simple Flask app to receive OCM share requests",
+            "endpoints": {
+                "health": "/health",
+                "ocm_share": "/ocm/share",
+                "list_shares": "/shares",
+            },
         }
-    })
+    )
 
 
-@app.route('/health', methods=['GET'])
+@app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint."""
-    return jsonify({
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "received_shares_count": len(received_shares)
-    })
+    return jsonify(
+        {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "received_shares_count": len(received_shares),
+        }
+    )
 
 
-@app.route('/ocm/shares', methods=['POST'])
+@app.route("/ocm/shares", methods=["POST"])
 def receive_ocm_share():
     """
     Receive OCM share requests from ScienceMesh dispatcher.
@@ -59,25 +63,40 @@ def receive_ocm_share():
 
         # Validate required fields
         required_fields = [
-            "shareWith", "name", "owner", "sender",
-            "resourceType", "shareType", "protocols"
+            "shareWith",
+            "name",
+            "owner",
+            "sender",
+            "resourceType",
+            "shareType",
+            "protocols",
         ]
 
         missing_fields = [field for field in required_fields if field not in share_data]
         if missing_fields:
             logger.error(f"Missing required fields: {missing_fields}")
-            return jsonify({
-                "error": "Missing required fields",
-                "missing_fields": missing_fields
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Missing required fields",
+                        "missing_fields": missing_fields,
+                    }
+                ),
+                400,
+            )
 
         # Validate resource type
         if share_data.get("resourceType") != "ro-crate":
             logger.error(f"Unsupported resource type: {share_data.get('resourceType')}")
-            return jsonify({
-                "error": "Unsupported resource type",
-                "supported_types": ["ro-crate"]
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Unsupported resource type",
+                        "supported_types": ["ro-crate"],
+                    }
+                ),
+                400,
+            )
 
         # Validate protocols
         protocols = share_data.get("protocols", {})
@@ -92,9 +111,8 @@ def receive_ocm_share():
             "share_id": share_id,
             "received_at": datetime.now().isoformat(),
             "status": "received",
-            "share_data": share_data
+            "share_data": share_data,
         }
-
 
         # Store the share (in production, save to database)
         received_shares.append(processed_share)
@@ -105,7 +123,9 @@ def receive_ocm_share():
 
         logger.info(f"Received OCM share request:")
         logger.info(f"  Share ID: {share_id}")
-        logger.info(f"  From: {share_data.get('sender')} ({share_data.get('senderDisplayName')})")
+        logger.info(
+            f"  From: {share_data.get('sender')} ({share_data.get('senderDisplayName')})"
+        )
         logger.info(f"  To: {share_data.get('shareWith')}")
         logger.info(f"  Owner: {share_data.get('owner')}")
         logger.info(f"  RO-Crate: {rocrate_name}")
@@ -121,8 +141,8 @@ def receive_ocm_share():
                 "name": share_data.get("name"),
                 "from": share_data.get("sender"),
                 "to": share_data.get("shareWith"),
-                "resource_type": share_data.get("resourceType")
-            }
+                "resource_type": share_data.get("resourceType"),
+            },
         }
 
         return jsonify(response), 200
@@ -133,33 +153,32 @@ def receive_ocm_share():
 
     except Exception as e:
         logger.error(f"Error processing OCM share request: {str(e)}")
-        return jsonify({
-            "error": "Internal server error",
-            "message": str(e)
-        }), 500
+        return jsonify({"error": "Internal server error", "message": str(e)}), 500
 
 
-@app.route('/shares', methods=['GET'])
+@app.route("/shares", methods=["GET"])
 def list_shares():
     """List all received shares."""
-    return jsonify({
-        "total_shares": len(received_shares),
-        "shares": [
-            {
-                "share_id": share["share_id"],
-                "received_at": share["received_at"],
-                "status": share["status"],
-                "from": share["share_data"].get("sender"),
-                "to": share["share_data"].get("shareWith"),
-                "name": share["share_data"].get("name"),
-                "resource_type": share["share_data"].get("resourceType")
-            }
-            for share in received_shares
-        ]
-    })
+    return jsonify(
+        {
+            "total_shares": len(received_shares),
+            "shares": [
+                {
+                    "share_id": share["share_id"],
+                    "received_at": share["received_at"],
+                    "status": share["status"],
+                    "from": share["share_data"].get("sender"),
+                    "to": share["share_data"].get("shareWith"),
+                    "name": share["share_data"].get("name"),
+                    "resource_type": share["share_data"].get("resourceType"),
+                }
+                for share in received_shares
+            ],
+        }
+    )
 
 
-@app.route('/shares/<share_id>', methods=['GET'])
+@app.route("/shares/<share_id>", methods=["GET"])
 def get_share_details(share_id):
     """Get detailed information about a specific share."""
     share = next((s for s in received_shares if s["share_id"] == share_id), None)
@@ -170,7 +189,7 @@ def get_share_details(share_id):
     return jsonify(share)
 
 
-@app.route('/shares/<share_id>/rocrate', methods=['GET'])
+@app.route("/shares/<share_id>/rocrate", methods=["GET"])
 def get_share_rocrate(share_id):
     """Get the RO-Crate data for a specific share."""
     share = next((s for s in received_shares if s["share_id"] == share_id), None)
@@ -187,7 +206,7 @@ def get_share_rocrate(share_id):
     return jsonify(rocrate)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Starting ScienceMesh OCM Share Receiver...")
     print("Available endpoints:")
     print("  GET  /           - Service information")
@@ -199,8 +218,4 @@ if __name__ == '__main__':
     print()
 
     # Run the Flask app
-    app.run(
-        host='0.0.0.0',
-        port=5000,
-        debug=True
-    )
+    app.run(host="0.0.0.0", port=5000, debug=True)
