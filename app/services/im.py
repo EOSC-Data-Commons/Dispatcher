@@ -23,7 +23,8 @@ class IM:
                 "auth_version": settings.im_cloud_provider["auth_version"],
                 "tenant": settings.im_cloud_provider["tenant"],
                 "password": settings.im_cloud_provider["password"],
-                "domain": settings.im_cloud_provider["domain"]
+                "domain": settings.im_cloud_provider["domain"],
+                "service_region": settings.im_cloud_provider["region"]
             }
         )
         if settings.im_endpoint:
