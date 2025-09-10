@@ -33,3 +33,5 @@ im:
     tenant: "project_name"
     password: "your_app_credential_secret"
     domain: default
+    # Optional
+    # region: RegionOne
