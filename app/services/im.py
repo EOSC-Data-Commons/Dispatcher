@@ -13,10 +13,30 @@ default_cloud_provider = {"name": "IISAS-FedCloud", "VO": "vo.access.egi.eu"}
 
 class IM:
     def __init__(self, access_token: str):
+        self.deployment_type = settings.im_cloud_provider.get("deployment_type", "dev")
+        auth = self._build_auth_config(access_token)
+
+        if settings.im_endpoint:
+            im_endpoint = settings.im_endpoint
+        else:
+            im_endpoint = default_im_endpoint
+        self.client = IMClient.init_client(im_endpoint, auth)
+        self.inf_id = None
+
+    def _build_auth_config(self, access_token: str) -> list:
+        """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
-        # Add cloud provider information
-        auth.append(
-            {
+        
+        if self.deployment_type == "prod":
+            auth.append({
+                "id": "egi",
+                "type": "EGI",
+                "host": settings.im_cloud_provider["host"],
+                "vo": settings.im_cloud_provider["VO"],
+                "token": access_token
+            })
+        else:
+            auth.append({
                 "id": "eodccloud",
                 "type": "OpenStack",
                 "host": settings.im_cloud_provider["host"],
@@ -26,14 +46,9 @@ class IM:
                 "password": settings.im_cloud_provider["password"],
                 "domain": settings.im_cloud_provider["domain"],
                 "service_region": settings.im_cloud_provider["region"]
-            }
-        )
-        if settings.im_endpoint:
-            im_endpoint = settings.im_endpoint
-        else:
-            im_endpoint = default_im_endpoint
-        self.client = IMClient.init_client(im_endpoint, auth)
-        self.inf_id = None
+            })
+        
+        return auth
 
     @staticmethod
     def _get_tosca_template(url: str) -> str:
