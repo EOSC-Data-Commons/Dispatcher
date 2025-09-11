@@ -19,6 +19,10 @@
         src: docker-compose.yml.j2
         dest: "{{ dispatcher.dir }}/docker-compose.yml"
 
+    - name: Install ocm.json
+      ansible.builtin.template:
+        src: ocm.json.j2
+        dest: "{{ dispatcher.dir }}/nginx/ocm.json"
 
     - name: Install nginx.conf
       ansible.builtin.template:

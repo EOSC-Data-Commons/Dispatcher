@@ -73,5 +73,12 @@ http {
             fastcgi_param REMOTE_USER      $remote_user;
             fastcgi_param HTTP_AUTHORIZATION $http_authorization;
         }
+        location /.well-known/ {
+    	    alias /etc/nginx/.well-known/;
+	        add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+            add_header Cache-Control "public, max-age=3600";
+    	}
+
     }
 }

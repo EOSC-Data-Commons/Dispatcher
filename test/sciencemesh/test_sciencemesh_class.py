@@ -12,10 +12,11 @@ import requests
 from rocrate.rocrate import ROCrate
 
 # Add the app directory to Python path to import VREScienceMesh
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../app'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../app"))
 
 from internal.vre import vre_factory
 from internal.sciencemesh import VREScienceMesh
+
 
 def main():
     """Main test function."""
@@ -52,8 +53,8 @@ def main():
         if shares_response.status_code == 200:
             shares_data = shares_response.json()
             print(f"Flask receiver now has {shares_data['total_shares']} shares")
-            if shares_data['shares']:
-                latest = shares_data['shares'][-1]
+            if shares_data["shares"]:
+                latest = shares_data["shares"][-1]
                 print(f"   Latest share: {latest['name']} (ID: {latest['share_id']})")
 
     except Exception as e:

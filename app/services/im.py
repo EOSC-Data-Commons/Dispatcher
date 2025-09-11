@@ -7,7 +7,8 @@ from app.config import settings
 
 logging.basicConfig(level=logging.INFO)
 
-default_im_endpoint = "https://appsgrycap.i3m.upv.es/im-dev/"
+default_im_service = "https://appsgrycap.i3m.upv.es/im-dev/"
+default_cloud_provider = {"name": "IISAS-FedCloud", "VO": "vo.access.egi.eu"}
 
 
 class IM:
