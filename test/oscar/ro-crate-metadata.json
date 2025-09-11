@@ -28,7 +28,11 @@
         },
         {
             "@id": "#workflow",
-            "@type": "ComputationalWorkflow",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "ComputationalWorkflow"
+            ],
             "name": "Cowsay OSCAR FDL",
             "programmingLanguage": {
                 "@id": "https://w3id.org/workflowhub/workflow-ro-crate#oscar"

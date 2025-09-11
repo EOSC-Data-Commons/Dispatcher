@@ -1,4 +1,4 @@
-from .vre import VRE, vre_factory
+from .base_vre import VRE, vre_factory
 import requests
 import logging
 import yaml
@@ -12,7 +12,7 @@ class VREOSCAR(VRE):
         return "https://some.oscar.instance/"
 
     def post(self):
-        workflow_parts = self.workflow.get("hasPart", [])
+        workflow_parts = self.crate.mainEntity.get("hasPart", [])
 
         if not workflow_parts:
             raise HTTPException(
@@ -26,7 +26,7 @@ class VREOSCAR(VRE):
                 if elem.get("encodingFormat") == "text/yaml":
                     # Get the FDL file
                     try:
-                        fdl_url = self.entities.get(elem.get("@id")).get("url")
+                        fdl_url = self.crate.dereference(elem.get("@id")).get("url")
                         response = requests.get(fdl_url)
                         fdl = response.text
                         fdl_yaml = yaml.safe_load(fdl)
@@ -37,7 +37,7 @@ class VREOSCAR(VRE):
                 elif elem.get("encodingFormat") == "text/x-shellscript":
                     # Get the script file
                     try:
-                        script_url = self.entities.get(elem.get("@id")).get("url")
+                        script_url = self.crate.dereference(elem.get("@id")).get("url")
                         response = requests.get(script_url)
                         script = response.text
                     except Exception as ex:
