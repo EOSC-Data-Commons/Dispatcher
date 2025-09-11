@@ -2,6 +2,7 @@ import logging
 import time
 import yaml
 from imclient import IMClient
+from app.config import settings
 
 
 logging.basicConfig(level=logging.INFO)
@@ -12,19 +13,42 @@ default_cloud_provider = {"name": "IISAS-FedCloud", "VO": "vo.access.egi.eu"}
 
 class IM:
     def __init__(self, access_token: str):
+        self.deployment_type = settings.im_cloud_provider.get("deployment_type", "dev")
+        auth = self._build_auth_config(access_token)
+
+        if settings.im_endpoint:
+            im_endpoint = settings.im_endpoint
+        else:
+            im_endpoint = default_im_endpoint
+        self.client = IMClient.init_client(im_endpoint, auth)
+        self.inf_id = None
+
+    def _build_auth_config(self, access_token: str) -> list:
+        """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
-        # Add cloud provider information
-        auth.append(
-            {
+        
+        if self.deployment_type == "prod":
+            auth.append({
                 "id": "egi",
                 "type": "EGI",
-                "host": default_cloud_provider["name"],
-                "vo": default_cloud_provider["VO"],
-                "token": access_token,
-            }
-        )
-        self.client = IMClient.init_client(default_im_service, auth)
-        self.inf_id = None
+                "host": settings.im_cloud_provider["host"],
+                "vo": settings.im_cloud_provider["VO"],
+                "token": access_token
+            })
+        else:
+            auth.append({
+                "id": "eodccloud",
+                "type": "OpenStack",
+                "host": settings.im_cloud_provider["host"],
+                "username": settings.im_cloud_provider["username"],
+                "auth_version": settings.im_cloud_provider["auth_version"],
+                "tenant": settings.im_cloud_provider["tenant"],
+                "password": settings.im_cloud_provider["password"],
+                "domain": settings.im_cloud_provider["domain"],
+                "service_region": settings.im_cloud_provider["region"]
+            })
+        
+        return auth
 
     @staticmethod
     def _get_tosca_template(url: str) -> str:
@@ -126,6 +150,12 @@ class IM:
         elif wait >= max_time:
             raise TimeoutError("Timeout waiting for service to be ready.")
         else:
+            if state == "unconfigured":
+                success, inflog = self.client.get_infra_property(self.inf_id, "contmsg")
+                if success:
+                    logging.debug(f"Deployment log: {inflog}")
+                else:
+                    logging.debug("Failed to get deployment log.")
             raise Exception(
                 f"Service did not reach 'configured' state. Current state: {state}"
             )
