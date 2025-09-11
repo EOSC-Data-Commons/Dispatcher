@@ -1,0 +1,102 @@
+{
+    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": "ScienceMesh Research Data Package",
+            "description": "A research data package with Jupyter notebook and datasets for sharing through ScienceMesh federation",
+            "datePublished": "2025-05-06T14:35:47+00:00",
+            "creator": {
+                "@id": "#creator"
+            },
+            "mainEntity": { "@id": "#workflow" },
+            "runsOn": { "@id": "#destination" },
+            "hasPart": [
+                { "@id": "#workflow" },
+                { "@id": "#dataset-csv" },
+                { "@id": "#creator" },
+                { "@id": "#destination" },
+                { "@id": "#receiver" },
+                { "@id": "#sender" }
+            ]
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {
+                "@id": "./"
+            },
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            }
+        },
+        {
+            "@id": "#workflow",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "ComputationalWorkflow"
+            ],
+            "name": "ScienceMesh Data Analysis Notebook",
+            "description": "Jupyter notebook for analyzing research data in ScienceMesh environment",
+            "programmingLanguage": {
+                "@id": "#sciencemesh-jupyter"
+            },
+            "url": "https://raw.githubusercontent.com/rawe0/example_notebook/main/data_analysis_example.ipynb",
+            "encodingFormat": "application/x-ipynb+json"
+        },
+        {
+            "@id": "#dataset-csv",
+            "@type": "File",
+            "name": "research_data.csv",
+            "description": "Sample research dataset in CSV format",
+            "url": "https://raw.githubusercontent.com/rawe0/example_notebook/main/sample_data.csv",
+            "encodingFormat": "text/csv",
+            "contentSize": "443",
+            "license": {
+                "@id": "https://creativecommons.org/licenses/by/4.0/"
+            }
+        },
+        {
+            "@id": "#sciencemesh-jupyter",
+            "@type": "ComputerLanguage",
+            "identifier": {
+                "@id": "https://cernbox.cern.ch/"
+            },
+            "name": "Jupyter Notebook",
+            "url": {
+                "@id": "https://jupyter.org/"
+            }
+        },
+        {
+            "@id": "#destination",
+            "@type": "Service",
+            "name": "ScienceMesh Service",
+            "url": "http://localhost:5000",
+            "description": "ScienceMesh federated storage and collaboration platform"
+        },
+        {
+            "@id": "#creator",
+            "@type": "Person",
+            "name": "Rasmus Oscar Welander",
+            "userid": "rasmus.oscar.welander@egi.eu"
+        },
+        {
+            "@id": "#sender",
+            "@type": "Person",
+            "name": "Rasmus Oscar Welander",
+            "userid": "rasmus.oscar.welander@egi.eu"
+        },
+        {
+            "@id": "#owner",
+            "@type": "Person",
+            "userid": "rasmus.oscar.welander@egi.eu"
+        },
+        {
+            "@id": "#receiver",
+            "@type": "Person",
+            "userid": "rasmus.oscar.welander@cernbox.cern.ch"
+        }
+    ]
+}

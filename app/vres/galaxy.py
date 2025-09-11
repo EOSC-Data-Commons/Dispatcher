@@ -1,9 +1,10 @@
-from .vre import VRE, vre_factory
+from .base_vre import VRE, vre_factory
 import requests
 import logging
 from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO)
+
 
 class VREGalaxy(VRE):
     def get_default_service(self):
@@ -28,8 +29,8 @@ class VREGalaxy(VRE):
             )
             return result
 
-        files = [e for e in self.entities.values() if e.type == "File"]
-        workflow_url = self.workflow.get("url")
+        files = [e for e in self.crate.get_entities() if e.type == "File"]
+        workflow_url = self.crate.mainEntity.get("url")
         if workflow_url is None:
             raise HTTPException(
                 status_code=400, detail="Missing url in workflow entity"

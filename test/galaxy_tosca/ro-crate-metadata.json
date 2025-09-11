@@ -56,7 +56,8 @@
         },
         {
             "@id": "#destination",
-            "@type": "SoftwareApplication",
+            "@type": "Service",
+            "serviceType": "InfrastructureManager",
             "name": "Galaxy",
             "memoryRequirements": "4 GiB",
             "processorRequirements": [

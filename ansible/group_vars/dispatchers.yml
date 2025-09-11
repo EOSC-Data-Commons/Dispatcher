@@ -1,14 +1,14 @@
 dispatcher:
   repo: https://github.com/EOSC-Data-Commons/Dispatcher.git
-  branch: feature/ssl_oidc_support
+  branch: master
   dir: /opt/edc/dispatcher
 
 git:
   # macos
   # backend: /Library/Developer/CommandLineTools/usr/libexec/git-core/git-http-backend
   # linux 
-  backend: /usr/lib/git-core/git-http-backend
-  repos: /var/tmp/dispatcher-git
+  backend: /usr/libexec/git-core/git-http-backend
+  repos: /tmp/git/repos
 
 nginx:
   prefix: nginx

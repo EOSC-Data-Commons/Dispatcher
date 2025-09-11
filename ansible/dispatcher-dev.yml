@@ -3,34 +3,10 @@
   become: true
   become_user: root
   tasks:
-    - name: Ensure docker and git are present
-      apt:
-        name:
-          - docker-ce
-          - git
-        state: present
-        update_cache: yes
-
-    - name: Create/update docker daemon.json
-      copy:
-        dest: /etc/docker/daemon.json
-        content: |
-          {
-            "mtu": 1450
-          }
-        mode: '0644'
-
-    - name: Restart Docker
-      ansible.builtin.systemd:
-        name: docker
-        state: restarted
-
-    - name: Checkout this repo
-      ansible.builtin.git:
-        repo: "{{ dispatcher.repo }}"
+    - name: Copy local version of repo
+      synchronize:
+        src: ../../
         dest: "{{ dispatcher.dir }}"
-        version: "{{ dispatcher.branch }}"
-        update: yes
 
     - name: Install docker-compose-init.yml
       ansible.builtin.template:
@@ -82,10 +58,3 @@
         images: true
         images_filters:
           dangling: true
-    
-    - name: Ensure certbot renewal job that runs at midnight exists."
-      ansible.builtin.cron:
-        name: "certbot renew"
-        minute: "0"
-        hour: "0"
-        job: "docker compose -f {{ dispatcher.dir }}/docker-compose.yml run --rm certbot && docker compose -f {{ dispatcher.dir }}/docker-compose.yml exec nginx nginx -s reload > /dev/null"
