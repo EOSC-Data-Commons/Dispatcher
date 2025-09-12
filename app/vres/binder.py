@@ -54,7 +54,7 @@ class VREBinder(VRE):
         with open(f"{repo}/.git/git-daemon-export-ok", "w") as f:
             f.write("I am here\n")
 
-        git = f'https://{settings.host}/git/{request_id}'
+        git = f"https://{settings.host}/git/{request_id}"
         logger.debug(git)
         return f"{url}/git/{urllib.parse.quote_plus(git)}/HEAD"
 

@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "apiVersion": "1.2.0",
+  "endPoint": "{{ inventory_hostname }}",
+  "resourceTypes": [
+    {
+      "name": "ro-crate",
+      "shareTypes": [
+        "user"
+      ],
+      "protocols": {
+        "http": "embedded"
+      }
+    }
+  ]
+}

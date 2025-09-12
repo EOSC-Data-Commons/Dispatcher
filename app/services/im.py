@@ -13,9 +13,9 @@ default_im_endpoint = "https://appsgrycap.i3m.upv.es/im-dev/"
 
 class IM:
     def __init__(self, access_token: str):
-        auth = [{"type": "InfrastructureManager", "token": access_token}]
-        # Add cloud provider information
-        auth.append(self._get_cloud_auth(access_token))
+        self.deployment_type = settings.im_cloud_provider.get("deployment_type", "dev")
+        auth = self._build_auth_config(access_token)
+
         if settings.im_endpoint:
             im_endpoint = settings.im_endpoint
         else:
@@ -23,34 +23,38 @@ class IM:
         self.client = IMClient.init_client(im_endpoint, auth)
         self.inf_id = None
 
-    @staticmethod
-    def _get_cloud_auth(access_token: str) -> dict:
+    def _build_auth_config(self, access_token: str) -> list:
+        """Build authentication configuration based on deployment type."""
+        auth = [{"type": "InfrastructureManager", "token": access_token}]
         if not settings.im_cloud_provider["type"]:
             raise ValueError("Cloud provider type is not specified in the configuration.")
 
         if settings.im_cloud_provider["type"].lower() == "openstack":
-            return {
+            ost_auth = {
                 "id": "eodcostcloud",
                 "type": "OpenStack",
                 "host": settings.im_cloud_provider["host"],
                 "username": settings.im_cloud_provider["username"],
                 "auth_version": settings.im_cloud_provider["auth_version"],
                 "tenant": settings.im_cloud_provider["tenant"],
-                "password": settings.im_cloud_provider["password"],
-                "domain": settings.im_cloud_provider["domain"],
-                "service_region": settings.im_cloud_provider["region"]
+                "password": settings.im_cloud_provider["password"]
             }
-
-        if settings.im_cloud_provider["type"].lower() == "egi":
-            return {
+            if "domain" in settings.im_cloud_provider:
+                ost_auth["domain"] = settings.im_cloud_provider["domain"]
+            if "region" in settings.im_cloud_provider:
+                ost_auth["service_region"] = settings.im_cloud_provider["region"]
+            auth.append(ost_auth)
+        elif settings.im_cloud_provider["type"].lower() == "egi":
+            auth.append({
                 "id": "eodcegicloud",
                 "type": "EGI",
-                "vo": settings.im_cloud_provider["vo"],
+                "vo": settings.im_cloud_provider["VO"],
                 "token": access_token,
                 "host": settings.im_cloud_provider["site"]
-            }
-
-        raise ValueError(f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}")
+            })
+        else:
+            raise ValueError(f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}")
+        return auth
 
     @staticmethod
     def _get_tosca_template(url: str) -> str:
@@ -58,7 +62,7 @@ class IM:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             return response.text
-        except requests.RequestException as e:
+        except requests.RequestException:
             logging.exception(f"Error fetching TOSCA template from {url}")
             raise Exception(f"Failed to fetch TOSCA template from: {url}")
 
