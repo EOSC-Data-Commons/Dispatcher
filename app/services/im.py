@@ -14,19 +14,30 @@ class IM:
     def __init__(self, access_token: str):
         auth = [{"type": "InfrastructureManager", "token": access_token}]
         # Add cloud provider information
-        auth.append(
-            {
-                "id": "eodccloud",
-                "type": "OpenStack",
-                "host": settings.im_cloud_provider["host"],
-                "username": settings.im_cloud_provider["username"],
-                "auth_version": settings.im_cloud_provider["auth_version"],
-                "tenant": settings.im_cloud_provider["tenant"],
-                "password": settings.im_cloud_provider["password"],
-                "domain": settings.im_cloud_provider["domain"],
-                "service_region": settings.im_cloud_provider["region"]
-            }
-        )
+        if settings.im_cloud_provider["type"].lower() == "openstack":
+            auth.append(
+                {
+                    "id": "eodcostcloud",
+                    "type": "OpenStack",
+                    "host": settings.im_cloud_provider["host"],
+                    "username": settings.im_cloud_provider["username"],
+                    "auth_version": settings.im_cloud_provider["auth_version"],
+                    "tenant": settings.im_cloud_provider["tenant"],
+                    "password": settings.im_cloud_provider["password"],
+                    "domain": settings.im_cloud_provider["domain"],
+                    "service_region": settings.im_cloud_provider["region"]
+                }
+            )
+        elif settings.im_cloud_provider["type"].lower() == "egi":
+            auth.append(
+                {
+                    "id": "eodcegicloud",
+                    "type": "EGI",
+                    "vo": settings.im_cloud_provider["vo"],
+                    "token": access_token,
+                    "host": settings.im_cloud_provider["site"]
+                }
+            )
         if settings.im_endpoint:
             im_endpoint = settings.im_endpoint
         else:
