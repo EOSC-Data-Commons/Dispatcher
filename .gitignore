@@ -10,3 +10,4 @@ ssl/
 .env
 .vault-password.txt
 ansible.log
+app/config.py
