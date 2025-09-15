@@ -22,15 +22,11 @@ router = APIRouter(
 @router.get("/{task_id}")
 def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
     task = AsyncResult(task_id)
-    if task.failed():
-        raise HTTPException(
-            status_code=400, detail=f"Handling request failed:\n{task.result}"
-        )
     return JSONResponse(
         {
             "task_id": task_id,
-            "status": AsyncResult(task_id).status,
-            "result": AsyncResult(task_id).result,
+            "status": task.status,
+            "result": str(task.result),
         }
     )
 

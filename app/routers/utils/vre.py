@@ -6,11 +6,11 @@ from fastapi.exceptions import HTTPException
 from typing import Dict
 
 
-def parse_rocrate(rocrate_data: Dict) -> ROCrate:
+def parse_rocrate(rocrate_data: Dict) -> Dict:
     try:
         crate = ROCrate(source=rocrate_data)
         validate_rocrate(crate)
-        return crate
+        return crate.metadata.generate()
     except (ValueError, KeyError) as e:
         raise HTTPException(
             status_code=400, detail=f"Invalid ROCrate data. Reason: {e}"

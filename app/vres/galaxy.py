@@ -1,8 +1,7 @@
 from .base_vre import VRE, vre_factory
 import requests
 import logging
-from fastapi import HTTPException
-
+from app import exceptions 
 logging.basicConfig(level=logging.INFO)
 
 
@@ -11,24 +10,10 @@ class VREGalaxy(VRE):
         return "https://usegalaxy.eu/"
 
     def post(self):
-        try:
-            data = self._prepare_workflow_data()
-            response_data = self._send_workflow_request(data)
-            landing_id = self._extract_landing_id(response_data)
-            return self._build_final_url(landing_id)
-            
-        except requests.exceptions.RequestException as e:
-            logging.error(f"{self.__class__.__name__}: API request failed: {e}")
-            raise HTTPException(
-                status_code=502, 
-                detail=f"Failed to communicate with Galaxy service: {str(e)}"
-            )
-        except ValueError as e:
-            logging.error(f"{self.__class__.__name__}: Invalid JSON response: {e}")
-            raise HTTPException(
-                status_code=502, 
-                detail="Invalid response from Galaxy service"
-            )
+        data = self._prepare_workflow_data()
+        response_data = self._send_workflow_request(data)
+        landing_id = self._extract_landing_id(response_data)
+        return self._build_final_url(landing_id)
 
     def _prepare_workflow_data(self):
         """Prepare the workflow data for the API request."""
@@ -50,10 +35,8 @@ class VREGalaxy(VRE):
         """Extract workflow URL from the crate."""
         workflow_url = self.crate.mainEntity.get("url")
         if workflow_url is None:
-            raise HTTPException(
-                status_code=400, 
-                detail="Missing url in workflow entity"
-            )
+            logging.error(f"{self.__class__.__name__}: Missing url in workflow entity")
+            raise exceptions.WorkflowURLError()
         return workflow_url
 
     def _modify_for_api_data_input(self, files):
@@ -80,20 +63,22 @@ class VREGalaxy(VRE):
         
         logging.info(f"{self.__class__.__name__}: calling {api_url} with {data}")
         
-        response = requests.post(api_url, headers=headers, json=data)
-        response.raise_for_status()
+        try:
+            response = requests.post(api_url, headers=headers, json=data)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            logging.error(f"{self.__class__.__name__}: API request failed: {e}")
+            raise exceptions.GalaxyAPIError() from e
         return response.json()
 
     def _extract_landing_id(self, response_data):
         """Extract the landing ID from the API response."""
-        try:
-            return response_data["uuid"]
-        except KeyError:
-            raise HTTPException(
-                status_code=502, 
-                detail="Galaxy service response missing 'uuid' field"
-            )
-
+        uuid = response_data.get("uuid")
+        if uuid is None:
+            logging.error(f"{self.__class__.__name__}: Galaxy API response missing 'uuid' field")
+            raise exceptions.InvalidGalaxyResponseError()
+        return uuid
+        
     def _build_final_url(self, landing_id):
         """Build the final workflow landing URL."""
         url = self.svc_url.rstrip("/")
