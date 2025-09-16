@@ -38,7 +38,7 @@ def zip_rocrate(
     request: Request = None,
 ):
     task = vre_from_zipfile.apply_async(
-        args=[parsed_zipfile, request.auth.provider.access_token], serializer="pickle"
+        args=[parsed_zipfile, request.auth.provider.access_token]
     )
     return JSONResponse({"task_id": task.id})
 
@@ -49,7 +49,6 @@ def metadata_rocrate(
     data: ROCrate = Depends(parse_rocrate),
     request: Request = None,
 ):
-    task = vre_from_rocrate.apply_async(
-        args=[data, request.auth.provider.access_token], serializer="pickle"
-    )
+    task = vre_from_rocrate.apply_async(args=[data, request.auth.provider.access_token])
+
     return JSONResponse({"task_id": task.id})
