@@ -36,7 +36,7 @@ class VREGalaxy(VRE):
         workflow_url = self.crate.mainEntity.get("url")
         if workflow_url is None:
             logging.error(f"{self.__class__.__name__}: Missing url in workflow entity")
-            raise exceptions.WorkflowURLError()
+            raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
     def _modify_for_api_data_input(self, files):
@@ -75,8 +75,12 @@ class VREGalaxy(VRE):
         """Extract the landing ID from the API response."""
         uuid = response_data.get("uuid")
         if uuid is None:
-            logging.error(f"{self.__class__.__name__}: Galaxy API response missing 'uuid' field")
-            raise exceptions.InvalidGalaxyResponseError()
+            logging.error(
+                f"{self.__class__.__name__}: Galaxy API response missing 'uuid' field"
+            )
+            raise exceptions.GalaxyAPIError(
+                "Galaxy API response missing 'uuid' field"
+            )
         return uuid
         
     def _build_final_url(self, landing_id):
