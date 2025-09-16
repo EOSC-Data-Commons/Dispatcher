@@ -68,7 +68,7 @@ class VREGalaxy(VRE):
             response.raise_for_status()
         except requests.RequestException as e:
             logging.error(f"{self.__class__.__name__}: API request failed: {e}")
-            raise exceptions.GalaxyAPIError() from e
+            raise exceptions.GalaxyAPIError("Galaxy API call failed") from e
         return response.json()
 
     def _extract_landing_id(self, response_data):
