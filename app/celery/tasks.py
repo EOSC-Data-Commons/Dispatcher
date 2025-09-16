@@ -13,11 +13,8 @@ def vre_from_zipfile(parsed_zipfile: (ROCrate, UploadFile), token):
     return {"url": vre_handler.post()}
 
 
-@celery.task(name="vre_from_rocrate", bind=True, autoretry_for=(GalaxyAPIError,), retry_backoff=True, max_retries=3)
+@celery.task(name="vre_from_rocrate", autoretry_for=(GalaxyAPIError,), retry_backoff=True, max_retries=3)
 def vre_from_rocrate(self, data: Dict, token):
-    try:
-        crate = ROCrate(source=copy.deepcopy(data))
-        vre_handler = vre_factory(crate=crate, token=token)
-        return {"url": vre_handler.post()}
-    except Exception as e:
-        raise self.retry(countdown=5, exc=e)
+    crate = ROCrate(source=copy.deepcopy(data))
+    vre_handler = vre_factory(crate=crate, token=token)
+    return {"url": vre_handler.post()}
