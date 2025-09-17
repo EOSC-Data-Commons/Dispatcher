@@ -26,7 +26,7 @@ def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
         {
             "task_id": task_id,
             "status": task.status,
-            "result": str(task.result),
+            "result": str(task.result) if isinstance(task.result, Exception) else task.result,
         }
     )
 
