@@ -7,7 +7,7 @@ import subprocess
 import urllib
 import uuid
 from app.config import settings
-
+from . import constants
 logger = logging.getLogger("uvicorn.error")
 
 # TODO: cleanup the created repos
@@ -17,7 +17,7 @@ logger = logging.getLogger("uvicorn.error")
 
 class VREBinder(VRE):
     def get_default_service(self):
-        return "https://mybinder.org/v2"
+        return constants.BINDER_DEFAULT_SERVICE
 
     def post(self):
         request_id = str(uuid.uuid4())

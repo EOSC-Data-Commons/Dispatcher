@@ -2,13 +2,14 @@ from .base_vre import VRE, vre_factory
 import requests
 import logging
 from app import exceptions
+from . import constants
 
 logging.basicConfig(level=logging.INFO)
 
 
 class VREGalaxy(VRE):
     def get_default_service(self):
-        return "https://usegalaxy.eu/"
+        return constants.GALAXY_DEFAULT_SERVICE
 
     def post(self):
         data = self._prepare_workflow_data()
@@ -22,10 +23,10 @@ class VREGalaxy(VRE):
         workflow_url = self._get_workflow_url()
 
         return {
-            "public": False,
+            "public": constants.GALAXY_PUBLIC_DEFAULT,
             "request_state": self._modify_for_api_data_input(files),
             "workflow_id": workflow_url,
-            "workflow_target_type": "trs_url",
+            "workflow_target_type": constants.GALAXY_WORKFLOW_TARGET_TYPE,
         }
 
     def _get_workflow_files(self):
@@ -77,15 +78,13 @@ class VREGalaxy(VRE):
             logging.error(
                 f"{self.__class__.__name__}: Galaxy API response missing 'uuid' field"
             )
-            raise exceptions.GalaxyAPIError(
-                "Galaxy API response missing 'uuid' field"
-            )
+            raise exceptions.GalaxyAPIError("Galaxy API response missing 'uuid' field")
         return uuid
 
     def _build_final_url(self, landing_id):
         """Build the final workflow landing URL."""
         url = self.svc_url.rstrip("/")
-        public = False
+        public = constants.GALAXY_PUBLIC_DEFAULT
         return f"{url}/workflow_landings/{landing_id}?public={public}"
 
 
