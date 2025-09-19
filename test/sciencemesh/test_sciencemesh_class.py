@@ -14,6 +14,7 @@ from rocrate.rocrate import ROCrate
 # Add the app directory to Python path to import VREScienceMesh
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../app'))
 
+from app.vres.base_vre import vre_factory
 from app.vres import base_vre
 from app.vres.sciencemesh import VREScienceMesh
 
