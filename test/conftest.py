@@ -2,10 +2,15 @@
 import pytest
 from unittest.mock import Mock, patch
 
-from test.fixtures.dummy_crate import DummyEntity, DummyCrate
-from app.vre.galaxy import VREGalaxy
-from app.vre.binder import VREBinder
-from app.vre.sciencemesh import VREScienceMesh
+from fixtures.dummy_crate import (
+    DummyEntity,
+    DummyCrate,
+    WORKFLOW_URL,
+    FILE_1,
+    FILE_2,)
+from app.vres.galaxy import VREGalaxy
+from app.vres.binder import VREBinder
+from app.vres.sciencemesh import VREScienceMesh
 
 
 # ----------------------------------------------------------------------
@@ -13,30 +18,16 @@ from app.vre.sciencemesh import VREScienceMesh
 # ----------------------------------------------------------------------
 @pytest.fixture
 def dummy_galaxy_crate():
-    """
-    Crate containing:
-      * a workflow (mainEntity) with a valid TRS URL
-      * two File entities that will become input files
-    """
-    workflow = DummyEntity(
-        _type="Dataset",
-        url="https://workflow.example.org/myworkflow.ga",
-        name="myworkflow.ga",
-    )
-    file1 = DummyEntity(
-        _type="File",
-        name="sample1.fastq",
-        encodingFormat="application/fastq",
-        url="https://data.example.org/sample1.fastq",
-    )
-    file2 = DummyEntity(
-        _type="File",
-        name="sample2.fastq",
-        encodingFormat="application/fastq",
-        url="https://data.example.org/sample2.fastq",
-    )
-    return DummyCrate(main_entity=workflow, other_entities=[file1, file2])
+    workflow = DummyEntity(_type="Dataset", url=WORKFLOW_URL, name="myworkflow.ga")
+    file1 = DummyEntity(_type="File", **FILE_1)
+    file2 = DummyEntity(_type="File", **FILE_2)
 
+    # ``root_dataset`` is empty → ``VRE.setup_service`` will fall back to the
+    # default service URL (GALAXY_DEFAULT_SERVICE).  That is exactly what we
+    # want for the majority of unit tests.
+    return DummyCrate(main_entity=workflow,
+                      other_entities=[file1, file2],
+                      root_dataset={})
 
 @pytest.fixture
 def dummy_binder_crate():
