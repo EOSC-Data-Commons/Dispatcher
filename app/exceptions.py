@@ -4,6 +4,10 @@ class VREError(Exception):
     """Base exception for all VRE-related errors"""
     pass
 
+class VREConfigurationError(VREError):
+    """Raised when the crate does not contain enough information to resolve a service."""
+    pass
+
 class WorkflowConfigurationError(VREError):
     """Raised when workflow configuration is invalid"""
     pass
