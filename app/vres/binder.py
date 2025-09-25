@@ -30,14 +30,15 @@ class VREBinder(VRE):
 
         os.mkdir(repo)
         logger.debug(f"{__class__.__name__}: unzipping ROCrate")
-        with zf.ZipFile(self.body) as zfile:
-            for filename in zfile.namelist():
-                logger.debug("  " + filename)
-                if filename != "ro-crate-metadata.json":
-                    with zfile.open(filename) as z, open(
-                        f"{repo}/{filename}", "wb"
-                    ) as f:
-                        f.write(z.read())
+        with io.BytesIO(self.body) as bytes_io:
+            with zf.ZipFile(bytes_io) as zfile:
+                for filename in zfile.namelist():
+                    logger.debug("  " + filename)
+                    if filename != "ro-crate-metadata.json":
+                        with zfile.open(filename) as z, open(
+                            f"{repo}/{filename}", "wb"
+                        ) as f:
+                            f.write(z.read())
 
         result = subprocess.run(
             f'cd {repo} && git init && git config user.email "dispatcher@dispatcher.com" && git config user.name "dispatcher" && git add * && git commit -m "on the fly"',

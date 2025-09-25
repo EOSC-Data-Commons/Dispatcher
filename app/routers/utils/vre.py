@@ -4,6 +4,7 @@ import json
 from fastapi import UploadFile
 from fastapi.exceptions import HTTPException
 from typing import Dict
+import io
 
 
 def parse_rocrate(rocrate_data: Dict) -> Dict:
@@ -61,18 +62,20 @@ def parse_json_metadata(metadata: str):
         )
 
 
-def parse_zipfile(zipfile: UploadFile):
+async def parse_zipfile(zipfile: UploadFile):
+    file_content = await zipfile.read()
+
     metadata = None
-    with zf.ZipFile(zipfile.file) as zfile:
-        for filename in zfile.namelist():
-            if filename == "ro-crate-metadata.json":
-                with zfile.open(filename) as file:
-                    metadata = file.read()
-    if metadata is None:
-        raise HTTPException(
-            status_code=400, detail="ro-crate-metadata.json not found in zip"
-        )
+    with io.BytesIO(file_content) as file_like:
+        with zf.ZipFile(file_like) as zfile:
+            for filename in zfile.namelist():
+                if filename == "ro-crate-metadata.json":
+                    with zfile.open(filename) as file:
+                        metadata = file.read()
+        if metadata is None:
+            raise HTTPException(
+                status_code=400, detail="ro-crate-metadata.json not found in zip"
+            )
     rocrate_json = parse_json_metadata(metadata)
     rocrate = parse_rocrate(rocrate_json)
-    validate_rocrate(rocrate)
-    return (rocrate, zipfile.file)
+    return (rocrate, file_content)

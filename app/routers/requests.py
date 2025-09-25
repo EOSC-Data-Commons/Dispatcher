@@ -7,6 +7,7 @@ from .utils import parse_zipfile, parse_rocrate
 from celery.result import AsyncResult
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 import logging
+from typing import Dict
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -34,7 +35,7 @@ def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
 @router.post("/zip_rocrate/")
 def zip_rocrate(
     token: str = Depends(oauth2_scheme),
-    parsed_zipfile: (ROCrate, UploadFile) = Depends(parse_zipfile),
+    parsed_zipfile: (Dict, bytes) = Depends(parse_zipfile),
     request: Request = None,
 ):
     task = vre_from_zipfile.apply_async(
@@ -46,7 +47,7 @@ def zip_rocrate(
 @router.post("/metadata_rocrate/")
 def metadata_rocrate(
     token: str = Depends(oauth2_scheme),
-    data: ROCrate = Depends(parse_rocrate),
+    data: Dict = Depends(parse_rocrate),
     request: Request = None,
 ):
     task = vre_from_rocrate.apply_async(args=[data, request.auth.provider.access_token])
