@@ -56,20 +56,28 @@ class VREGalaxy(VRE):
 
     def _send_workflow_request(self, data):
         """Send the workflow request to the Galaxy API."""
-        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        headers = self._get_headers()
 
-        url = self.svc_url.rstrip("/")
-        api_url = f"{url}/api/workflow_landings"
+        api_url = self._get_api_url()
 
         logging.info(f"{self.__class__.__name__}: calling {api_url} with {data}")
 
         try:
+            print(f"Sending request to Galaxy API... {data}")
             response = requests.post(api_url, headers=headers, json=data)
             response.raise_for_status()
         except requests.RequestException as e:
             logging.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise exceptions.GalaxyAPIError("Galaxy API call failed") from e
         return response.json()
+
+    def _get_api_url(self):
+        url = self.svc_url.rstrip("/")
+        api_url = f"{url}/api/workflow_landings"
+        return api_url
+
+    def _get_headers(self):
+        return {"Content-Type": "application/json", "Accept": "application/json"}
 
     def _extract_landing_id(self, response_data):
         """Extract the landing ID from the API response."""
