@@ -4,6 +4,7 @@ import requests
 from unittest.mock import Mock
 from  app.vres import constants 
 from app.exceptions import GalaxyAPIError, WorkflowURLError
+from fixtures.dummy_crate import DummyEntity, DummyCrate, WORKFLOW_URL
 
 
 def test_get_default_service():
@@ -16,7 +17,7 @@ def test_prepare_workflow_data_success(galaxy_vre):
     payload = galaxy_vre._prepare_workflow_data()
     assert payload["public"] is constants.GALAXY_PUBLIC_DEFAULT
     assert payload["workflow_target_type"] == constants.GALAXY_WORKFLOW_TARGET_TYPE
-    assert payload["workflow_id"] == "https://workflow.example.org/myworkflow.ga"
+    assert payload["workflow_id"] == WORKFLOW_URL
 
     # The request_state must contain both files, correctly transformed
     request_state = payload["request_state"]
@@ -89,41 +90,29 @@ def test_extract_landing_id_missing(galaxy_vre):
 
 
 def test_build_final_url(galaxy_vre):
-    """The final URL must contain the landing id and the public flag (False)."""
     landing_id = "deadbeef-1234"
-    expected = f"{constants.GALAXY_DEFAULT_SERVICE}workflow_landings/deadbeef-1234?public=False"
+    expected = f"{constants.GALAXY_DEFAULT_SERVICE}workflow_landings/{landing_id}?public=False"
     assert galaxy_vre._build_final_url(landing_id) == expected
 
 
 def test_post_happy_path(galaxy_vre, mock_requests_post):
-    """
-    End‑to‑end of the public ``post`` method while still mocking the HTTP call.
-    """
-    # --- arrange --------------------------------------------------------
-    # 1️⃣ payload that _prepare_workflow_data will produce
     payload = galaxy_vre._prepare_workflow_data()
-
-    # 2️⃣ mock the HTTP response
+    headers = galaxy_vre._get_headers()
+    url = galaxy_vre._get_api_url()
     mock_resp = Mock()
     mock_resp.raise_for_status.return_value = None
     mock_resp.json.return_value = {"uuid": "final-uuid-42"}
     mock_requests_post.return_value = mock_resp
 
-    # --- act -----------------------------------------------------------
     final_url = galaxy_vre.post()
 
-    # --- assert --------------------------------------------------------
-    # 1️⃣ the HTTP request was performed exactly once
-    mock_requests_post.assert_called_once()
-    # 2️⃣ the final URL is correctly assembled
+    mock_requests_post.assert_called_once_with(url, headers=headers, json=payload)
     assert final_url == f"{constants.GALAXY_DEFAULT_SERVICE}workflow_landings/final-uuid-42?public=False"
 
 
 def test_post_propagates_missing_workflow_url(galaxy_vre):
-    """If the crate is malformed, the exception bubbles up unchanged."""
-    # replace the crate with one that lacks a workflow URL
-    broken = DummyEntity(_type="Dataset")          # no url
-    galaxy_vre.crate = DummyCrate(main_entity=broken)
+    missing_url = DummyEntity(_type="Dataset")          # no url
+    galaxy_vre.crate = DummyCrate(main_entity=missing_url)
 
     with pytest.raises(WorkflowURLError):
         galaxy_vre.post()
