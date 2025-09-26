@@ -1,4 +1,5 @@
 import logging
+import requests
 import time
 import yaml
 from imclient import IMClient
@@ -7,8 +8,7 @@ from app.config import settings
 
 logging.basicConfig(level=logging.INFO)
 
-default_im_service = "https://appsgrycap.i3m.upv.es/im-dev/"
-default_cloud_provider = {"name": "IISAS-FedCloud", "VO": "vo.access.egi.eu"}
+default_im_endpoint = "https://appsgrycap.i3m.upv.es/im-dev/"
 
 
 class IM:
@@ -19,47 +19,52 @@ class IM:
         if settings.im_endpoint:
             im_endpoint = settings.im_endpoint
         else:
-            im_endpoint = default_im_service
+            im_endpoint = default_im_endpoint
         self.client = IMClient.init_client(im_endpoint, auth)
         self.inf_id = None
 
     def _build_auth_config(self, access_token: str) -> list:
         """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
-        
-        if self.deployment_type == "prod":
-            auth.append({
-                "id": "egi",
-                "type": "EGI",
-                "host": settings.im_cloud_provider["host"],
-                "vo": settings.im_cloud_provider["VO"],
-                "token": access_token
-            })
-        else:
-            auth.append({
-                "id": "eodccloud",
+        if not settings.im_cloud_provider["type"]:
+            raise ValueError("Cloud provider type is not specified in the configuration.")
+
+        if settings.im_cloud_provider["type"].lower() == "openstack":
+            ost_auth = {
+                "id": "eodcostcloud",
                 "type": "OpenStack",
                 "host": settings.im_cloud_provider["host"],
                 "username": settings.im_cloud_provider["username"],
                 "auth_version": settings.im_cloud_provider["auth_version"],
                 "tenant": settings.im_cloud_provider["tenant"],
-                "password": settings.im_cloud_provider["password"],
-                "domain": settings.im_cloud_provider["domain"],
-                "service_region": settings.im_cloud_provider["region"]
+                "password": settings.im_cloud_provider["password"]
+            }
+            if "domain" in settings.im_cloud_provider:
+                ost_auth["domain"] = settings.im_cloud_provider["domain"]
+            if "region" in settings.im_cloud_provider:
+                ost_auth["service_region"] = settings.im_cloud_provider["region"]
+            auth.append(ost_auth)
+        elif settings.im_cloud_provider["type"].lower() == "egi":
+            auth.append({
+                "id": "eodcegicloud",
+                "type": "EGI",
+                "vo": settings.im_cloud_provider["VO"],
+                "token": access_token,
+                "host": settings.im_cloud_provider["site"]
             })
-        
+        else:
+            raise ValueError(f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}")
         return auth
 
     @staticmethod
     def _get_tosca_template(url: str) -> str:
         try:
-            import requests
-
-            response = requests.get(url)
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
             return response.text
-        except requests.RequestException as e:
-            raise Exception(f"Failed to fetch TOSCA template: {e}")
+        except requests.RequestException:
+            logging.exception(f"Error fetching TOSCA template from {url}")
+            raise Exception(f"Failed to fetch TOSCA template from: {url}")
 
     @staticmethod
     def _add_inputs_to_tosca_template(tosca_template: str, service: dict) -> str:
@@ -113,6 +118,7 @@ class IM:
         tosca_template = self._gen_tosca_template(service)
         success, inf_id = self.client.create(tosca_template, desc_type="yaml")
         if not success:
+            logging.error(f"Failed to deploy service: {inf_id}")
             raise Exception(f"Failed to deploy service: {inf_id}")
         logging.info(f"Service deployed successfully with ID: {inf_id}")
         self.inf_id = inf_id
@@ -189,6 +195,6 @@ class IM:
                 inflog = self.client.get_infra_property(self.inf_id, "contmsg")
                 logging.debug(f"Deployment log: {inflog}")
                 self.destroy_service()
-            except Exception as dex:
-                logging.error(f"Failed to destroy service after error: {dex}")
+            except Exception:
+                logging.exception(f"Failed to destroy service after error")
         return None
