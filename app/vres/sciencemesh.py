@@ -1,17 +1,16 @@
 from .base_vre import VRE, vre_factory
 import requests
 import logging
-
+from . import constants
 logging.basicConfig(level=logging.INFO)
 
-default_sciencemensh_service = "https://cernbox.cern.ch/"
 # This is a placeholder
 default_dispatcher_public_fqdn = "dispatcher.egi.eu"
 
 
 class VREScienceMesh(VRE):
     def get_default_service(self):
-        return default_sciencemensh_service
+        return constants.SCIENCEMESH_DEFAULT_SERVICE
 
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
