@@ -60,4 +60,4 @@ class VREBinder(VRE):
         return f"{url}/git/{urllib.parse.quote_plus(git)}/HEAD"
 
 
-vre_factory.register("https://jupyter.org/binder/", VREBinder)
+vre_factory.register(constants.BINDER_PROGRAMMING_LANGUAGE, VREBinder)

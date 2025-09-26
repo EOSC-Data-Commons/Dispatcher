@@ -96,4 +96,4 @@ class VREGalaxy(VRE):
         return f"{url}/workflow_landings/{landing_id}?public={public}"
 
 
-vre_factory.register("https://galaxyproject.org/", VREGalaxy)
+vre_factory.register(constants.GALAXY_PROGRAMMING_LANGUAGE, VREGalaxy)

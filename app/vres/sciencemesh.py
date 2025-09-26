@@ -58,4 +58,4 @@ class VREScienceMesh(VRE):
         return ocm_share_request
  
 
-vre_factory.register("https://cernbox.cern.ch/", VREScienceMesh)
+vre_factory.register(constants.SCIENCEMESH_PROGRAMMING_LANGUAGE, VREScienceMesh)
