@@ -19,7 +19,7 @@ class IM:
         if settings.im_endpoint:
             im_endpoint = settings.im_endpoint
         else:
-            im_endpoint = default_im_endpoint
+            im_endpoint = default_im_service
         self.client = IMClient.init_client(im_endpoint, auth)
         self.inf_id = None
 
