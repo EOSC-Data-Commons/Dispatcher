@@ -272,25 +272,26 @@ Based on the [RO-Crate documentation](https://www.researchobject.org/ro-crate/sp
     }
   ],
   "@graph": [
+    {"...": "..."},
     {
-      "@id": "./bag1/data/",
+      "@id": "./",
       "@type": "Dataset",
       "hasPart": [
-        { "@id": "bag1/data/packaged-file.csv" },
-        { "@id": "bag1/data/remote-file.txt" }
+        { "@id": "bag1/data/packaged-file.txt" },
+        { "@id": "bag1/data/remote-file.csv" }
       ]
     },
     {
-      "@id": "bag1/data/packaged-file.csv",
+      "@id": "bag1/data/packaged-file.txt",
       "@type": "File",
-      "name": "CSV file included in the package",
-      "encodingFormat": "text/csv"
+      "name": "Text file included in the package",
+      "encodingFormat": "text/txt"
     },
     {
-      "@id": "bag1/data/remote-file.txt",
+      "@id": "bag1/data/remote-file.csv",
       "@type": "File",
-      "name": "Remote text file in Onedata",
-      "encodingFormat": "text/txt",
+      "name": "Remote CSV file in Onedata",
+      "encodingFormat": "text/csv",
       "url": "https://datahub.egi.eu/ref/file:782634506821427836546723549247198",
       "onedata:onezoneDomain": "datahub.egi.eu",
       "onedata:spaceId": "89437568932729873429834",
@@ -301,6 +302,7 @@ Based on the [RO-Crate documentation](https://www.researchobject.org/ro-crate/sp
     {"...": "..."}
   ]
 }
+
 ```
 
 The structure of the package could look like this:
@@ -314,8 +316,66 @@ The structure of the package could look like this:
   |      manifest-<algorithm>.txt  # As per BagIt specification
   |      fetch.txt                 # Optional, per BagIt Specification
   |      data/
-  |         packaged-file.csv
+  |         packaged-file.txt
 ```
 
 To ensure that the package can be fully rebuild using BagIt, the `fetch.txt` file should 
-include the reference to `remote-file.txt`.
+include the reference to `remote-file.csv`.
+
+
+# Other examples
+
+## A RO-Crate + BagIt Request Package with a Galaxy Workflow
+
+Specifies a Galaxy Workflow to be run on the EU Galaxy service with a packaged input file.
+
+```json
+{
+    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "datePublished": "2025-05-06T14:35:47+00:00",
+            "mainEntity" : { "@id": "#workflow" },
+            "runsOn" : { "@id": "#destination" },
+            "hasPart": [
+                { "@id": "#workflow" },
+                { "@id": "bag1/data/packaged-file.txt" },
+                { "@id": "#destination" }
+            ]
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {"@id": "./"},
+            "conformsTo": {"@id": "https://w3id.org/ro/crate/1.1"}
+        },
+        {
+            "@id": "#workflow",
+            "@type": ["File", "SoftwareSourceCode", "ComputationalWorkflow"],
+            "name": "Example galaxy workflow",
+            "programmingLanguage": {"@id": "https://w3id.org/workflowhub/workflow-ro-crate#galaxy"},
+            "url": "https://dockstore.org/api/ga4gh/trs/v2/tools/...reverse_file_galaxy_workflow.ga"
+        },
+        {
+            "@id": "https://w3id.org/workflowhub/workflow-ro-crate#galaxy",
+            "@type": "ComputerLanguage",
+            "identifier": {"@id": "https://galaxyproject.org/"},
+            "name": "Galaxy",
+            "url": {"@id": "https://galaxyproject.org/"}
+        },
+        {
+            "@id": "bag1/data/packaged-file.txt",
+            "@type": "File",
+            "name": "simpletext_input",
+            "encodingFormat": "text/txt"
+        },
+        {
+            "@id": "#destination",
+            "@type" : "Service",
+            "url": "https://usegalaxy.eu/"
+        }
+    ]
+}
+```
