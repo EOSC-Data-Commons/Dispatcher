@@ -258,3 +258,64 @@ It could look like this:
   ]
 }
 ```
+
+## 5a. Combining the above approach with Hybrid RO-Crate + BagIt
+
+Based on the [RO-Crate documentation](https://www.researchobject.org/ro-crate/specification/1.1/appendix/implementation-notes.html#example-of-wrapping-a-bagit-bag-in-an-ro-crate).
+
+```json
+{
+  "@context": [
+    "https://w3id.org/ro/crate/1.1/context",
+    {
+      "onedata": "https://onedata.org/ro-crate-profile/1.0"
+    }
+  ],
+  "@graph": [
+    {
+      "@id": "./bag1/data/",
+      "@type": "Dataset",
+      "hasPart": [
+        { "@id": "bag1/data/packaged-file.csv" },
+        { "@id": "bag1/data/remote-file.txt" }
+      ]
+    },
+    {
+      "@id": "bag1/data/packaged-file.csv",
+      "@type": "File",
+      "name": "CSV file included in the package",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "bag1/data/remote-file.txt",
+      "@type": "File",
+      "name": "Remote text file in Onedata",
+      "encodingFormat": "text/txt",
+      "url": "https://datahub.egi.eu/ref/file:782634506821427836546723549247198",
+      "onedata:onezoneDomain": "datahub.egi.eu",
+      "onedata:spaceId": "89437568932729873429834",
+      "onedata:spaceName": "my-data",
+      "onedata:fileId": "782634506821427836546723549247198",
+      "onedata:publicAccess": true
+    },
+    {"...": "..."}
+  ]
+}
+```
+
+The structure of the package could look like this:
+
+```
+<RO-Crate root>/
+  |   ro-crate-metadata.json       # RO-Crate Metadata File MUST be present
+  |   bag1/                        # "Wrapped" bag - could have any name
+  |      bagit.txt                 # As per BagIt specification
+  |      bag-info.txt              # As per BagIt specification
+  |      manifest-<algorithm>.txt  # As per BagIt specification
+  |      fetch.txt                 # Optional, per BagIt Specification
+  |      data/
+  |         packaged-file.csv
+```
+
+To ensure that the package can be fully rebuild using BagIt, the `fetch.txt` file should 
+include the reference to `remote-file.txt`.
