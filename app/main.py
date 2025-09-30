@@ -1,7 +1,7 @@
 from app.routers import requests
 from app.routers import auth
 import app.vres.config as config
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from typing import Annotated
 from fastapi_oauth2.middleware import OAuth2Middleware
 from fastapi_oauth2.router import router as oauth2_router
@@ -9,13 +9,22 @@ from fastapi_oauth2.config import OAuth2Config
 from fastapi_oauth2.client import OAuth2Client
 from fastapi_oauth2.claims import Claims
 from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
+from fastapi.responses import JSONResponse
 import ssl
 from app.config import settings
+from app.exceptions import GalaxyAPIError
 
 app = FastAPI()
 app.include_router(oauth2_router)
 app.include_router(requests.router)
 app.include_router(auth.router)
+
+@app.exception_handler(GalaxyAPIError)
+async def unicorn_exception_handler(request: Request, exc: GalaxyAPIError):
+    return JSONResponse(
+        status_code=418,
+        content={"message": f"Oops! {exc.name} did something. There goes a rainbow..."},
+    )
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_key_file)
