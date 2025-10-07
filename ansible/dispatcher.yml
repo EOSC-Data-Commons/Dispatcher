@@ -3,6 +3,16 @@
   become: true
   become_user: root
   tasks:
+    - name: Add Docker official GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker APT repository
+      ansible.builtin.apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+
     - name: Ensure docker and git are present
       apt:
         name:
@@ -42,6 +52,12 @@
       ansible.builtin.template:
         src: docker-compose.yml.j2
         dest: "{{ dispatcher.dir }}/docker-compose.yml"
+
+    - name: Ensure nginx config directory exists
+      file:
+        path: "{{ dispatcher.dir }}/nginx"
+        state: directory
+        mode: '0755'
 
     - name: Install ocm.json
       ansible.builtin.template:
