@@ -1,7 +1,7 @@
 from .base_vre import VRE, vre_factory
 import requests
 import logging
-import yaml
+import json
 from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO)
@@ -23,13 +23,13 @@ class VREOSCAR(VRE):
         script = None
         for elem in workflow_parts:
             if elem.get("@type") == "File":
-                if elem.get("encodingFormat") == "text/yaml":
+                if elem.get("encodingFormat") == "text/json":
                     # Get the FDL file
                     try:
                         fdl_url = self.crate.dereference(elem.get("@id")).get("url")
                         response = requests.get(fdl_url)
                         fdl = response.text
-                        fdl_yaml = yaml.safe_load(fdl)
+                        fdl_json = response.json()
                     except Exception as ex:
                         raise HTTPException(
                             status_code=400, detail=f"Error getting service FDL: {ex}"
@@ -55,11 +55,13 @@ class VREOSCAR(VRE):
             )
 
         if script:
-            service = fdl_yaml["functions"]["oscar"][0]
-            service_name = list(service.keys())[0]
-            service[service_name]["script"] = script
-            fdl = yaml.safe_dump(fdl_yaml)
+            fdl_json["script"] = script
+            fdl = json.dumps(fdl_json)
 
+        service_name = fdl_json["name"]
+
+        logging.info(f"Creating OSCAR service {service_name}")
+        logging.debug(f"FDL: {fdl}")
         headers = {"Authorization": f"Bearer {self.token}"}
         url = self.svc_url
         response = requests.post(f"{url}/system/services", data=fdl, headers=headers)
@@ -77,9 +79,10 @@ class VREOSCAR(VRE):
 
     def _invoke_service(self, oscar_url, service_name, files):
         headers = {"Authorization": f"Bearer {self.token}"}
-        url = f"{oscar_url}/run/{service_name}"
+        url = f"{oscar_url}/job/{service_name}"
         for f in files:
             try:
+                logging.info(f"Creating invocation for service {service_name} and file {f.get('url')}")
                 response = requests.get(f.get("url"))
                 file_content = response.text
             except Exception as e:

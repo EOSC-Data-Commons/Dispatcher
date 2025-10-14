@@ -38,18 +38,18 @@
                 "@id": "https://w3id.org/workflowhub/workflow-ro-crate#oscar"
             },
             "hasPart": [
-                { "@id": "#cowsay_fdl" },
-                { "@id": "#cowsay_script" }
+                { "@id": "#fdl" },
+                { "@id": "#script" }
             ]
         },
         {
-            "@id": "#cowsay_fdl",
+            "@id": "#fdl",
             "@type": "File",
-            "encodingFormat": "text/yaml",
-            "url": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/cowsay.yaml"
+            "encodingFormat": "text/json",
+            "url": "https://raw.githubusercontent.com/cowsay.json"
         },
         {
-            "@id": "#cowsay_script",
+            "@id": "#script",
             "@type": "File",
             "encodingFormat": "text/x-shellscript",
             "url": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
@@ -75,7 +75,7 @@
         {
             "@id": "#destination",
             "@type" : "Service",
-            "url": "https://oscar.grycap.net/"
+            "url": "https://inference.gpu.im.grycap.net/"
         }
     ]
 }
