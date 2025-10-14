@@ -17,8 +17,19 @@ The endpoint accepts requests at the paths:
 
 On successful completition, a URL pointing to the prepared environment is returned.
 
-**Current restrictions:**
-- Jupiter/Binder is temporarily broken (not fully integrated in the refactored version)
+## Quickstart
+
+We do our best to keep [development instance](https://dispatcher.edc.cloud.e-infra.cz/docs) running the current version, and it is available for testing.
+Report if anything is broken, please.
+
+1. Go to https://dispatcher.edc.cloud.e-infra.cz/docs/; this is an automatically generated Swagger UI page capable of making test calls
+2. Click on `Authorize` button and log in via EGI CheckIn development identity provider
+3. Choose an example in  [test/](test/) (refer to brief description below):
+   - grab `ro-crate-metadata.json` if it is the only file of the example
+   - make a flat zip file containing all the files of the example otherwise
+4. POST the file via the Swagger to `/requests/metadata_rocrate` or '/requests/zip_rocrate`. The server returns `request_id`
+5. GET `/requests/YOUR_REQUEST_ID` repeatedly to monitor processing of the request
+6. If everythings goes right, `SUCCESS` status is returned finally, containing the endpoint to the target VRE
 
 
 ## Deployment
@@ -60,11 +71,18 @@ Dispatcher creates a landing page with simple workflow, that accepts a `txt` fil
 1. `POST /requests/metadata_rocrate`. Use [test/galaxy/ro-crate-metadata.json](test/galaxy/ro-crate-metadata.json) as payload.
 2. `GET /requests/REQUEST-UUID` to retrieve the target URL to execute the workflow. The UUID is returned by the POST request above
 
+### Galaxy TOSCA
+Similar to Galaxy but it goes via [Infrastructure Manager](https://www.grycap.upv.es/im/index.php) to set up a private Galaxy instance.
+Highly experimental so far.
+
+### Scipion TOSCA
+Deploy [Scipion](https://scipion.i2pc.es/) cryo EM data processing package via  [Infrastructure Manager](https://www.grycap.upv.es/im/index.php).
+Probably not fully working yet.
+
 ### Simple Binder
 
 Trivial Jupyter notebook (print the Pi value). 
-The test talks to our Binder service; it would be better to use https://mybinder.org/ but it blocks communication to non-standard ports,
-which we use for testing typically.
+The test talks to [EGI Notebooks](https://replay.notebooks.egi.eu/) by default.
 Change `#destination` in `ro-crate-metadata.json` eventually.
 
 Zip the content of [test/simple-binder](test/simple-binder) and post the file to `/requests/zip_rocrate/`
@@ -75,20 +93,6 @@ Testing notebook stolen from our other project, which takls to our service to fi
 
 Again, zip [test/alphafind-notebook](test/alphafind-notebook) and post the file to `/requests/zip_rocrate/`
 
+### ScienceMesh
 
-## Obsolete
-
-Probably broken, old stuff
-
-To run Dispatcher, follow these steps:
-
-1. Clone this repository: `git clone https://github.com/EOSC-Data-Commons/Dispatcher.git`
-2. Build the Docker image: `docker build -t dispatcher .`
-3. Run the Docker container: `docker run -d -p 8000:8000 dispatcher`
-
-This will start the API server on `localhost:8000`.
-
-Alternatively, a Python virtual environment can be created, dependencies installed from [requirements.txt](requirements.txt), and the server started with:
-```
-uvicorn app.main:app --port 8000
-```
+Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.

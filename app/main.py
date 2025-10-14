@@ -1,6 +1,5 @@
 from app.routers import requests
 from app.routers import auth
-import app.vres.config as config
 from fastapi import FastAPI
 from typing import Annotated
 from fastapi_oauth2.middleware import OAuth2Middleware
@@ -42,8 +41,3 @@ app.add_middleware(OAuth2Middleware, config=OAuth2Config(clients=[client]))
 @app.get("/")
 async def root():
     return {"message": "API running"}
-
-
-@app.get("/config")
-def read_config():
-    return config.config

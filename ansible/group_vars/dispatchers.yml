@@ -22,3 +22,24 @@ nginx:
 api:
   port: 8000
   environment: dev
+
+im:
+  endpoint: https://appsgrycap.i3m.upv.es/im-dev/ # or https://im.egi.eu/im for production
+  # We can set in in secret vars to avoid exposing credentials
+  cloud_provider:
+    # In case of OpenStack site
+    type: OpenStack
+    host: "https://keystone:5000/"
+    username: "your_app_credential_id"
+    auth_version: 3.x_appcred
+    tenant: "project_name_or_id"
+    password: "your_app_credential_secret"
+    # Optional
+    # domain: default
+    # region: RegionOne
+
+    # In case of EGI Cloud Compute site
+    # In this case, the Dispatcher must use the EGI Check-in production instance to authenticate users
+    # type: EGI
+    # site: site_name
+    # VO: vo_name
