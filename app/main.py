@@ -1,7 +1,7 @@
 from app.routers import requests
 from app.routers import auth
-import app.vres.config as config
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
+/opt/edc/dispatcher/.env: no such file or directory"}
 from typing import Annotated
 from fastapi_oauth2.middleware import OAuth2Middleware
 from fastapi_oauth2.router import router as oauth2_router
@@ -20,7 +20,8 @@ app.include_router(requests.router)
 app.include_router(auth.router)
 
 @app.exception_handler(GalaxyAPIError)
-async def unicorn_exception_handler(request: Request, exc: GalaxyAPIError):
+async def unicorn_exception_handler(request: 
+                                    , exc: GalaxyAPIError):
     return JSONResponse(
         status_code=418,
         content={"message": f"Oops! {exc.name} did something. There goes a rainbow..."},
@@ -51,8 +52,3 @@ app.add_middleware(OAuth2Middleware, config=OAuth2Config(clients=[client]))
 @app.get("/")
 async def root():
     return {"message": "API running"}
-
-
-@app.get("/config")
-def read_config():
-    return config.config
