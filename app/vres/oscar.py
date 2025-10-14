@@ -68,7 +68,28 @@ class VREOSCAR(VRE):
                 status_code=400, detail=f"Error creating OSCAR service: {response.text}"
             )
 
-        return f"{url}/system/services/{service_name}"
+        service_url = f"{url}/system/services/{service_name}"
+
+        files = [e for e in self.crate.get_entities() if e.type == "File"]
+        self._invoke_service(url, service_name, files)
+
+        return service_url
+
+    def _invoke_service(self, oscar_url, service_name, files):
+        headers = {"Authorization": f"Bearer {self.token}"}
+        url = f"{oscar_url}/run/{service_name}"
+        for f in files:
+            try:
+                response = requests.get(f.get("url"))
+                file_content = response.text
+            except Exception as e:
+                logging.error(f"Error fetching file {f.get('url')}: {e}")
+                continue
+            response = requests.post(url, headers=headers, data=file_content)
+            if response.status_code != 201:
+                logging.error(
+                    f"Error invoking OSCAR service for file {f.get('url')}: {response.text}"
+                )
 
 
 vre_factory.register("https://oscar.grycap.net/", VREOSCAR)
