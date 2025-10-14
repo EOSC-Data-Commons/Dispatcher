@@ -74,8 +74,23 @@
         },
         {
             "@id": "#destination",
-            "@type" : "Service",
-            "url": "https://oscar.grycap.net/"
+            "@type": "SoftwareApplication",
+            "name": "OSCAR",
+            "memoryRequirements": "4 GiB",
+            "processorRequirements": [
+                "2 vCPU",
+                "1 GPU"
+            ],
+            "hasPart": [
+                { "@id": "#oscar.yaml" }
+            ]
+        },
+        {
+            "@id": "#oscar.yaml",
+            "@type": "File",
+            "name": "OSCAR TOSCA template file",
+            "encodingFormat": "text/yaml",
+            "url": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/main/templates/oscar.yaml"
         }
     ]
 }
