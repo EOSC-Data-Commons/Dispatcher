@@ -46,7 +46,7 @@
             "@id": "#fdl",
             "@type": "File",
             "encodingFormat": "text/json",
-            "url": "https://raw.githubusercontent.com/cowsay.json"
+            "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre_invoke/test/oscar/cowsay.json"
         },
         {
             "@id": "#script",
