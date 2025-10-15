@@ -13,7 +13,6 @@ default_im_endpoint = "https://appsgrycap.i3m.upv.es/im-dev/"
 
 class IM:
     def __init__(self, access_token: str):
-        self.deployment_type = settings.im_cloud_provider.get("deployment_type", "dev")
         auth = self._build_auth_config(access_token)
 
         if settings.im_endpoint:
