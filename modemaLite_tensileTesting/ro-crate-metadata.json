@@ -1,0 +1,102 @@
+{
+    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": "modema-lite: nanoindentation example",
+            "description": "An example of nanoindentation with three files (one calibration, two data)",
+            "datePublished": "2025-10-15T12:00:00+00:00",
+            "creator": {
+                "@id": "#creator"
+            },
+            "license": "MIT",
+            "mainEntity": { "@id": "#workflow" },
+            "runsOn": { "@id": "#destination" },
+            "hasPart": [
+                { "@id": "source/analyse.ipynb" },
+                { "@id": "source/requirements.txt" },
+                { "@id": "input/Measurement_90_1.tsv" },
+                { "@id": "input/Measurement_90_2.tsv" },
+                { "@id": "input/Measurement_90_3.tsv" },
+                { "@id": "output/" },
+                { "@id": "#jupyter" },
+                { "@id": "#destination" },
+                { "@id": "#creator" }
+            ]
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {
+                "@id": "./"
+            },
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            }
+        },
+        {
+            "@id": "source/analyse.ipynb",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "ComputationalWorkflow"
+            ],
+            "name": "Example jupyter notebook",
+            "programmingLanguage": {
+                "@id": "#jupyter"
+            }
+        },
+        {
+            "@id": "source/requirements.txt",
+            "@type": [
+                "File"
+            ]
+        },
+        {
+            "@id": "input/Measurement_90_1.tsv",
+            "@type": [
+                "File"
+            ]
+        },
+        {
+            "@id": "input/Measurement_90_2.tsv",
+            "@type": [
+                "File"
+            ]
+        },
+        {
+            "@id": "input/Measurement_90_3.tsv",
+            "@type": [
+                "File"
+            ]
+        },
+        {
+            "@id": "output/",
+            "@type": [
+                "Dataset"
+            ]
+        },
+        {
+            "@id": "#jupyter",
+            "@type": "ComputerLanguage",
+            "identifier": {
+                "@id": "https://jupyter.org/binder/"
+            },
+            "name": "Jupyter Notebook"
+        },
+        {
+            "@id": "#destination",
+            "@type": "Service",
+            "name": "ScienceMesh Service",
+            "description": "ScienceMesh federated storage and collaboration platform",
+            "url": "http://localhost:5000"
+        },
+        {
+            "@id": "#creator",
+            "@type": "Person",
+            "name": "Steffen Brinckmann",
+            "userid": "s.brinckmann@fz-juelich.de"
+        }
+    ]
+}
