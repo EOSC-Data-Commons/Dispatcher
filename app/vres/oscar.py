@@ -1,4 +1,5 @@
 from .base_vre import VRE, vre_factory
+import base64
 import requests
 import logging
 import json
@@ -96,7 +97,7 @@ class VREOSCAR(VRE):
             except Exception as e:
                 logging.error(f"Error fetching file {f.get('url')}: {e}")
                 continue
-            response = requests.post(url, headers=headers, data=file_content, timeout=60)
+            response = requests.post(url, headers=headers, data=base64.b64encode(file_content.encode()), timeout=60)
             if response.status_code != 201:
                 logging.error(
                     f"Error invoking OSCAR service for file {f.get('url')}: {response.text}"

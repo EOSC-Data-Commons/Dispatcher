@@ -1,4 +1,5 @@
 """Test OSCAR VRE"""
+import base64
 import json
 import os
 from unittest.mock import MagicMock, patch
@@ -58,5 +59,5 @@ fi"""
                                                          "Content-Type": "application/json"}
 
     assert mock_post.call_args_list[1][0][0] == "https://oscar.grycap.net/job/cowsay"
-    assert mock_post.call_args_list[1][1]['data'] == "input file content"
+    assert mock_post.call_args_list[1][1]['data'] == base64.b64encode(b"input file content")
     assert mock_post.call_args_list[1][1]['headers'] == {'Authorization': 'Bearer dummy_token'}
