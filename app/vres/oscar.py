@@ -19,7 +19,7 @@ class VREOSCAR(VRE):
                 status_code=400, detail="Missing hasPart in workflow entity"
             )
 
-        fdl = None
+        fdl_json = None
         script = None
         for elem in workflow_parts:
             if elem.get("@type") == "File":
@@ -28,7 +28,6 @@ class VREOSCAR(VRE):
                     try:
                         fdl_url = self.crate.dereference(elem.get("@id")).get("url")
                         response = requests.get(fdl_url)
-                        fdl = response.text
                         fdl_json = response.json()
                     except Exception as ex:
                         raise HTTPException(
@@ -49,22 +48,21 @@ class VREOSCAR(VRE):
                     status_code=400, detail="Invalid hasPart type in workflow entity"
                 )
 
-        if not fdl:
+        if not fdl_json:
             raise HTTPException(
                 status_code=400, detail="Missing FDL in workflow entity"
             )
 
         if script:
             fdl_json["script"] = script
-            fdl = json.dumps(fdl_json)
 
         service_name = fdl_json["name"]
 
         logging.info(f"Creating OSCAR service {service_name}")
-        logging.debug(f"FDL: {fdl}")
-        headers = {"Authorization": f"Bearer {self.token}"}
+        logging.debug(f"FDL: {json.dumps(fdl_json)}")
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
         url = self.svc_url
-        response = requests.post(f"{url}/system/services", data=fdl, headers=headers)
+        response = requests.post(f"{url}/system/services", headers=headers, json=fdl_json, timeout=60)
         if response.status_code != 201:
             raise HTTPException(
                 status_code=400, detail=f"Error creating OSCAR service: {response.text}"
@@ -98,7 +96,7 @@ class VREOSCAR(VRE):
             except Exception as e:
                 logging.error(f"Error fetching file {f.get('url')}: {e}")
                 continue
-            response = requests.post(url, headers=headers, data=file_content)
+            response = requests.post(url, headers=headers, data=file_content, timeout=60)
             if response.status_code != 201:
                 logging.error(
                     f"Error invoking OSCAR service for file {f.get('url')}: {response.text}"
