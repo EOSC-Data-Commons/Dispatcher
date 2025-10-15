@@ -21,7 +21,7 @@ nginx:
 
 api:
   port: 8000
-  environment: dev
+  environment: demo
 
 im:
   endpoint: https://appsgrycap.i3m.upv.es/im-dev/ # or https://im.egi.eu/im for production
