@@ -1,7 +1,7 @@
 from .base_vre import VRE, vre_factory
 import requests
 import logging
-import yaml
+import json
 from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO)
@@ -23,13 +23,13 @@ class VREOSCAR(VRE):
         script = None
         for elem in workflow_parts:
             if elem.get("@type") == "File":
-                if elem.get("encodingFormat") == "text/yaml":
+                if elem.get("encodingFormat") == "text/json":
                     # Get the FDL file
                     try:
                         fdl_url = self.crate.dereference(elem.get("@id")).get("url")
                         response = requests.get(fdl_url)
                         fdl = response.text
-                        fdl_yaml = yaml.safe_load(fdl)
+                        fdl_json = response.json()
                     except Exception as ex:
                         raise HTTPException(
                             status_code=400, detail=f"Error getting service FDL: {ex}"
@@ -55,11 +55,13 @@ class VREOSCAR(VRE):
             )
 
         if script:
-            service = fdl_yaml["functions"]["oscar"][0]
-            service_name = list(service.keys())[0]
-            service[service_name]["script"] = script
-            fdl = yaml.safe_dump(fdl_yaml)
+            fdl_json["script"] = script
+            fdl = json.dumps(fdl_json)
 
+        service_name = fdl_json["name"]
+
+        logging.info(f"Creating OSCAR service {service_name}")
+        logging.debug(f"FDL: {fdl}")
         headers = {"Authorization": f"Bearer {self.token}"}
         url = self.svc_url
         response = requests.post(f"{url}/system/services", data=fdl, headers=headers)
@@ -68,7 +70,39 @@ class VREOSCAR(VRE):
                 status_code=400, detail=f"Error creating OSCAR service: {response.text}"
             )
 
-        return f"{url}/system/services/{service_name}"
+        service_url = f"{url}/system/services/{service_name}"
+
+        files = self._get_input_files()
+        self._invoke_service(url, service_name, files)
+
+        return service_url
+
+    def _get_input_files(self):
+        # Get all files except the workflow and destination
+        non_input_files = []
+        non_input_files.append(self.crate.root_dataset.get("runsOn").get('@id'))
+        non_input_files.append(self.crate.mainEntity.get('@id'))
+        for elem in self.crate.mainEntity.get("hasPart", []):
+            if elem.get("@type") == "File":
+                non_input_files.append(elem.get("@id"))
+        return [e for e in self.crate.get_entities() if e.type == "File" and e.get('@id') not in non_input_files]
+
+    def _invoke_service(self, oscar_url, service_name, files):
+        headers = {"Authorization": f"Bearer {self.token}"}
+        url = f"{oscar_url}/job/{service_name}"
+        for f in files:
+            try:
+                logging.info(f"Creating invocation for service {service_name} and file {f.get('url')}")
+                response = requests.get(f.get("url"))
+                file_content = response.text
+            except Exception as e:
+                logging.error(f"Error fetching file {f.get('url')}: {e}")
+                continue
+            response = requests.post(url, headers=headers, data=file_content)
+            if response.status_code != 201:
+                logging.error(
+                    f"Error invoking OSCAR service for file {f.get('url')}: {response.text}"
+                )
 
 
 vre_factory.register("https://oscar.grycap.net/", VREOSCAR)
