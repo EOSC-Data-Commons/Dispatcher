@@ -36,9 +36,12 @@ class IM:
                 "host": settings.im_cloud_provider["host"],
                 "username": settings.im_cloud_provider["username"],
                 "auth_version": settings.im_cloud_provider["auth_version"],
-                "tenant": settings.im_cloud_provider["tenant"],
-                "password": settings.im_cloud_provider["password"]
+                "tenant": settings.im_cloud_provider["tenant"]
             }
+            if settings.im_cloud_provider["auth_version"] == "3.x_oidc_access_token":
+                ost_auth["password"] = access_token
+            else:
+                ost_auth["password"] = settings.im_cloud_provider["password"]
             if "domain" in settings.im_cloud_provider:
                 ost_auth["domain"] = settings.im_cloud_provider["domain"]
             if "region" in settings.im_cloud_provider:
