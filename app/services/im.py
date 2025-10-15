@@ -25,7 +25,7 @@ class IM:
     def _build_auth_config(self, access_token: str) -> list:
         """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
-        if not settings.im_cloud_provider["type"]:
+        if not settings.im_cloud_provider.get("type"):
             raise ValueError("Cloud provider type is not specified in the configuration.")
 
         if settings.im_cloud_provider["type"].lower() == "openstack":
