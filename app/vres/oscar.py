@@ -13,8 +13,6 @@ class VREOSCAR(VRE):
 
     def post(self):
         workflow_parts = self.crate.mainEntity.get("hasPart", [])
-        self.crate
-        self.crate.root_dataset.get("hasPart", [])
 
         if not workflow_parts:
             raise HTTPException(
@@ -81,9 +79,13 @@ class VREOSCAR(VRE):
 
     def _get_input_files(self):
         # Get all files except the workflow and destination
-        dest = self.crate.root_dataset.get("runsOn").get('@id')
-        workflow = self.crate.mainEntity.get('@id')
-        return [e for e in self.crate.get_entities() if e.type == "File" and e.get('@id') not in [dest, workflow]]
+        non_input_files = []
+        non_input_files.append(self.crate.root_dataset.get("runsOn").get('@id'))
+        non_input_files.append(self.crate.mainEntity.get('@id'))
+        for elem in self.crate.mainEntity.get("hasPart", []):
+            if elem.get("@type") == "File":
+                non_input_files.append(elem.get("@id"))
+        return [e for e in self.crate.get_entities() if e.type == "File" and e.get('@id') not in non_input_files]
 
     def _invoke_service(self, oscar_url, service_name, files):
         headers = {"Authorization": f"Bearer {self.token}"}

@@ -75,7 +75,7 @@
         {
             "@id": "#destination",
             "@type" : "Service",
-            "url": "https://inference.gpu.im.grycap.net/"
+            "url": "https://oscar.grycap.net/"
         }
     ]
 }
