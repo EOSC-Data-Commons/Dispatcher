@@ -12,3 +12,4 @@ ssl/
 ansible.log
 
 output/
+myNotes.md

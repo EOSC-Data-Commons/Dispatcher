@@ -1,5 +1,9 @@
 {
-    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@context": ["https://w3id.org/ro/crate/1.1/context",
+        {
+            "runsOn": { "@id": "https://w3id.org/ro/crate/1.1/runsOn", "@type": "@id" }
+        }
+    ],
     "@graph": [
         {
             "@id": "./",
@@ -11,15 +15,14 @@
                 "@id": "#creator"
             },
             "license": "MIT",
-            "mainEntity": { "@id": "#workflow" },
+            "mainEntity": { "@id": "analyse.ipynb" },
             "runsOn": { "@id": "#destination" },
             "hasPart": [
-                { "@id": "source/analyse.ipynb" },
-                { "@id": "source/requirements.txt" },
-                { "@id": "input/Measurement_90_1.tsv" },
-                { "@id": "input/Measurement_90_2.tsv" },
-                { "@id": "input/Measurement_90_3.tsv" },
-                { "@id": "output/" },
+                { "@id": "analyse.ipynb" },
+                { "@id": "requirements.txt" },
+                { "@id": "Measurement_90_1.tsv" },
+                { "@id": "Measurement_90_2.tsv" },
+                { "@id": "Measurement_90_3.tsv" },
                 { "@id": "#jupyter" },
                 { "@id": "#destination" },
                 { "@id": "#creator" }
@@ -36,7 +39,7 @@
             }
         },
         {
-            "@id": "source/analyse.ipynb",
+            "@id": "analyse.ipynb",
             "@type": [
                 "File",
                 "SoftwareSourceCode",
@@ -48,33 +51,27 @@
             }
         },
         {
-            "@id": "source/requirements.txt",
+            "@id": "requirements.txt",
             "@type": [
                 "File"
             ]
         },
         {
-            "@id": "input/Measurement_90_1.tsv",
+            "@id": "Measurement_90_1.tsv",
             "@type": [
                 "File"
             ]
         },
         {
-            "@id": "input/Measurement_90_2.tsv",
+            "@id": "Measurement_90_2.tsv",
             "@type": [
                 "File"
             ]
         },
         {
-            "@id": "input/Measurement_90_3.tsv",
+            "@id": "Measurement_90_3.tsv",
             "@type": [
                 "File"
-            ]
-        },
-        {
-            "@id": "output/",
-            "@type": [
-                "Dataset"
             ]
         },
         {
@@ -87,16 +84,14 @@
         },
         {
             "@id": "#destination",
-            "@type": "Service",
-            "name": "ScienceMesh Service",
-            "description": "ScienceMesh federated storage and collaboration platform",
-            "url": "http://localhost:5000"
+            "@type" : "Service",
+            "url": "https://replay.notebooks.egi.eu/v2"
         },
         {
             "@id": "#creator",
             "@type": "Person",
             "name": "Steffen Brinckmann",
-            "userid": "s.brinckmann@fz-juelich.de"
+            "identifier": "s.brinckmann@fz-juelich.de"
         }
     ]
 }
