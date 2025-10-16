@@ -29,17 +29,16 @@ im:
   cloud_provider:
     # In case of OpenStack site
     type: OpenStack
-    host: "https://keystone:5000/"
-    username: "your_app_credential_id"
-    auth_version: 3.x_appcred
-    tenant: "project_name_or_id"
-    password: "your_app_credential_secret"
-    # Optional
-    # domain: default
-    # region: RegionOne
+    host: "https://identity.brno.openstack.cloud.e-infra.cz"
+    username: "demo.egi.eu"
+    auth_version: "3.x_oidc_access_token"
+    tenant: "openid"
+    domain: "vo.eosc-data-commons.eu"
+    # # region: RegionOne
 
     # In case of EGI Cloud Compute site
     # In this case, the Dispatcher must use the EGI Check-in production instance to authenticate users
-    # type: EGI
-    # site: site_name
-    # VO: vo_name
+    #type: demo
+    #site: "CESNET-MCCG2"
+    #VO: vo.eosc-data-commons.eu
+    
