@@ -1,0 +1,97 @@
+{
+    "@context": ["https://w3id.org/ro/crate/1.1/context",
+        {
+            "runsOn": { "@id": "https://w3id.org/ro/crate/1.1/runsOn", "@type": "@id" }
+        }
+    ],
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": "modema-lite: nanoindentation example",
+            "description": "An example of nanoindentation with three files (one calibration, two data)",
+            "datePublished": "2025-10-15T12:00:00+00:00",
+            "creator": {
+                "@id": "#creator"
+            },
+            "license": "MIT",
+            "mainEntity": { "@id": "analyse.ipynb" },
+            "runsOn": { "@id": "#destination" },
+            "hasPart": [
+                { "@id": "analyse.ipynb" },
+                { "@id": "requirements.txt" },
+                { "@id": "Measurement_90_1.tsv" },
+                { "@id": "Measurement_90_2.tsv" },
+                { "@id": "Measurement_90_3.tsv" },
+                { "@id": "#jupyter" },
+                { "@id": "#destination" },
+                { "@id": "#creator" }
+            ]
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {
+                "@id": "./"
+            },
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            }
+        },
+        {
+            "@id": "analyse.ipynb",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "ComputationalWorkflow"
+            ],
+            "name": "Example jupyter notebook",
+            "programmingLanguage": {
+                "@id": "#jupyter"
+            }
+        },
+        {
+            "@id": "requirements.txt",
+            "@type": [
+                "File"
+            ]
+        },
+        {
+            "@id": "Measurement_90_1.tsv",
+            "@type": [
+                "File"
+            ]
+        },
+        {
+            "@id": "Measurement_90_2.tsv",
+            "@type": [
+                "File"
+            ]
+        },
+        {
+            "@id": "Measurement_90_3.tsv",
+            "@type": [
+                "File"
+            ]
+        },
+        {
+            "@id": "#jupyter",
+            "@type": "ComputerLanguage",
+            "identifier": {
+                "@id": "https://jupyter.org/binder/"
+            },
+            "name": "Jupyter Notebook"
+        },
+        {
+            "@id": "#destination",
+            "@type" : "Service",
+            "url": "https://replay.notebooks.egi.eu/v2"
+        },
+        {
+            "@id": "#creator",
+            "@type": "Person",
+            "name": "Steffen Brinckmann",
+            "identifier": "s.brinckmann@fz-juelich.de"
+        }
+    ]
+}

@@ -10,3 +10,6 @@ ssl/
 .env
 .vault-password.txt
 ansible.log
+
+output/
+myNotes.md
