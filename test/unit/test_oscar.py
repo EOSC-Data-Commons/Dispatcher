@@ -16,7 +16,8 @@ def load_json(file_name):
 
 @patch("app.vres.oscar.requests.get")
 @patch("app.vres.oscar.requests.post")
-def test_post(mock_post, mock_get):
+@patch("app.vres.oscar.requests.delete")
+def test_lifecycle(mock_delete, mock_post, mock_get):
     """Test OSCAR VRE post function"""
     crate = ROCrate(source=load_json('../oscar/ro-crate-metadata.json'))
     vreoscar = VREOSCAR(crate=crate, token="dummy_token")
@@ -30,7 +31,7 @@ else
 fi"""
 
     # Mock requests.get for FDL and script
-    def get_side_effect(url):
+    def get_side_effect(url, **kwargs):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         if url.endswith('.json'):
@@ -50,7 +51,7 @@ fi"""
 
     result = vreoscar.post()
     assert result == "https://oscar.grycap.net/system/services/cowsay"
-    assert mock_post.call_count >= 2
+    assert mock_post.call_count == 2
 
     assert mock_post.call_args_list[0][0][0] == "https://oscar.grycap.net/system/services"
     fdl["script"] = script_content
@@ -61,3 +62,8 @@ fi"""
     assert mock_post.call_args_list[1][0][0] == "https://oscar.grycap.net/job/cowsay"
     assert mock_post.call_args_list[1][1]['data'] == base64.b64encode(b"input file content")
     assert mock_post.call_args_list[1][1]['headers'] == {'Authorization': 'Bearer dummy_token'}
+
+    mock_delete.return_value.status_code = 204
+    vreoscar.delete()
+    assert mock_delete.call_count == 1
+    assert mock_delete.call_args_list[0][0][0] == "https://oscar.grycap.net/system/services/cowsay"

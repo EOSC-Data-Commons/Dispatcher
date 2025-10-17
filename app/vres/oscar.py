@@ -9,10 +9,17 @@ logging.basicConfig(level=logging.INFO)
 
 
 class VREOSCAR(VRE):
+    def __init__(self, crate=None, body=None, token=None):
+        super().__init__(crate, body, token)
+        self.fld_json = None
+
     def get_default_service(self):
         return "https://some.oscar.instance/"
 
-    def post(self):
+    def _get_fdl_from_crate(self):
+        if self.fld_json:
+            return self.fld_json
+
         workflow_parts = self.crate.mainEntity.get("hasPart", [])
 
         if not workflow_parts:
@@ -28,7 +35,7 @@ class VREOSCAR(VRE):
                     # Get the FDL file
                     try:
                         fdl_url = self.crate.dereference(elem.get("@id")).get("url")
-                        response = requests.get(fdl_url)
+                        response = requests.get(fdl_url, timeout=30)
                         fdl_json = response.json()
                     except Exception as ex:
                         raise HTTPException(
@@ -38,7 +45,7 @@ class VREOSCAR(VRE):
                     # Get the script file
                     try:
                         script_url = self.crate.dereference(elem.get("@id")).get("url")
-                        response = requests.get(script_url)
+                        response = requests.get(script_url, timeout=30)
                         script = response.text
                     except Exception as ex:
                         raise HTTPException(
@@ -57,6 +64,11 @@ class VREOSCAR(VRE):
         if script:
             fdl_json["script"] = script
 
+        self.fld_json = fdl_json
+        return fdl_json
+
+    def post(self):
+        fdl_json = self._get_fdl_from_crate()
         service_name = fdl_json["name"]
 
         logging.info(f"Creating OSCAR service {service_name}")
@@ -92,7 +104,7 @@ class VREOSCAR(VRE):
         for f in files:
             try:
                 logging.info(f"Creating invocation for service {service_name} and file {f.get('url')}")
-                response = requests.get(f.get("url"))
+                response = requests.get(f.get("url"), timeout=60)
                 file_content = response.text
             except Exception as e:
                 logging.error(f"Error fetching file {f.get('url')}: {e}")
@@ -102,6 +114,19 @@ class VREOSCAR(VRE):
                 logging.error(
                     f"Error invoking OSCAR service for file {f.get('url')}: {response.text}"
                 )
+
+    def delete(self):
+        fdl_json = self._get_fdl_from_crate()
+        service_name = fdl_json["name"]
+
+        logging.info(f"Deleting OSCAR service {service_name}")
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        url = self.svc_url
+        response = requests.delete(f"{url}/system/services/{service_name}", headers=headers, timeout=60)
+        if response.status_code != 204:
+            raise HTTPException(
+                status_code=400, detail=f"Error deleting OSCAR service: {response.text}"
+            )
 
 
 vre_factory.register("https://oscar.grycap.net/", VREOSCAR)
