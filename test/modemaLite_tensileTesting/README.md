@@ -122,6 +122,8 @@ rocrate-validator validate modemaLite_tensileTesting/ -p ro-crate -f json
 
    - ⚠️ Common Binder Build Failures
 
+     - You cannot login: starting a private-session in your browser helps
+
      - If your requirements.txt includes incompatible versions, the Binder build may fail.
      ```
      Example error:
