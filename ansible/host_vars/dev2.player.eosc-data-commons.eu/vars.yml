@@ -1,0 +1,8 @@
+# nothing here yet
+
+# devel overwrite group_vars
+dispatcher:
+  repo: https://github.com/EOSC-Data-Commons/Dispatcher.git
+  branch: mddash
+  dir: /opt/edc/dispatcher
+
