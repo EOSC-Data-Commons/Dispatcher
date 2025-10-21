@@ -41,6 +41,7 @@
         dest: "{{ dispatcher.dir }}"
         version: "{{ dispatcher.branch }}"
         update: yes
+        force: yes
 
     - name: Install docker-compose-init.yml
       ansible.builtin.template:
