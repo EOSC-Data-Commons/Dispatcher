@@ -94,5 +94,5 @@ Testing notebook stolen from our other project, which takls to our service to fi
 Again, zip [test/alphafind-notebook](test/alphafind-notebook) and post the file to `/requests/zip_rocrate/`
 
 ### ScienceMesh
-
 Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.
+

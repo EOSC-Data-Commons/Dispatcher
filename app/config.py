@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     egi_checkin_env: str = "dev"
     client_id: str = "client-oidc-dispatcher"
@@ -11,5 +12,6 @@ class Settings(BaseSettings):
     git_repos: str = ""
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
+
 
 settings = Settings()
