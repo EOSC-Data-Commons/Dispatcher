@@ -28,7 +28,9 @@ class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
 
 client = OAuth2Client(
     backend=TestEGICheckinOpenIdConnect,
-    scope=["openid email profile entitlements voperson_id voperson_external_affiliation eduperson_entitlement"],
+    scope=[
+        "openid email profile entitlements voperson_id voperson_external_affiliation eduperson_entitlement"
+    ],
     client_id=settings.client_id,
     client_secret=settings.client_secret,
     redirect_uri=settings.redirect_uri,

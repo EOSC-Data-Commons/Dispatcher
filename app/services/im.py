@@ -26,25 +26,31 @@ class IM:
         """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
         if not settings.im_cloud_provider.get("type"):
-            raise ValueError("Cloud provider type is not specified in the configuration.")
+            raise ValueError(
+                "Cloud provider type is not specified in the configuration."
+            )
 
         if settings.im_cloud_provider["type"].lower() == "openstack":
             for key in ["host", "username", "auth_version", "tenant"]:
                 if key not in settings.im_cloud_provider:
-                    raise ValueError(f"Missing {key} field in the OpenStack configuration")
+                    raise ValueError(
+                        f"Missing {key} field in the OpenStack configuration"
+                    )
             ost_auth = {
                 "id": "eodcostcloud",
                 "type": "OpenStack",
                 "host": settings.im_cloud_provider["host"],
                 "username": settings.im_cloud_provider["username"],
                 "auth_version": settings.im_cloud_provider["auth_version"],
-                "tenant": settings.im_cloud_provider["tenant"]
+                "tenant": settings.im_cloud_provider["tenant"],
             }
             if settings.im_cloud_provider["auth_version"] == "3.x_oidc_access_token":
                 ost_auth["password"] = access_token
             else:
                 if "password" not in settings.im_cloud_provider:
-                    raise ValueError(f"Missing {key} field in the OpenStack configuration")
+                    raise ValueError(
+                        f"Missing {key} field in the OpenStack configuration"
+                    )
                 ost_auth["password"] = settings.im_cloud_provider["password"]
             if "domain" in settings.im_cloud_provider:
                 ost_auth["domain"] = settings.im_cloud_provider["domain"]
@@ -55,13 +61,15 @@ class IM:
             for key in ["VO", "site"]:
                 if key not in settings.im_cloud_provider:
                     raise ValueError(f"Missing {key} field in the EGI configuration")
-            auth.append({
-                "id": "eodcegicloud",
-                "type": "EGI",
-                "vo": settings.im_cloud_provider["VO"],
-                "token": access_token,
-                "host": settings.im_cloud_provider["site"]
-            })
+            auth.append(
+                {
+                    "id": "eodcegicloud",
+                    "type": "EGI",
+                    "vo": settings.im_cloud_provider["VO"],
+                    "token": access_token,
+                    "host": settings.im_cloud_provider["site"],
+                }
+            )
         else:
             raise ValueError(
                 f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}"
