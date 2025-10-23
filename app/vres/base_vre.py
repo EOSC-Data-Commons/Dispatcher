@@ -12,9 +12,11 @@ logger = logging.getLogger("uvicorn.error")
 class ROCrateValidationError(Exception):
     pass
 
+
 @runtime_checkable
 class IMClientProtocol(Protocol):
     """Minimal contract of the external IM client used by VRE.setup_service."""
+
     def run_service(self, dest: Mapping[str, Any]) -> Mapping[str, Any] | None: ...
 
 
@@ -67,7 +69,8 @@ class VRE(ABC):
 
     @staticmethod
     def _default_im_factory(token: str | None) -> IMClientProtocol:
-        from app.services.im import IM 
+        from app.services.im import IM
+
         return IM(token)
 
     @abstractmethod

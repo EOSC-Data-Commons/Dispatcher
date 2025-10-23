@@ -15,6 +15,7 @@ FILE_2 = {
     "url": "https://data.example.org/sample2.fastq",
 }
 
+
 class DummyEntity:
     """
     Minimal entity that mimics the subset of a RO‑Crate Entity used by the VRE code.
@@ -42,10 +43,13 @@ class DummyCrate:
     In‑memory representation of a RO‑Crate.  Only the attributes accessed
     by the VRE code are provided.
     """
-    def __init__(self,
-                 main_entity: DummyEntity,
-                 other_entities: List[DummyEntity] | None = None,
-                 root_dataset: Dict[str, Any] | None = None):
+
+    def __init__(
+        self,
+        main_entity: DummyEntity,
+        other_entities: List[DummyEntity] | None = None,
+        root_dataset: Dict[str, Any] | None = None,
+    ):
         self.mainEntity = main_entity
         self._entities = other_entities or []
         # ``root_dataset`` is what ``VRE.setup_service`` looks at.

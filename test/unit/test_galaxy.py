@@ -2,13 +2,14 @@
 import pytest
 import requests
 from unittest.mock import Mock
-from  app.vres import constants 
+from app.vres import constants
 from app.exceptions import GalaxyAPIError, WorkflowURLError
 from fixtures.dummy_crate import DummyEntity, DummyCrate, WORKFLOW_URL
 
 
 def test_get_default_service():
     from app.vres.galaxy import VREGalaxy
+
     assert VREGalaxy().get_default_service() == constants.GALAXY_DEFAULT_SERVICE
 
 
@@ -34,7 +35,7 @@ def test_get_workflow_url_missing():
     from app.exceptions import WorkflowURLError
 
     # Crate with a main entity that *doesn't* have a `url` attribute
-    broken = DummyEntity(_type="Dataset")          # no url key
+    broken = DummyEntity(_type="Dataset")  # no url key
     crate = DummyCrate(main_entity=broken)
 
     vre = VREGalaxy()
@@ -91,7 +92,9 @@ def test_extract_landing_id_missing(galaxy_vre):
 
 def test_build_final_url(galaxy_vre):
     landing_id = "deadbeef-1234"
-    expected = f"{constants.GALAXY_DEFAULT_SERVICE}workflow_landings/{landing_id}?public=False"
+    expected = (
+        f"{constants.GALAXY_DEFAULT_SERVICE}workflow_landings/{landing_id}?public=False"
+    )
     assert galaxy_vre._build_final_url(landing_id) == expected
 
 
@@ -107,11 +110,14 @@ def test_post_happy_path(galaxy_vre, mock_requests_post):
     final_url = galaxy_vre.post()
 
     mock_requests_post.assert_called_once_with(url, headers=headers, json=payload)
-    assert final_url == f"{constants.GALAXY_DEFAULT_SERVICE}workflow_landings/final-uuid-42?public=False"
+    assert (
+        final_url
+        == f"{constants.GALAXY_DEFAULT_SERVICE}workflow_landings/final-uuid-42?public=False"
+    )
 
 
 def test_post_propagates_missing_workflow_url(galaxy_vre):
-    missing_url = DummyEntity(_type="Dataset")          # no url
+    missing_url = DummyEntity(_type="Dataset")  # no url
     galaxy_vre.crate = DummyCrate(main_entity=missing_url)
 
     with pytest.raises(WorkflowURLError):
@@ -122,7 +128,7 @@ def test_post_propagates_missing_uuid(galaxy_vre, mock_requests_post):
     """When the API response does not contain a UUID, ``post`` raises GalaxyAPIError."""
     mock_resp = Mock()
     mock_resp.raise_for_status.return_value = None
-    mock_resp.json.return_value = {"some": "thing"}   # no uuid
+    mock_resp.json.return_value = {"some": "thing"}  # no uuid
     mock_requests_post.return_value = mock_resp
 
     with pytest.raises(GalaxyAPIError):

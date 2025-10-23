@@ -13,7 +13,8 @@ from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
 from app.vres.sciencemesh import VREScienceMesh
 
-pytest_plugins = ['pytest_asyncio']
+pytest_plugins = ["pytest_asyncio"]
+
 
 @pytest.fixture
 def dummy_galaxy_crate():

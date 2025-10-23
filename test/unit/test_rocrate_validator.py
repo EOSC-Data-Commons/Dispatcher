@@ -48,12 +48,15 @@ def create_valid_rocrate_json():
 def create_rocrate_json_without_main_entity():
     return {
         "@context": "https://w3id.org/ro/crate/1.1/context",
-        "@graph": [{"@id": "./", "@type": "Dataset"},{
+        "@graph": [
+            {"@id": "./", "@type": "Dataset"},
+            {
                 "@id": "ro-crate-metadata.json",
                 "@type": "CreativeWork",
                 "about": {"@id": "./"},
                 "conformsTo": {"@id": "https://w3id.org/ro/crate/1.1"},
-            },],
+            },
+        ],
     }
 
 

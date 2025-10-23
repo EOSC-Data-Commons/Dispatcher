@@ -27,7 +27,9 @@ class IM:
         """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
         if not settings.im_cloud_provider["type"]:
-            raise ValueError("Cloud provider type is not specified in the configuration.")
+            raise ValueError(
+                "Cloud provider type is not specified in the configuration."
+            )
 
         if settings.im_cloud_provider["type"].lower() == "openstack":
             ost_auth = {
@@ -37,7 +39,7 @@ class IM:
                 "username": settings.im_cloud_provider["username"],
                 "auth_version": settings.im_cloud_provider["auth_version"],
                 "tenant": settings.im_cloud_provider["tenant"],
-                "password": settings.im_cloud_provider["password"]
+                "password": settings.im_cloud_provider["password"],
             }
             if "domain" in settings.im_cloud_provider:
                 ost_auth["domain"] = settings.im_cloud_provider["domain"]
@@ -45,15 +47,19 @@ class IM:
                 ost_auth["service_region"] = settings.im_cloud_provider["region"]
             auth.append(ost_auth)
         elif settings.im_cloud_provider["type"].lower() == "egi":
-            auth.append({
-                "id": "eodcegicloud",
-                "type": "EGI",
-                "vo": settings.im_cloud_provider["VO"],
-                "token": access_token,
-                "host": settings.im_cloud_provider["site"]
-            })
+            auth.append(
+                {
+                    "id": "eodcegicloud",
+                    "type": "EGI",
+                    "vo": settings.im_cloud_provider["VO"],
+                    "token": access_token,
+                    "host": settings.im_cloud_provider["site"],
+                }
+            )
         else:
-            raise ValueError(f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}")
+            raise ValueError(
+                f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}"
+            )
         return auth
 
     @staticmethod
