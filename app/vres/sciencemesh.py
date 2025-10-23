@@ -1,15 +1,17 @@
 from .base_vre import VRE, vre_factory
 import requests
 import logging
-from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
-from app.config import settings
+from . import constants
 
 logging.basicConfig(level=logging.INFO)
+
+# This is a placeholder
+default_dispatcher_public_fqdn = "dispatcher.egi.eu"
 
 
 class VREScienceMesh(VRE):
     def get_default_service(self):
-        return SCIENCEMESH_DEFAULT_SERVICE
+        return constants.SCIENCEMESH_DEFAULT_SERVICE
 
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
@@ -37,7 +39,9 @@ class VREScienceMesh(VRE):
         # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@<dispatcher public FQDN>
         sender_userid = sender.get("userid")
         if sender_userid and "@" in sender_userid:
-            sender_userid = sender_userid.split("@")[0] + "@" + settings.host
+            sender_userid = (
+                sender_userid.split("@")[0] + "@" + default_dispatcher_public_fqdn
+            )
 
         # Create OCM share request JSON structure
         ocm_share_request = {
@@ -56,4 +60,4 @@ class VREScienceMesh(VRE):
         return ocm_share_request
 
 
-vre_factory.register(SCIENCEMESH_PROGRAMMING_LANGUAGE, VREScienceMesh)
+vre_factory.register(constants.SCIENCEMESH_PROGRAMMING_LANGUAGE, VREScienceMesh)

@@ -2,19 +2,14 @@ from .base_vre import VRE, vre_factory
 import requests
 import logging
 from app import exceptions
-from app.constants import (
-    GALAXY_DEFAULT_SERVICE,
-    GALAXY_PROGRAMMING_LANGUAGE,
-    GALAXY_PUBLIC_DEFAULT,
-    GALAXY_WORKFLOW_TARGET_TYPE,
-)
+from . import constants
 
 logging.basicConfig(level=logging.INFO)
 
 
 class VREGalaxy(VRE):
     def get_default_service(self):
-        return GALAXY_DEFAULT_SERVICE
+        return constants.GALAXY_DEFAULT_SERVICE
 
     def post(self):
         data = self._prepare_workflow_data()
@@ -28,10 +23,10 @@ class VREGalaxy(VRE):
         workflow_url = self._get_workflow_url()
 
         return {
-            "public": GALAXY_PUBLIC_DEFAULT,
+            "public": constants.GALAXY_PUBLIC_DEFAULT,
             "request_state": self._modify_for_api_data_input(files),
             "workflow_id": workflow_url,
-            "workflow_target_type": GALAXY_WORKFLOW_TARGET_TYPE,
+            "workflow_target_type": constants.GALAXY_WORKFLOW_TARGET_TYPE,
         }
 
     def _get_workflow_files(self):
@@ -52,23 +47,11 @@ class VREGalaxy(VRE):
         result = {}
         for f in files:
             properties = f.properties()
-
-            file_meta = {
+            result[properties["name"]] = {
                 "class": "File",
                 "filetype": properties["encodingFormat"].split("/")[-1],
+                "location": f["url"],
             }
-
-            if "onedata:fileId" in properties:
-                oz_domain = properties["onedata:onezoneDomain"]
-                file_id = properties["onedata:fileId"]
-                file_meta["location"] = (
-                    f"https://{oz_domain}/api/v3/onezone/shares/data/{file_id}/content"
-                )
-            else:
-                file_meta["location"] = f["url"]
-
-            result[properties["name"]] = file_meta
-
         return result
 
     def _send_workflow_request(self, data):
@@ -109,8 +92,8 @@ class VREGalaxy(VRE):
     def _build_final_url(self, landing_id):
         """Build the final workflow landing URL."""
         url = self.svc_url.rstrip("/")
-        public = GALAXY_PUBLIC_DEFAULT
+        public = constants.GALAXY_PUBLIC_DEFAULT
         return f"{url}/workflow_landings/{landing_id}?public={public}"
 
 
-vre_factory.register(GALAXY_PROGRAMMING_LANGUAGE, VREGalaxy)
+vre_factory.register(constants.GALAXY_PROGRAMMING_LANGUAGE, VREGalaxy)
