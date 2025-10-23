@@ -1,7 +1,6 @@
 from app.routers import requests
 from app.routers import auth
 from fastapi import FastAPI
-/opt/edc/dispatcher/.env: no such file or directory"}
 from typing import Annotated
 from fastapi_oauth2.middleware import OAuth2Middleware
 from fastapi_oauth2.router import router as oauth2_router
@@ -18,14 +17,6 @@ app = FastAPI()
 app.include_router(oauth2_router)
 app.include_router(requests.router)
 app.include_router(auth.router)
-
-@app.exception_handler(GalaxyAPIError)
-async def unicorn_exception_handler(request: 
-                                    , exc: GalaxyAPIError):
-    return JSONResponse(
-        status_code=418,
-        content={"message": f"Oops! {exc.name} did something. There goes a rainbow..."},
-    )
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_key_file)
