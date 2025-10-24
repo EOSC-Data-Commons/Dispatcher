@@ -37,6 +37,10 @@ im:
     auth_version: "3.x_oidc_access_token"
     tenant: "openid"
     domain: "vo.eosc-data-commons.eu"
+    wait:
+      max_time: 36000 # 10h
+      sleep: 30
+      max_retries: 3
     # # region: RegionOne
 
     # In case of EGI Cloud Compute site
