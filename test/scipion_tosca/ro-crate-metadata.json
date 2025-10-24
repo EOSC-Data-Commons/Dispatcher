@@ -9,7 +9,7 @@
             "runsOn" : { "@id": "#destination" },
             "hasPart": [
                 { "@id": "#workflow" },
-                { "@id": "#inputfile" },
+                { "@id": "#textfile" },
                 { "@id": "#destination" }
             ]
         },
@@ -42,6 +42,9 @@
             "name": "Scipion",
             "url": {
                 "@id": "http://scipion.i2pc.es/"
+            },
+            "identifier": {
+                "@id": "http://scipion.i2pc.es/"
             }
         },
         {
@@ -53,6 +56,7 @@
         },
         {
             "@id": "#destination",
+            "@type": "Service",
             "serviceType": "InfrastructureManager",
             "name": "Scipion",
             "description": "Cryo em image processing framework. Integration, traceability and analysis.",
