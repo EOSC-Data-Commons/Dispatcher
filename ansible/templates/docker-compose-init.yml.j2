@@ -23,7 +23,8 @@ services:
     volumes:
      - ./nginx/certbot/conf:/etc/certbot
     command: >
-     sh -c 'cp /etc/certbot/live/{{ inventory_hostname }}/fullchain.pem /etc/certbot && \
+     sh -c 'while [ ! -f /etc/certbot/live/{{ inventory_hostname }}/fullchain.pem ]; do sleep 1; done && \
+            cp /etc/certbot/live/{{ inventory_hostname }}/fullchain.pem /etc/certbot && \
             cp /etc/certbot/live/{{ inventory_hostname }}/privkey.pem /etc/certbot && \
             chmod 444 /etc/certbot/*.pem'
     depends_on: 
