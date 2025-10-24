@@ -2,11 +2,8 @@ from .base_vre import VRE, vre_factory
 import requests
 import logging
 from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
-
+from app.config import settings
 logging.basicConfig(level=logging.INFO)
-
-# This is a placeholder
-default_dispatcher_public_fqdn = "dispatcher.egi.eu"
 
 
 class VREScienceMesh(VRE):
@@ -40,7 +37,7 @@ class VREScienceMesh(VRE):
         sender_userid = sender.get("userid")
         if sender_userid and "@" in sender_userid:
             sender_userid = (
-                sender_userid.split("@")[0] + "@" + default_dispatcher_public_fqdn
+                sender_userid.split("@")[0] + "@" + settings.host
             )
 
         # Create OCM share request JSON structure
