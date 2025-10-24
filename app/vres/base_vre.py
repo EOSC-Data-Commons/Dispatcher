@@ -74,7 +74,7 @@ class VRE(ABC):
         return IM(token)
 
     @abstractmethod
-    def post():
+    def post(self):
         pass
 
 
