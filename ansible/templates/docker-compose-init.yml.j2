@@ -14,24 +14,14 @@ services:
       - ./nginx/certbot/www:/var/www/certbot
     entrypoint: ""
     command: >
-      sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d {{ inventory_hostname }}' 
-    depends_on: 
-      - nginx_helper
+      sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d {{ inventory_hostname }} --dry-run &&
+             touch /var/www/certbot/certbot.done' 
 
   modify_cert:
     image: alpine:latest
     volumes:
      - ./nginx/certbot/conf:/etc/certbot
     command: >
-     sh -c 'while [ ! -f /etc/certbot/live/{{ inventory_hostname }}/fullchain.pem ]; do sleep 1; done && \
-            cp /etc/certbot/live/{{ inventory_hostname }}/fullchain.pem /etc/certbot && \
+     sh -c 'cp /etc/certbot/live/{{ inventory_hostname }}/fullchain.pem /etc/certbot && \
             cp /etc/certbot/live/{{ inventory_hostname }}/privkey.pem /etc/certbot && \
             chmod 444 /etc/certbot/*.pem'
-    depends_on: 
-      - certbot 
-
-  init_complete:
-    image: alpine:latest
-    command: echo "Initialization complete"
-    depends_on:
-      - modify_cert
