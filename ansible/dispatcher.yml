@@ -83,18 +83,16 @@
         remove_orphans: true
 
     - name: Run certbot
-      community.docker.docker_compose_v2:
+      community.docker.docker_compose_v2_run:
         project_src: "{{ dispatcher.dir }}"
-        state: present
         files: ["docker-compose-init.yml"]
-        services: ["certbot"]
+        service: "certbot"
 
     - name: Run modify_cert
-      community.docker.docker_compose_v2:
+      community.docker.docker_compose_v2_run:
         project_src: "{{ dispatcher.dir }}"
-        state: present
         files: ["docker-compose-init.yml"]
-        services: ["modify_cert"]
+        service: "modify_cert"
 
     - name: Ensure docker-compose app is running
       community.docker.docker_compose_v2:
