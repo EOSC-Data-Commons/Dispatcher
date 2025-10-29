@@ -1,17 +1,14 @@
 from app.routers import requests
 from app.routers import auth
 from fastapi import FastAPI
-from typing import Annotated
 from fastapi_oauth2.middleware import OAuth2Middleware
 from fastapi_oauth2.router import router as oauth2_router
 from fastapi_oauth2.config import OAuth2Config
 from fastapi_oauth2.client import OAuth2Client
 from fastapi_oauth2.claims import Claims
 from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
-from fastapi.responses import JSONResponse
 import ssl
 from app.config import settings
-from app.exceptions import GalaxyAPIError
 
 app = FastAPI()
 app.include_router(oauth2_router)
@@ -40,8 +37,3 @@ client = OAuth2Client(
 )
 
 app.add_middleware(OAuth2Middleware, config=OAuth2Config(clients=[client]))
-
-
-@app.get("/")
-async def root():
-    return {"message": "API running"}

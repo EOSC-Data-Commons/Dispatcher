@@ -8,17 +8,12 @@ from app.config import settings
 
 logging.basicConfig(level=logging.INFO)
 
-default_im_endpoint = "https://appsgrycap.i3m.upv.es/im-dev/"
-
-
 class IM:
     def __init__(self, access_token: str):
         auth = self._build_auth_config(access_token)
 
-        if settings.im_endpoint:
-            im_endpoint = settings.im_endpoint
-        else:
-            im_endpoint = default_im_endpoint
+        im_endpoint = settings.im_endpoint
+
         self.client = IMClient.init_client(im_endpoint, auth)
         self.inf_id = None
 
@@ -158,13 +153,13 @@ class IM:
             raise Exception("No service deployed yet.")
         logging.info(f"Waiting for service {self.inf_id} to be ready...")
 
-        max_time = 36000  # 10h
+        max_time = settings.im_max_time
         wait = 0
-        unknown_count = 0
+        retries = 0
         state = "pending"
         pending_states = ["pending", "running", "unknown"]
 
-        while state in pending_states and unknown_count < 3 and wait < max_time:
+        while state in pending_states and retries < settings.im_max_retries and wait < max_time:
             success, res = self.client.get_infra_property(self.inf_id, "state")
 
             if success:
@@ -173,12 +168,12 @@ class IM:
                 state = "unknown"
 
             if state == "unknown":
-                unknown_count += 1
+                retries += 1
 
             if state in pending_states:
                 logging.debug(f"The infrastructure is in state: {state}. Wait ...")
-                time.sleep(30)
-                wait += 30
+                time.sleep(settings.im_sleep)
+                wait += settings.im_sleep
 
         if state == "configured":
             logging.info(f"Service {self.inf_id} is ready.")
