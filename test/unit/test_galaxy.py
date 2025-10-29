@@ -2,7 +2,7 @@
 import pytest
 import requests
 from unittest.mock import Mock
-from app.vres import constants
+from app import constants
 from app.exceptions import GalaxyAPIError, WorkflowURLError
 from fixtures.dummy_crate import DummyEntity, DummyCrate, WORKFLOW_URL
 

@@ -6,10 +6,8 @@ from fastapi_oauth2.config import OAuth2Config
 from fastapi_oauth2.client import OAuth2Client
 from fastapi_oauth2.claims import Claims
 from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
-from fastapi.responses import JSONResponse
 import ssl
 from app.config import settings
-from app.exceptions import GalaxyAPIError
 
 app = FastAPI()
 app.include_router(oauth2_router)
