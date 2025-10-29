@@ -7,6 +7,7 @@ from .utils import parse_zipfile, parse_rocrate
 from celery.result import AsyncResult
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 import logging
+from typing import Dict
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -22,15 +23,13 @@ router = APIRouter(
 @router.get("/{task_id}")
 def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
     task = AsyncResult(task_id)
-    if task.failed():
-        raise HTTPException(
-            status_code=400, detail=f"Handling request failed:\n{task.result}"
-        )
     return JSONResponse(
         {
             "task_id": task_id,
-            "status": AsyncResult(task_id).status,
-            "result": AsyncResult(task_id).result,
+            "status": task.status,
+            "result": (
+                str(task.result) if isinstance(task.result, Exception) else task.result
+            ),
         }
     )
 
@@ -38,11 +37,11 @@ def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
 @router.post("/zip_rocrate/")
 def zip_rocrate(
     token: str = Depends(oauth2_scheme),
-    parsed_zipfile: (ROCrate, UploadFile) = Depends(parse_zipfile),
+    parsed_zipfile: (Dict, bytes) = Depends(parse_zipfile),
     request: Request = None,
 ):
     task = vre_from_zipfile.apply_async(
-        args=[parsed_zipfile, request.auth.provider.access_token], serializer="pickle"
+        args=[parsed_zipfile, request.auth.provider.access_token]
     )
     return JSONResponse({"task_id": task.id})
 
@@ -50,10 +49,9 @@ def zip_rocrate(
 @router.post("/metadata_rocrate/")
 def metadata_rocrate(
     token: str = Depends(oauth2_scheme),
-    data: ROCrate = Depends(parse_rocrate),
+    data: Dict = Depends(parse_rocrate),
     request: Request = None,
 ):
-    task = vre_from_rocrate.apply_async(
-        args=[data, request.auth.provider.access_token], serializer="pickle"
-    )
+    task = vre_from_rocrate.apply_async(args=[data, request.auth.provider.access_token])
+
     return JSONResponse({"task_id": task.id})

@@ -1,17 +1,17 @@
 from .base_vre import VRE, vre_factory
 import requests
 import logging
+from . import constants
 
 logging.basicConfig(level=logging.INFO)
 
-default_sciencemensh_service = "https://cernbox.cern.ch/"
 # This is a placeholder
 default_dispatcher_public_fqdn = "dispatcher.egi.eu"
 
 
 class VREScienceMesh(VRE):
     def get_default_service(self):
-        return default_sciencemensh_service
+        return constants.SCIENCEMESH_DEFAULT_SERVICE
 
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
@@ -29,15 +29,19 @@ class VREScienceMesh(VRE):
         sender = self.crate.get("#sender")
         destination = self.crate.get("#destination")
         if destination is None:
-            destination = {"url":self.svc_url}
+            destination = {"url": self.svc_url}
         if not receiver or not owner or not sender or not destination:
-            raise ValueError("Missing required entities (receiver, owner, sender, destination) for OCM share request")
+            raise ValueError(
+                "Missing required entities (receiver, owner, sender, destination) for OCM share request"
+            )
 
         # The sender user ID needs to be altered to match the dispatcher's public FQDN
         # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@<dispatcher public FQDN>
         sender_userid = sender.get("userid")
         if sender_userid and "@" in sender_userid:
-            sender_userid = sender_userid.split("@")[0] + "@" + default_dispatcher_public_fqdn
+            sender_userid = (
+                sender_userid.split("@")[0] + "@" + default_dispatcher_public_fqdn
+            )
 
         # Create OCM share request JSON structure
         ocm_share_request = {
@@ -51,12 +55,9 @@ class VREScienceMesh(VRE):
             "sender": sender_userid,
             "resourceType": "ro-crate",
             "shareType": "user",
-            "protocols": {
-            "name": "multi",
-            "rocrate": self.crate.metadata.generate()
-            }
+            "protocols": {"name": "multi", "rocrate": self.crate.metadata.generate()},
         }
         return ocm_share_request
- 
 
-vre_factory.register("https://cernbox.cern.ch/", VREScienceMesh)
+
+vre_factory.register(constants.SCIENCEMESH_PROGRAMMING_LANGUAGE, VREScienceMesh)

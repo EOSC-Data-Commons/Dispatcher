@@ -26,25 +26,31 @@ class IM:
         """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
         if not settings.im_cloud_provider.get("type"):
-            raise ValueError("Cloud provider type is not specified in the configuration.")
+            raise ValueError(
+                "Cloud provider type is not specified in the configuration."
+            )
 
         if settings.im_cloud_provider["type"].lower() == "openstack":
             for key in ["host", "username", "auth_version", "tenant"]:
                 if key not in settings.im_cloud_provider:
-                    raise ValueError(f"Missing {key} field in the OpenStack configuration")
+                    raise ValueError(
+                        f"Missing {key} field in the OpenStack configuration"
+                    )
             ost_auth = {
                 "id": "eodcostcloud",
                 "type": "OpenStack",
                 "host": settings.im_cloud_provider["host"],
                 "username": settings.im_cloud_provider["username"],
                 "auth_version": settings.im_cloud_provider["auth_version"],
-                "tenant": settings.im_cloud_provider["tenant"]
+                "tenant": settings.im_cloud_provider["tenant"],
             }
             if settings.im_cloud_provider["auth_version"] == "3.x_oidc_access_token":
                 ost_auth["password"] = access_token
             else:
                 if "password" not in settings.im_cloud_provider:
-                    raise ValueError(f"Missing {key} field in the OpenStack configuration")
+                    raise ValueError(
+                        f"Missing {key} field in the OpenStack configuration"
+                    )
                 ost_auth["password"] = settings.im_cloud_provider["password"]
             if "domain" in settings.im_cloud_provider:
                 ost_auth["domain"] = settings.im_cloud_provider["domain"]
@@ -55,15 +61,19 @@ class IM:
             for key in ["VO", "site"]:
                 if key not in settings.im_cloud_provider:
                     raise ValueError(f"Missing {key} field in the EGI configuration")
-            auth.append({
-                "id": "eodcegicloud",
-                "type": "EGI",
-                "vo": settings.im_cloud_provider["VO"],
-                "token": access_token,
-                "host": settings.im_cloud_provider["site"]
-            })
+            auth.append(
+                {
+                    "id": "eodcegicloud",
+                    "type": "EGI",
+                    "vo": settings.im_cloud_provider["VO"],
+                    "token": access_token,
+                    "host": settings.im_cloud_provider["site"],
+                }
+            )
         else:
-            raise ValueError(f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}")
+            raise ValueError(
+                f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}"
+            )
         return auth
 
     @staticmethod
@@ -77,10 +87,18 @@ class IM:
             raise Exception(f"Failed to fetch TOSCA template from: {url}")
 
     @staticmethod
+    def _update_input_default(inputs, key, value):
+        if value:
+            if inputs.get(key, {}).get('default') is not None:
+                inputs[key]['default'] = value
+            else:
+                logging.warning(f"The TOSCA template does not define '{key}' input.")
+
+    @staticmethod
     def _add_inputs_to_tosca_template(tosca_template: str, service: dict) -> str:
-        memory = service.get("memoryRequirements", "2 GiB")
-        cpus = service.get("processorRequirements", "1 vCPU")
-        storage = service.get("storageRequirements", "0 GiB")
+        memory = service.get("memoryRequirements")
+        cpus = service.get("processorRequirements")
+        storage = service.get("storageRequirements")
         tosca_dict = yaml.safe_load(tosca_template)
         num_cpus = 1  # Default value
         num_gpus = 0  # Default value
@@ -94,10 +112,11 @@ class IM:
                     num_gpus = int(cpu.replace("GPU", "").strip())
 
         inputs = tosca_dict["topology_template"]["inputs"]
-        inputs["mem_size"]["default"] = memory
-        inputs["num_gpus"]["default"] = num_gpus
-        inputs["num_cpus"]["default"] = num_cpus
-        inputs["disk_size"]["default"] = storage
+        IM._update_input_default(inputs, 'mem_size', memory)
+        IM._update_input_default(inputs, 'num_gpus', num_gpus)
+        IM._update_input_default(inputs, 'num_cpus', num_cpus)
+        IM._update_input_default(inputs, 'disk_size', storage)
+
         return yaml.dump(tosca_dict)
 
     def _gen_tosca_template(self, service: dict) -> str:

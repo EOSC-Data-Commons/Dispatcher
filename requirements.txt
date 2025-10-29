@@ -18,3 +18,4 @@ authlib
 itsdangerous
 fastapi-oauth2
 cryptography
+pytest-asyncio>=0.20.0
