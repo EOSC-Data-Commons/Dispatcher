@@ -104,10 +104,22 @@ class IM:
                     num_gpus = int(cpu.replace("GPU", "").strip())
 
         inputs = tosca_dict["topology_template"]["inputs"]
-        inputs["mem_size"]["default"] = memory
-        inputs["num_gpus"]["default"] = num_gpus
-        inputs["num_cpus"]["default"] = num_cpus
-        inputs["disk_size"]["default"] = storage
+        if inputs.get('mem_size', {}).get('default') is not None:
+            inputs['mem_size']['default'] = memory
+        else:
+            logging.warning("The TOSCA template does not define 'mem_size' input.")
+        if inputs.get('num_gpus', {}).get('default') is not None:
+            inputs['num_gpus']['default'] = num_gpus
+        else:
+            logging.warning("The TOSCA template does not define 'num_gpus' input.")
+        if inputs.get('num_cpus', {}).get('default') is not None:
+            inputs['num_cpus']['default'] = num_cpus
+        else:
+            logging.warning("The TOSCA template does not define 'num_cpus' input.")
+        if inputs.get('disk_size', {}).get('default') is not None:
+            inputs['disk_size']['default'] = storage
+        else:
+            logging.warning("The TOSCA template does not define 'disk_size' input.")
         return yaml.dump(tosca_dict)
 
     def _gen_tosca_template(self, service: dict) -> str:
