@@ -24,11 +24,3 @@ services:
      sh -c 'cp /etc/certbot/live/{{ inventory_hostname }}/fullchain.pem /etc/certbot && \
             cp /etc/certbot/live/{{ inventory_hostname }}/privkey.pem /etc/certbot && \
             chmod 444 /etc/certbot/*.pem'
-    depends_on: 
-      - certbot 
-
-  init_complete:
-    image: alpine:latest
-    command: echo "Initialization complete"
-    depends_on:
-      - modify_cert
