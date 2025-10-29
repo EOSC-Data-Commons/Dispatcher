@@ -14,8 +14,7 @@ services:
       - ./nginx/certbot/www:/var/www/certbot
     entrypoint: ""
     command: >
-      sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d {{ inventory_hostname }} --dry-run &&
-             touch /var/www/certbot/certbot.done' 
+      sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d {{ inventory_hostname }}' 
 
   modify_cert:
     image: alpine:latest
