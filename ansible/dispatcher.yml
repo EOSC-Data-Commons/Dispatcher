@@ -73,6 +73,7 @@
       ansible.builtin.template:
         src: config.py.j2
         dest: "{{ dispatcher.dir }}/app/config.py"
+      no_log: True
 
     - name: Start nginx_helper for certbot
       community.docker.docker_compose_v2:
