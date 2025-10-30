@@ -7,7 +7,7 @@ import subprocess
 import urllib
 import uuid
 from app.config import settings
-from . import constants
+from app.constants import BINDER_DEFAULT_SERVICE, BINDER_PROGRAMMING_LANGUAGE
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -18,7 +18,7 @@ logger = logging.getLogger("uvicorn.error")
 
 class VREBinder(VRE):
     def get_default_service(self):
-        return constants.BINDER_DEFAULT_SERVICE
+        return BINDER_DEFAULT_SERVICE
 
     def post(self):
         request_id = str(uuid.uuid4())
@@ -61,4 +61,4 @@ class VREBinder(VRE):
         return f"{url}/git/{urllib.parse.quote_plus(git)}/HEAD"
 
 
-vre_factory.register(constants.BINDER_PROGRAMMING_LANGUAGE, VREBinder)
+vre_factory.register(BINDER_PROGRAMMING_LANGUAGE, VREBinder)

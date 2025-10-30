@@ -48,7 +48,6 @@
         src: docker-compose-init.yml.j2
         dest: "{{ dispatcher.dir }}/docker-compose-init.yml"
 
-
     - name: Install docker-compose.yml
       ansible.builtin.template:
         src: docker-compose.yml.j2
@@ -74,19 +73,27 @@
       ansible.builtin.template:
         src: config.py.j2
         dest: "{{ dispatcher.dir }}/app/config.py"
+      no_log: True
 
-    - name: Start docker init
+    - name: Start nginx_helper for certbot
       community.docker.docker_compose_v2:
         project_src: "{{ dispatcher.dir }}"
-        state: present 
+        state: present
         files: ["docker-compose-init.yml"]
+        services: ["nginx_helper"]
         remove_orphans: true
 
-    - name: Stop docker init
-      community.docker.docker_compose_v2:
+    - name: Run certbot
+      community.docker.docker_compose_v2_run:
         project_src: "{{ dispatcher.dir }}"
-        state: absent 
         files: ["docker-compose-init.yml"]
+        service: "certbot"
+
+    - name: Run modify_cert
+      community.docker.docker_compose_v2_run:
+        project_src: "{{ dispatcher.dir }}"
+        files: ["docker-compose-init.yml"]
+        service: "modify_cert"
 
     - name: Ensure docker-compose app is running
       community.docker.docker_compose_v2:
@@ -94,6 +101,13 @@
         state: present 
         build: "always"
     
+    - name: Stop docker init
+      community.docker.docker_compose_v2:
+        project_src: "{{ dispatcher.dir }}"
+        state: absent 
+        files: ["docker-compose-init.yml"]
+
+
     - name: Clean dangling images
       community.docker.docker_prune:
         images: true
