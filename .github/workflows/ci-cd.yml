@@ -35,6 +35,7 @@ jobs:
 
     - name: Run Ansible Playbook
       run: |
+        cd ansible
         ansible-playbook dispatcher.yml \
           --limit "dev3.player.eosc-data-commons.eu" \
           --vault-password-file vault_password.txt
