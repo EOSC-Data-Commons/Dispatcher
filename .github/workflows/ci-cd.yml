@@ -1,0 +1,40 @@
+name: Deploy to Dev3
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install Ansible
+      run: |
+        pip install ansible
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Setup Ansible Vault
+      run: |
+        echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault_password.txt
+
+    - name: Test SSH Connection
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.DISPATCHER_HOST }}
+
+    - name: Run Ansible Playbook
+      run: |
+        ansible-playbook dispatcher.yml \
+          --limit "dev3.player.eosc-data-commons.eu" \
+          --vault-password-file vault_password.txt
