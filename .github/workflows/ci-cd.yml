@@ -31,7 +31,7 @@ jobs:
 
     - name: Test SSH Connection
       run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.DISPATCHER_HOST }}
+        ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.DISPATCHER_HOST }}
 
     - name: Run Ansible Playbook
       run: |
