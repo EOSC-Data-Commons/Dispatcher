@@ -4,7 +4,6 @@ import yaml
 from app.services.im import IM
 
 
-
 @pytest.fixture
 def mock_settings():
     with patch('app.services.im.settings') as mock_settings:
