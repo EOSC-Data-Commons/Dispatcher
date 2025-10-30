@@ -1,4 +1,4 @@
-name: Deploy to Dev3
+name: Deploy to stable
 
 on:
   push:
@@ -37,5 +37,5 @@ jobs:
       run: |
         cd ansible
         ansible-playbook dispatcher.yml \
-          --limit "dev3.player.eosc-data-commons.eu" \
+          --limit "{{ secrets.DISPATCHER_HOST }}" \
           --vault-password-file vault_password.txt
