@@ -37,5 +37,5 @@ jobs:
       run: |
         cd ansible
         ansible-playbook dispatcher.yml \
-          --limit "{{ secrets.DISPATCHER_HOST }}" \
+          --limit "${{ secrets.DISPATCHER_HOST }}" \
           --vault-password-file vault_password.txt
