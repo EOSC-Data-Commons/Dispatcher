@@ -27,7 +27,7 @@ jobs:
 
     - name: Setup Ansible Vault
       run: |
-        echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > vault_password.txt
+        echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/vault_password.txt
 
     - name: Test SSH Connection
       run: |
