@@ -73,9 +73,14 @@ class VREOSCAR(VRE):
 
         logging.info("Creating OSCAR service %s", service_name)
         logging.debug("FDL: %s", json.dumps(fdl_json))
-        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
         url = self.svc_url
-        response = requests.post(f"{url}/system/services", headers=headers, json=fdl_json, timeout=60)
+        response = requests.post(
+            f"{url}/system/services", headers=headers, json=fdl_json, timeout=60
+        )
         if response.status_code != 201:
             raise ExternalServiceError(f"Error creating OSCAR service: {response.text}")
 
@@ -89,37 +94,59 @@ class VREOSCAR(VRE):
     def _get_input_files(self):
         # Get all files except the workflow and destination
         non_input_files = []
-        non_input_files.append(self.crate.root_dataset.get("runsOn").get('@id'))
-        non_input_files.append(self.crate.mainEntity.get('@id'))
+        non_input_files.append(self.crate.root_dataset.get("runsOn").get("@id"))
+        non_input_files.append(self.crate.mainEntity.get("@id"))
         for elem in self.crate.mainEntity.get("hasPart", []):
             if elem.get("@type") == "File":
                 non_input_files.append(elem.get("@id"))
-        return [e for e in self.crate.get_entities() if e.type == "File" and e.get('@id') not in non_input_files]
+        return [
+            e
+            for e in self.crate.get_entities()
+            if e.type == "File" and e.get("@id") not in non_input_files
+        ]
 
     def _invoke_service(self, oscar_url, service_name, files):
         headers = {"Authorization": f"Bearer {self.token}"}
         url = f"{oscar_url}/job/{service_name}"
         for f in files:
             try:
-                logging.info("Creating invocation for service %s and file %s", service_name, f.get('url'))
+                logging.info(
+                    "Creating invocation for service %s and file %s",
+                    service_name,
+                    f.get("url"),
+                )
                 response = requests.get(f.get("url"), timeout=60)
                 response.raise_for_status()
                 file_content = response.text
             except Exception as e:
-                logging.error("Error fetching file %s: %s", f.get('url'), e)
+                logging.error("Error fetching file %s: %s", f.get("url"), e)
                 continue
-            response = requests.post(url, headers=headers, data=base64.b64encode(file_content.encode()), timeout=60)
+            response = requests.post(
+                url,
+                headers=headers,
+                data=base64.b64encode(file_content.encode()),
+                timeout=60,
+            )
             if response.status_code != 201:
-                logging.error("Error invoking OSCAR service for file %s: %s", f.get('url'), response.text)
+                logging.error(
+                    "Error invoking OSCAR service for file %s: %s",
+                    f.get("url"),
+                    response.text,
+                )
 
     def delete(self):
         fdl_json = self._get_fdl_from_crate()
         service_name = fdl_json["name"]
 
         logging.info("Deleting OSCAR service %s", service_name)
-        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
         url = self.svc_url
-        response = requests.delete(f"{url}/system/services/{service_name}", headers=headers, timeout=60)
+        response = requests.delete(
+            f"{url}/system/services/{service_name}", headers=headers, timeout=60
+        )
         if response.status_code != 204:
             raise ExternalServiceError(f"Error deleting OSCAR service: {response.text}")
 
