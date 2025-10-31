@@ -3,6 +3,7 @@ import requests
 import logging
 from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
 from app.config import settings
+
 logging.basicConfig(level=logging.INFO)
 
 
@@ -36,9 +37,7 @@ class VREScienceMesh(VRE):
         # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@<dispatcher public FQDN>
         sender_userid = sender.get("userid")
         if sender_userid and "@" in sender_userid:
-            sender_userid = (
-                sender_userid.split("@")[0] + "@" + settings.host
-            )
+            sender_userid = sender_userid.split("@")[0] + "@" + settings.host
 
         # Create OCM share request JSON structure
         ocm_share_request = {
