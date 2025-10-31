@@ -32,6 +32,15 @@ Report if anything is broken, please.
 6. If everythings goes right, `SUCCESS` status is returned finally, containing the endpoint to the target VRE
 7. If anything goes wrong, check you are still authenticated by calling GET /oauth2/token. If you don't see the token, follow step 1.
 
+## Contribution
+1. You'll need VS Code.
+2. To avoid inconsistend formatting we provide a VS Code settings for you to follow the standard formatting executed automatically. 
+3. Head over to Extension tab inside your VS Code and install [Black formatter extension](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter)
+4. To install python venv use `python3 -m venv venv` and `source venv/bin/activate` to activate it.
+5. Install requirements by `pip install -r requirements.txt`
+6. Set VS Code to use this virtual environment by using `CTRL-SHIFT-P` and `Python: Select Interpreter` and then your virtual environment (Should be Python 3.x.x (venv) ./venv/bin/python)
+7. The formatting happens automatically when saving a file.
+   
 ## Deployment
 
 To deploy your own Dispatcher instance you need:
