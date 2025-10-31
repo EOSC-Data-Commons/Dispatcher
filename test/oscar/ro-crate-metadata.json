@@ -48,7 +48,7 @@
         {
             "@id": "#fdl",
             "@type": "File",
-            "encodingFormat": "text/json",
+            "encodingFormat": "application/json",
             "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
         },
         {

@@ -48,7 +48,7 @@
         {
             "@id": "#fdl",
             "@type": "File",
-            "encodingFormat": "text/json",
+            "encodingFormat": "application/json",
             "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
         },
         {
@@ -77,12 +77,12 @@
         },
         {
             "@id": "#destination",
-            "@type": "SoftwareApplication",
+            "@type": "Service",
+            "serviceType": "InfrastructureManager",
             "name": "OSCAR",
             "memoryRequirements": "4 GiB",
             "processorRequirements": [
-                "2 vCPU",
-                "1 GPU"
+                "2 vCPU"
             ],
             "hasPart": [
                 { "@id": "#oscar.yaml" }

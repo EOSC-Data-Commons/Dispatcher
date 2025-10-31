@@ -3,7 +3,7 @@ import base64
 import requests
 import logging
 import json
-from fastapi import HTTPException
+from app.exceptions import VREConfigurationError, ExternalServiceError
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,45 +21,35 @@ class VREOSCAR(VRE):
             return self.fld_json
 
         workflow_parts = self.crate.mainEntity.get("hasPart", [])
-
         if not workflow_parts:
-            raise HTTPException(
-                status_code=400, detail="Missing hasPart in workflow entity"
-            )
+            raise VREConfigurationError("Missing hasPart in workflow entity")
 
         fdl_json = None
         script = None
+
         for elem in workflow_parts:
-            if elem.get("@type") == "File":
-                if elem.get("encodingFormat") == "text/json":
-                    # Get the FDL file
-                    try:
-                        fdl_url = self.crate.dereference(elem.get("@id")).get("url")
-                        response = requests.get(fdl_url, timeout=30)
-                        fdl_json = response.json()
-                    except Exception as ex:
-                        raise HTTPException(
-                            status_code=400, detail=f"Error getting service FDL: {ex}"
-                        )
-                elif elem.get("encodingFormat") == "text/x-shellscript":
-                    # Get the script file
-                    try:
-                        script_url = self.crate.dereference(elem.get("@id")).get("url")
-                        response = requests.get(script_url, timeout=30)
-                        script = response.text
-                    except Exception as ex:
-                        raise HTTPException(
-                            status_code=400, detail=f"Error getting service script: {ex}"
-                        )
-            else:
-                raise HTTPException(
-                    status_code=400, detail="Invalid hasPart type in workflow entity"
-                )
+            if not elem.get("@type") == "File":
+                raise VREConfigurationError("Invalid hasPart type in workflow entity")
+
+            ref_elem = self.crate.dereference(elem.get("@id"))
+            if not ref_elem:
+                logging.error("Could not dereference entity %s", elem.get("@id"))
+                continue
+
+            file_url = ref_elem.get("url")
+            if not file_url:
+                logging.error("File entity %s has no URL", elem.get("@id"))
+                continue
+
+            encoding = elem.get("encodingFormat")
+
+            if encoding == "application/json":
+                fdl_json = self._fetch_file(file_url, True)
+            elif encoding == "text/x-shellscript":
+                script = self._fetch_file(file_url)
 
         if not fdl_json:
-            raise HTTPException(
-                status_code=400, detail="Missing FDL in workflow entity"
-            )
+            raise VREConfigurationError("Missing FDL in workflow entity")
 
         if script:
             fdl_json["script"] = script
@@ -67,19 +57,27 @@ class VREOSCAR(VRE):
         self.fld_json = fdl_json
         return fdl_json
 
+    def _fetch_file(self, url, as_json=False):
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            if as_json:
+                return response.json()
+            return response.text
+        except Exception as ex:
+            raise VREConfigurationError("Network error while fetching files.") from ex
+
     def post(self):
         fdl_json = self._get_fdl_from_crate()
         service_name = fdl_json["name"]
 
-        logging.info(f"Creating OSCAR service {service_name}")
-        logging.debug(f"FDL: {json.dumps(fdl_json)}")
+        logging.info("Creating OSCAR service %s", service_name)
+        logging.debug("FDL: %s", json.dumps(fdl_json))
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
         url = self.svc_url
         response = requests.post(f"{url}/system/services", headers=headers, json=fdl_json, timeout=60)
         if response.status_code != 201:
-            raise HTTPException(
-                status_code=400, detail=f"Error creating OSCAR service: {response.text}"
-            )
+            raise ExternalServiceError(f"Error creating OSCAR service: {response.text}")
 
         service_url = f"{url}/system/services/{service_name}"
 
@@ -103,30 +101,27 @@ class VREOSCAR(VRE):
         url = f"{oscar_url}/job/{service_name}"
         for f in files:
             try:
-                logging.info(f"Creating invocation for service {service_name} and file {f.get('url')}")
+                logging.info("Creating invocation for service %s and file %s", service_name, f.get('url'))
                 response = requests.get(f.get("url"), timeout=60)
+                response.raise_for_status()
                 file_content = response.text
             except Exception as e:
-                logging.error(f"Error fetching file {f.get('url')}: {e}")
+                logging.error("Error fetching file %s: %s", f.get('url'), e)
                 continue
             response = requests.post(url, headers=headers, data=base64.b64encode(file_content.encode()), timeout=60)
             if response.status_code != 201:
-                logging.error(
-                    f"Error invoking OSCAR service for file {f.get('url')}: {response.text}"
-                )
+                logging.error("Error invoking OSCAR service for file %s: %s", f.get('url'), response.text)
 
     def delete(self):
         fdl_json = self._get_fdl_from_crate()
         service_name = fdl_json["name"]
 
-        logging.info(f"Deleting OSCAR service {service_name}")
+        logging.info("Deleting OSCAR service %s", service_name)
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
         url = self.svc_url
         response = requests.delete(f"{url}/system/services/{service_name}", headers=headers, timeout=60)
         if response.status_code != 204:
-            raise HTTPException(
-                status_code=400, detail=f"Error deleting OSCAR service: {response.text}"
-            )
+            raise ExternalServiceError(f"Error deleting OSCAR service: {response.text}")
 
 
 vre_factory.register("https://oscar.grycap.net/", VREOSCAR)
