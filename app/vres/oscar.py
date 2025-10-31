@@ -54,7 +54,6 @@ class VREOSCAR(VRE):
         if script:
             fdl_json["script"] = script
 
-        self.fld_json = fdl_json
         return fdl_json
 
     def _fetch_file(self, url, as_json=False):
@@ -69,6 +68,7 @@ class VREOSCAR(VRE):
 
     def post(self):
         fdl_json = self._get_fdl_from_crate()
+        self.fld_json = fdl_json
         service_name = fdl_json["name"]
 
         logging.info("Creating OSCAR service %s", service_name)
