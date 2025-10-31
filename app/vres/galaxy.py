@@ -2,7 +2,12 @@ from .base_vre import VRE, vre_factory
 import requests
 import logging
 from app import exceptions
-from app.constants import GALAXY_DEFAULT_SERVICE, GALAXY_PROGRAMMING_LANGUAGE, GALAXY_PUBLIC_DEFAULT, GALAXY_WORKFLOW_TARGET_TYPE
+from app.constants import (
+    GALAXY_DEFAULT_SERVICE,
+    GALAXY_PROGRAMMING_LANGUAGE,
+    GALAXY_PUBLIC_DEFAULT,
+    GALAXY_WORKFLOW_TARGET_TYPE,
+)
 
 logging.basicConfig(level=logging.INFO)
 
