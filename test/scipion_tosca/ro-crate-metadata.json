@@ -61,7 +61,7 @@
             "@id": "#destination",
             "@type": "Service",
             "serviceType": "InfrastructureManager",
-            "name": "Galaxy",
+            "name": "Scipion",
             "memoryRequirements": "4 GiB",
             "processorRequirements": [
                 "2 vCPU",
