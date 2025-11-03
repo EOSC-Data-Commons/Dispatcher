@@ -2,14 +2,19 @@ from .base_vre import VRE, vre_factory
 import requests
 import logging
 from app import exceptions
-from . import constants
+from app.constants import (
+    GALAXY_DEFAULT_SERVICE,
+    GALAXY_PROGRAMMING_LANGUAGE,
+    GALAXY_PUBLIC_DEFAULT,
+    GALAXY_WORKFLOW_TARGET_TYPE,
+)
 
 logging.basicConfig(level=logging.INFO)
 
 
 class VREGalaxy(VRE):
     def get_default_service(self):
-        return constants.GALAXY_DEFAULT_SERVICE
+        return GALAXY_DEFAULT_SERVICE
 
     def post(self):
         data = self._prepare_workflow_data()
@@ -23,10 +28,10 @@ class VREGalaxy(VRE):
         workflow_url = self._get_workflow_url()
 
         return {
-            "public": constants.GALAXY_PUBLIC_DEFAULT,
+            "public": GALAXY_PUBLIC_DEFAULT,
             "request_state": self._modify_for_api_data_input(files),
             "workflow_id": workflow_url,
-            "workflow_target_type": constants.GALAXY_WORKFLOW_TARGET_TYPE,
+            "workflow_target_type": GALAXY_WORKFLOW_TARGET_TYPE,
         }
 
     def _get_workflow_files(self):
@@ -92,8 +97,8 @@ class VREGalaxy(VRE):
     def _build_final_url(self, landing_id):
         """Build the final workflow landing URL."""
         url = self.svc_url.rstrip("/")
-        public = constants.GALAXY_PUBLIC_DEFAULT
+        public = GALAXY_PUBLIC_DEFAULT
         return f"{url}/workflow_landings/{landing_id}?public={public}"
 
 
-vre_factory.register(constants.GALAXY_PROGRAMMING_LANGUAGE, VREGalaxy)
+vre_factory.register(GALAXY_PROGRAMMING_LANGUAGE, VREGalaxy)
