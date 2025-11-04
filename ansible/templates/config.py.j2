@@ -4,7 +4,7 @@ class Settings(BaseSettings):
     egi_checkin_env: str = "{{ api.environment }}"
     client_id: str = "{{ oauth2.client_id }}"
     client_secret: str = "{{ oauth2.client_secret }}"
-    redirect_uri: str = "https://{{ inventory_hostname }}/docs"
+    redirect_uri: str = "https://{{ inventory_hostname }}/auth"
     cert_chain_file: str = "{{ nginx.cert }}/fullchain.pem"
     private_key_file: str = "{{ nginx.cert }}/privkey.pem"
     host: str = "{{ inventory_hostname }}"
