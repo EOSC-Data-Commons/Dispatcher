@@ -3,7 +3,12 @@ import base64
 import requests
 import logging
 import json
-from app.exceptions import VREConfigurationError, ExternalServiceError
+from app.exceptions import (
+    VREConfigurationError,
+    ExternalServiceError,
+    ExternalDataSourceError,
+)
+from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_PROGRAMMING_LANGUAGE
 
 logging.basicConfig(level=logging.INFO)
 
@@ -14,7 +19,7 @@ class VREOSCAR(VRE):
         self.fld_json = None
 
     def get_default_service(self):
-        return "https://some.oscar.instance/"
+        return OSCAR_DEFAULT_SERVICE
 
     def _get_fdl_from_crate(self):
         if self.fld_json:
@@ -64,7 +69,7 @@ class VREOSCAR(VRE):
                 return response.json()
             return response.text
         except Exception as ex:
-            raise VREConfigurationError("Network error while fetching files.") from ex
+            raise ExternalDataSourceError("Network error while fetching files.") from ex
 
     def post(self):
         fdl_json = self._get_fdl_from_crate()
@@ -151,4 +156,4 @@ class VREOSCAR(VRE):
             raise ExternalServiceError(f"Error deleting OSCAR service: {response.text}")
 
 
-vre_factory.register("https://oscar.grycap.net/", VREOSCAR)
+vre_factory.register(OSCAR_PROGRAMMING_LANGUAGE, VREOSCAR)
