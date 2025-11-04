@@ -6,14 +6,14 @@ from app.services.im import IM
 
 @pytest.fixture
 def mock_settings():
-    with patch('app.services.im.settings') as mock_settings:
+    with patch("app.services.im.settings") as mock_settings:
         mock_settings.im_endpoint = "http://test.endpoint"
         mock_settings.im_cloud_provider = {
             "type": "openstack",
             "host": "test.host",
             "username": "test_user",
             "auth_version": "3.x_oidc_access_token",
-            "tenant": "test_tenant"
+            "tenant": "test_tenant",
         }
         mock_settings.im_max_time = 600
         mock_settings.im_max_retries = 5
@@ -34,7 +34,7 @@ def test_build_auth_config_egi(mock_settings):
     mock_settings.im_cloud_provider = {
         "type": "egi",
         "VO": "test_vo",
-        "site": "test_site"
+        "site": "test_site",
     }
     im = IM("test_token")
     auth = im._build_auth_config("test_token")
@@ -59,7 +59,7 @@ topology_template:
     service = {
         "memoryRequirements": "2GB",
         "processorRequirements": ["2vCPU", "1GPU"],
-        "storageRequirements": "20GB"
+        "storageRequirements": "20GB",
     }
 
     result = IM._add_inputs_to_tosca_template(test_tosca, service)
@@ -71,17 +71,17 @@ topology_template:
     assert result_dict["topology_template"]["inputs"]["disk_size"]["default"] == "20GB"
 
 
-@patch('app.services.im.IM._get_tosca_template', return_value="test_template")
-@patch('app.services.im.IM._add_inputs_to_tosca_template', return_value="modified_template")
+@patch("app.services.im.IM._get_tosca_template", return_value="test_template")
+@patch(
+    "app.services.im.IM._add_inputs_to_tosca_template", return_value="modified_template"
+)
 def test_deploy_service(mock_get_tosca, mock_add_inputs, mock_settings):
     mock_im_client = Mock()
     mock_im_client.create.return_value = (True, "test_inf_id")
     im = IM("test_token")
     im.client = mock_im_client
 
-    service = {
-        "hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]
-    }
+    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
 
     inf_id = im.deploy_service(service)
 
@@ -114,7 +114,7 @@ def test_destroy_service(mock_settings):
     mock_client.destroy.assert_called_once_with("test_inf_id")
 
 
-@patch('requests.get')
+@patch("requests.get")
 def test_get_tosca_template(mock_get, mock_settings):
     im = IM("test_token")
     test_url = "http://test.url"
@@ -130,13 +130,13 @@ def test_get_tosca_template(mock_get, mock_settings):
     mock_get.assert_called_once_with(test_url, timeout=10)
 
 
-@patch('app.services.im.IM._get_tosca_template', return_value="test_template")
-@patch('app.services.im.IM._add_inputs_to_tosca_template', return_value="modified_template")
+@patch("app.services.im.IM._get_tosca_template", return_value="test_template")
+@patch(
+    "app.services.im.IM._add_inputs_to_tosca_template", return_value="modified_template"
+)
 def test_run_service(mock_add_inputs, mock_get_tosca, mock_settings):
     im = IM("test_token")
-    service = {
-        "hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]
-    }
+    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
 
     mock_im_client = Mock()
     mock_im_client.create.return_value = (True, "test_inf_id")
@@ -146,6 +146,5 @@ def test_run_service(mock_add_inputs, mock_get_tosca, mock_settings):
     ]
     im.client = mock_im_client
     log = im.run_service(service)
-    assert log == {'outputs': {'url': 'http://some.url'}}
+    assert log == {"outputs": {"url": "http://some.url"}}
     mock_im_client.create.assert_called_once_with("modified_template", desc_type="yaml")
-
