@@ -53,3 +53,9 @@ class InvalidResponseError(ExternalServiceError):
     """Raised when external service returns unexpected response"""
 
     pass
+
+
+class ExternalDataSourceError(VREError):
+    """Raised when external source fails"""
+
+    pass
