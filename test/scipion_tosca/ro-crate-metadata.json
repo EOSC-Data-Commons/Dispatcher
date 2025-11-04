@@ -1,9 +1,15 @@
 {
-    "@context": "https://w3id.org/ro/crate/1.1/context",
+    "@context": [
+        "https://w3id.org/ro/crate/1.1/context",
+        { "runsOn": "https://w3id.org/ro/terms/test#runsOn" }
+    ],
     "@graph": [
         {
             "@id": "./",
             "@type": "Dataset",
+            "name": "Scipion Example Workflow",
+            "description": "This is an example of a workflow using the Scipion platform.",
+            "license": "GNU General Public License v3.0",
             "datePublished": "2025-05-06T14:35:47+00:00",
             "mainEntity" : { "@id": "#workflow" },
             "runsOn" : { "@id": "#destination" },
@@ -59,7 +65,6 @@
             "@type": "Service",
             "serviceType": "InfrastructureManager",
             "name": "Scipion",
-            "description": "Cryo em image processing framework. Integration, traceability and analysis.",
             "memoryRequirements": "4 GiB",
             "processorRequirements": [
                 "2 vCPU",
