@@ -8,6 +8,7 @@ from app.config import settings
 
 logging.basicConfig(level=logging.INFO)
 
+
 class IM:
     def __init__(self, access_token: str):
         auth = self._build_auth_config(access_token)
@@ -84,8 +85,8 @@ class IM:
     @staticmethod
     def _update_input_default(inputs, key, value):
         if value:
-            if inputs.get(key, {}).get('default') is not None:
-                inputs[key]['default'] = value
+            if inputs.get(key, {}).get("default") is not None:
+                inputs[key]["default"] = value
             else:
                 logging.warning(f"The TOSCA template does not define '{key}' input.")
 
@@ -107,10 +108,10 @@ class IM:
                     num_gpus = int(cpu.replace("GPU", "").strip())
 
         inputs = tosca_dict["topology_template"]["inputs"]
-        IM._update_input_default(inputs, 'mem_size', memory)
-        IM._update_input_default(inputs, 'num_gpus', num_gpus)
-        IM._update_input_default(inputs, 'num_cpus', num_cpus)
-        IM._update_input_default(inputs, 'disk_size', storage)
+        IM._update_input_default(inputs, "mem_size", memory)
+        IM._update_input_default(inputs, "num_gpus", num_gpus)
+        IM._update_input_default(inputs, "num_cpus", num_cpus)
+        IM._update_input_default(inputs, "disk_size", storage)
 
         return yaml.dump(tosca_dict)
 
@@ -159,7 +160,11 @@ class IM:
         state = "pending"
         pending_states = ["pending", "running", "unknown"]
 
-        while state in pending_states and retries < settings.im_max_retries and wait < max_time:
+        while (
+            state in pending_states
+            and retries < settings.im_max_retries
+            and wait < max_time
+        ):
             success, res = self.client.get_infra_property(self.inf_id, "state")
 
             if success:
