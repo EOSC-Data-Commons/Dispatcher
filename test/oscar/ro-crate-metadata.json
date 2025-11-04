@@ -1,0 +1,84 @@
+{
+    "@context": [
+        "https://w3id.org/ro/crate/1.1/context",
+        { "runsOn": "https://w3id.org/ro/terms/test#runsOn" }
+    ],
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": "OSCAR Example Workflow",
+            "description": "This is an example of a workflow using the OSCAR framework.",
+            "license": "GNU General Public License v3.0",
+            "datePublished": "2025-05-06T14:35:47+00:00",
+            "mainEntity" : { "@id": "#workflow" },
+            "runsOn" : { "@id": "#destination" },
+            "hasPart": [
+                { "@id": "#workflow" },
+                { "@id": "#textfile" },
+                { "@id": "#destination" }
+            ]
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {
+                "@id": "./"
+            },
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            }
+        },
+        {
+            "@id": "#workflow",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "ComputationalWorkflow"
+            ],
+            "name": "Cowsay OSCAR FDL",
+            "programmingLanguage": {
+                "@id": "https://w3id.org/workflowhub/workflow-ro-crate#oscar"
+            },
+            "hasPart": [
+                { "@id": "#fdl" },
+                { "@id": "#script" }
+            ]
+        },
+        {
+            "@id": "#fdl",
+            "@type": "File",
+            "encodingFormat": "application/json",
+            "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
+        },
+        {
+            "@id": "#script",
+            "@type": "File",
+            "encodingFormat": "text/x-shellscript",
+            "url": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
+        },
+        {
+            "@id": "https://w3id.org/workflowhub/workflow-ro-crate#oscar",
+            "@type": "ComputerLanguage",
+            "identifier": {
+                "@id": "https://oscar.grycap.net/"
+            },
+            "name": "OSCAR",
+            "url": {
+                "@id": "https://oscar.grycap.net/"
+            }
+        },
+        {
+            "@id": "#textfile",
+            "@type": "File",
+            "name": "simpletext_input",
+            "url": "https://example-files.online-convert.com/document/txt/example.txt",
+            "encodingFormat": "text/txt"
+        },
+        {
+            "@id": "#destination",
+            "@type" : "Service",
+            "url": "https://oscar.grycap.net/"
+        }
+    ]
+}

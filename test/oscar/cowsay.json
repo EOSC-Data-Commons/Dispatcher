@@ -1,0 +1,20 @@
+{
+    "name": "cowsay",
+    "cpu": "1.0",
+    "memory": "1Gi",
+    "image": "ghcr.io/grycap/cowsay",
+    "input": [
+        {
+            "storage_provider": "minio",
+            "path": "cowsay/input"
+        }
+    ],
+    "output": [
+        {
+            "storage_provider": "minio",
+            "path": "cowsay/output"
+        }
+    ],
+    "isolation_level": "SERVICE",
+    "visibility": "private"
+}
