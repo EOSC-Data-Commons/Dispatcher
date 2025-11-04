@@ -8,17 +8,13 @@ from app.config import settings
 
 logging.basicConfig(level=logging.INFO)
 
-default_im_endpoint = "https://appsgrycap.i3m.upv.es/im-dev/"
-
 
 class IM:
     def __init__(self, access_token: str):
         auth = self._build_auth_config(access_token)
 
-        if settings.im_endpoint:
-            im_endpoint = settings.im_endpoint
-        else:
-            im_endpoint = default_im_endpoint
+        im_endpoint = settings.im_endpoint
+
         self.client = IMClient.init_client(im_endpoint, auth)
         self.inf_id = None
 
@@ -26,25 +22,31 @@ class IM:
         """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
         if not settings.im_cloud_provider.get("type"):
-            raise ValueError("Cloud provider type is not specified in the configuration.")
+            raise ValueError(
+                "Cloud provider type is not specified in the configuration."
+            )
 
         if settings.im_cloud_provider["type"].lower() == "openstack":
             for key in ["host", "username", "auth_version", "tenant"]:
                 if key not in settings.im_cloud_provider:
-                    raise ValueError(f"Missing {key} field in the OpenStack configuration")
+                    raise ValueError(
+                        f"Missing {key} field in the OpenStack configuration"
+                    )
             ost_auth = {
                 "id": "eodcostcloud",
                 "type": "OpenStack",
                 "host": settings.im_cloud_provider["host"],
                 "username": settings.im_cloud_provider["username"],
                 "auth_version": settings.im_cloud_provider["auth_version"],
-                "tenant": settings.im_cloud_provider["tenant"]
+                "tenant": settings.im_cloud_provider["tenant"],
             }
             if settings.im_cloud_provider["auth_version"] == "3.x_oidc_access_token":
                 ost_auth["password"] = access_token
             else:
                 if "password" not in settings.im_cloud_provider:
-                    raise ValueError(f"Missing {key} field in the OpenStack configuration")
+                    raise ValueError(
+                        f"Missing {key} field in the OpenStack configuration"
+                    )
                 ost_auth["password"] = settings.im_cloud_provider["password"]
             if "domain" in settings.im_cloud_provider:
                 ost_auth["domain"] = settings.im_cloud_provider["domain"]
@@ -55,15 +57,19 @@ class IM:
             for key in ["VO", "site"]:
                 if key not in settings.im_cloud_provider:
                     raise ValueError(f"Missing {key} field in the EGI configuration")
-            auth.append({
-                "id": "eodcegicloud",
-                "type": "EGI",
-                "vo": settings.im_cloud_provider["VO"],
-                "token": access_token,
-                "host": settings.im_cloud_provider["site"]
-            })
+            auth.append(
+                {
+                    "id": "eodcegicloud",
+                    "type": "EGI",
+                    "vo": settings.im_cloud_provider["VO"],
+                    "token": access_token,
+                    "host": settings.im_cloud_provider["site"],
+                }
+            )
         else:
-            raise ValueError(f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}")
+            raise ValueError(
+                f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}"
+            )
         return auth
 
     @staticmethod
@@ -77,10 +83,18 @@ class IM:
             raise Exception(f"Failed to fetch TOSCA template from: {url}")
 
     @staticmethod
+    def _update_input_default(inputs, key, value):
+        if value:
+            if inputs.get(key, {}).get("default") is not None:
+                inputs[key]["default"] = value
+            else:
+                logging.warning(f"The TOSCA template does not define '{key}' input.")
+
+    @staticmethod
     def _add_inputs_to_tosca_template(tosca_template: str, service: dict) -> str:
-        memory = service.get("memoryRequirements", "2 GiB")
-        cpus = service.get("processorRequirements", "1 vCPU")
-        storage = service.get("storageRequirements", "0 GiB")
+        memory = service.get("memoryRequirements")
+        cpus = service.get("processorRequirements")
+        storage = service.get("storageRequirements")
         tosca_dict = yaml.safe_load(tosca_template)
         num_cpus = 1  # Default value
         num_gpus = 0  # Default value
@@ -94,10 +108,11 @@ class IM:
                     num_gpus = int(cpu.replace("GPU", "").strip())
 
         inputs = tosca_dict["topology_template"]["inputs"]
-        inputs["mem_size"]["default"] = memory
-        inputs["num_gpus"]["default"] = num_gpus
-        inputs["num_cpus"]["default"] = num_cpus
-        inputs["disk_size"]["default"] = storage
+        IM._update_input_default(inputs, "mem_size", memory)
+        IM._update_input_default(inputs, "num_gpus", num_gpus)
+        IM._update_input_default(inputs, "num_cpus", num_cpus)
+        IM._update_input_default(inputs, "disk_size", storage)
+
         return yaml.dump(tosca_dict)
 
     def _gen_tosca_template(self, service: dict) -> str:
@@ -139,13 +154,17 @@ class IM:
             raise Exception("No service deployed yet.")
         logging.info(f"Waiting for service {self.inf_id} to be ready...")
 
-        max_time = 36000  # 10h
+        max_time = settings.im_max_time
         wait = 0
-        unknown_count = 0
+        retries = 0
         state = "pending"
         pending_states = ["pending", "running", "unknown"]
 
-        while state in pending_states and unknown_count < 3 and wait < max_time:
+        while (
+            state in pending_states
+            and retries < settings.im_max_retries
+            and wait < max_time
+        ):
             success, res = self.client.get_infra_property(self.inf_id, "state")
 
             if success:
@@ -154,12 +173,12 @@ class IM:
                 state = "unknown"
 
             if state == "unknown":
-                unknown_count += 1
+                retries += 1
 
             if state in pending_states:
                 logging.debug(f"The infrastructure is in state: {state}. Wait ...")
-                time.sleep(30)
-                wait += 30
+                time.sleep(settings.im_sleep)
+                wait += settings.im_sleep
 
         if state == "configured":
             logging.info(f"Service {self.inf_id} is ready.")

@@ -19,19 +19,28 @@ On successful completition, a URL pointing to the prepared environment is return
 
 ## Quickstart
 
-We do our best to keep [development instance](https://dispatcher.edc.cloud.e-infra.cz/docs) running the current version, and it is available for testing.
+We do our best to keep [development instance](https://dev1.player.eosc-data-commons.eu/docs) running the current version, and it is available for testing.
 Report if anything is broken, please.
 
-1. Go to https://dispatcher.edc.cloud.e-infra.cz/docs/; this is an automatically generated Swagger UI page capable of making test calls
-2. Click on `Authorize` button and log in via EGI CheckIn development identity provider
+1. Go to https://dev1.player.eosc-data-commons.eu; this should redirect you to EGI CheckIn identity provider
+2. You will be redirected to /docs; this is an automatically generated Swagger UI page capable of making test calls
 3. Choose an example in  [test/](test/) (refer to brief description below):
    - grab `ro-crate-metadata.json` if it is the only file of the example
    - make a flat zip file containing all the files of the example otherwise
-4. POST the file via the Swagger to `/requests/metadata_rocrate` or '/requests/zip_rocrate`. The server returns `request_id`
+4. POST the file via the Swagger to `/requests/metadata_rocrate` or `/requests/zip_rocrate`. The server returns `request_id`
 5. GET `/requests/YOUR_REQUEST_ID` repeatedly to monitor processing of the request
 6. If everythings goes right, `SUCCESS` status is returned finally, containing the endpoint to the target VRE
+7. If anything goes wrong, check you are still authenticated by calling GET /oauth2/token. If you don't see the token, follow step 1.
 
-
+## Contribution
+1. You'll need VS Code.
+2. To avoid inconsistend formatting we provide a VS Code settings for you to follow the standard formatting executed automatically. 
+3. Head over to Extension tab inside your VS Code and install [Black formatter extension](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter)
+4. To install python venv use `python3 -m venv venv` and `source venv/bin/activate` to activate it.
+5. Install requirements by `pip install -r requirements.txt`
+6. Set VS Code to use this virtual environment by using `CTRL-SHIFT-P` and `Python: Select Interpreter` and then your virtual environment (Should be Python 3.x.x (venv) ./venv/bin/python)
+7. The formatting happens automatically when saving a file.
+   
 ## Deployment
 
 To deploy your own Dispatcher instance you need:
@@ -94,5 +103,5 @@ Testing notebook stolen from our other project, which takls to our service to fi
 Again, zip [test/alphafind-notebook](test/alphafind-notebook) and post the file to `/requests/zip_rocrate/`
 
 ### ScienceMesh
-
 Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.
+

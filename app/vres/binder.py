@@ -7,6 +7,7 @@ import subprocess
 import urllib
 import uuid
 from app.config import settings
+from app.constants import BINDER_DEFAULT_SERVICE, BINDER_PROGRAMMING_LANGUAGE
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -17,7 +18,7 @@ logger = logging.getLogger("uvicorn.error")
 
 class VREBinder(VRE):
     def get_default_service(self):
-        return "https://mybinder.org/v2"
+        return BINDER_DEFAULT_SERVICE
 
     def post(self):
         request_id = str(uuid.uuid4())
@@ -30,14 +31,15 @@ class VREBinder(VRE):
 
         os.mkdir(repo)
         logger.debug(f"{__class__.__name__}: unzipping ROCrate")
-        with zf.ZipFile(self.body) as zfile:
-            for filename in zfile.namelist():
-                logger.debug("  " + filename)
-                if filename != "ro-crate-metadata.json":
-                    with zfile.open(filename) as z, open(
-                        f"{repo}/{filename}", "wb"
-                    ) as f:
-                        f.write(z.read())
+        with io.BytesIO(self.body) as bytes_io:
+            with zf.ZipFile(bytes_io) as zfile:
+                for filename in zfile.namelist():
+                    logger.debug("  " + filename)
+                    if filename != "ro-crate-metadata.json":
+                        with zfile.open(filename) as z, open(
+                            f"{repo}/{filename}", "wb"
+                        ) as f:
+                            f.write(z.read())
 
         result = subprocess.run(
             f'cd {repo} && git init && git config user.email "dispatcher@dispatcher.com" && git config user.name "dispatcher" && git add * && git commit -m "on the fly"',
@@ -59,4 +61,4 @@ class VREBinder(VRE):
         return f"{url}/git/{urllib.parse.quote_plus(git)}/HEAD"
 
 
-vre_factory.register("https://jupyter.org/binder/", VREBinder)
+vre_factory.register(BINDER_PROGRAMMING_LANGUAGE, VREBinder)

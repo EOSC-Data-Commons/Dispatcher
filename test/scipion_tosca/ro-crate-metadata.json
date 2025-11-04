@@ -15,7 +15,7 @@
             "runsOn" : { "@id": "#destination" },
             "hasPart": [
                 { "@id": "#workflow" },
-                { "@id": "#inputfile" },
+                { "@id": "#textfile" },
                 { "@id": "#destination" }
             ]
         },
@@ -47,6 +47,9 @@
             "@type": "ComputerLanguage",
             "name": "Scipion",
             "url": {
+                "@id": "http://scipion.i2pc.es/"
+            },
+            "identifier": {
                 "@id": "http://scipion.i2pc.es/"
             }
         },

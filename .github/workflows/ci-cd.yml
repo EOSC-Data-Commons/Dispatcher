@@ -1,0 +1,41 @@
+name: Deploy to stable
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install Ansible
+      run: |
+        pip install ansible
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.1
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Setup Ansible Vault
+      run: |
+        echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/vault_password.txt
+
+    - name: Test SSH Connection
+      run: |
+        ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.DISPATCHER_HOST }}
+
+    - name: Run Ansible Playbook
+      run: |
+        cd ansible
+        ansible-playbook dispatcher.yml \
+          --limit "${{ secrets.DISPATCHER_HOST }}" \
+          --vault-password-file vault_password.txt
