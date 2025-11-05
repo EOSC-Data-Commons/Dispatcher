@@ -22,7 +22,7 @@ On successful completition, a URL pointing to the prepared environment is return
 We do our best to keep [development instance](https://dev1.player.eosc-data-commons.eu/docs) running the current version, and it is available for testing.
 Report if anything is broken, please.
 
-1. Go to https://dev1.player.eosc-data-commons.eu; this should redirect you to EGI CheckIn identity provider
+1. Go to https://dev1.player.eosc-data-commons.eu/oauth2/login; this should redirect you to EGI CheckIn identity provider
 2. You will be redirected to /docs; this is an automatically generated Swagger UI page capable of making test calls
 3. Choose an example in  [test/](test/) (refer to brief description below):
    - grab `ro-crate-metadata.json` if it is the only file of the example
@@ -104,4 +104,5 @@ Again, zip [test/alphafind-notebook](test/alphafind-notebook) and post the file 
 
 ### ScienceMesh
 Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.
+
 
