@@ -52,11 +52,23 @@ class VREGalaxy(VRE):
         result = {}
         for f in files:
             properties = f.properties()
-            result[properties["name"]] = {
+
+            file_meta = {
                 "class": "File",
                 "filetype": properties["encodingFormat"].split("/")[-1],
-                "location": f["url"],
             }
+
+            if "onedata:fileId" in properties:
+                oz_domain = properties["onedata:onezoneDomain"]
+                file_id = properties["onedata:fileId"]
+                file_meta["location"] = (
+                    f"https://{oz_domain}/api/v3/onezone/shares/data/{file_id}/content"
+                )
+            else:
+                file_meta["location"] = f["url"]
+
+            result[properties["name"]] = file_meta
+
         return result
 
     def _send_workflow_request(self, data):
