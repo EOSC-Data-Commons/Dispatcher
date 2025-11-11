@@ -8,7 +8,7 @@ import copy
 
 
 @celery.task(name="vre_from_zipfile")
-def vre_from_zipfile(parsed_zipfile: (Dict, bytes), token):
+def vre_from_zipfile(parsed_zipfile: tuple[Dict, bytes], token):
     crate = ROCrate(source=copy.deepcopy(parsed_zipfile[0]))
     zip_file = parsed_zipfile[1]
     vre_handler = vre_factory(crate=crate, body=zip_file, token=token)
@@ -20,8 +20,9 @@ def vre_from_zipfile(parsed_zipfile: (Dict, bytes), token):
     autoretry_for=(GalaxyAPIError,),
     retry_backoff=True,
     max_retries=3,
+    bind=True,
 )
-def vre_from_rocrate(data: Dict, token):
+def vre_from_rocrate(self, data: Dict, token):
     crate = ROCrate(source=copy.deepcopy(data))
-    vre_handler = vre_factory(crate=crate, token=token)
+    vre_handler = vre_factory(crate=crate, token=token, update_state=self.update_state)
     return {"url": vre_handler.post()}
