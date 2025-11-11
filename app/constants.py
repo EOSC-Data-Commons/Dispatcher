@@ -11,3 +11,7 @@ SCIENCEMESH_PROGRAMMING_LANGUAGE = "https://cernbox.cern.ch/"
 
 SCIPION_DEFAULT_SERVICE = "https://scipion.i2pc.es/"
 SCIPION_PROGRAMMING_LANGUAGE = "http://scipion.i2pc.es/"
+
+MDDASH_DEFAULT_SERVICE = "https://mddash-edc.dyn.cloud.e-infra.cz/"
+MDDASH_PROGRAMMING_LANGUAGE = "https://github.com/CERIT-SC/mddash"
+
