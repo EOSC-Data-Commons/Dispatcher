@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Optional, Protocol, runtime_checkable
 from app.exceptions import VREError, VREConfigurationError
 import logging
+import app.constants as constants
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -59,11 +60,12 @@ class VRE(ABC):
                 raise TypeError(
                     "Injected IM factory must return an object implementing IMClientProtocol"
                 )
-            self.update_task_status("IM started")
+            self.update_task_status(constants.IM_SEQUENCE_STARTED)
             outputs = im_client.run_service(dest)
-            self.update_task_status("IM finished")
+            self.update_task_status(constants.IM_SEQUENCE_FINISHED)
             if outputs is None:
                 raise VREConfigurationError("Failed to deploy service via IM")
+            self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
             return outputs.get("url", self.get_default_service())
 
         # Anything else is an error.
@@ -76,8 +78,6 @@ class VRE(ABC):
 
     @staticmethod
     def _default_im_factory(token: str | None) -> IMClientProtocol:
-        from app.services.im import IM
-
         return IM(token)
 
     @abstractmethod
