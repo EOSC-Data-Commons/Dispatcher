@@ -10,9 +10,6 @@ from app.constants import MDDASH_DEFAULT_SERVICE, MDDASH_PROGRAMMING_LANGUAGE
 
 logging.basicConfig(level=logging.INFO)
 
-# XXX
-USERNAME='ljocha'
-
 class VREMDDash(VRE):
     def get_default_service(self):
         return MDDASH_DEFAULT_SERVICE
@@ -23,15 +20,10 @@ class VREMDDash(VRE):
         with tempfile.TemporaryDirectory() as temp_dir:
             self._unzip_request(temp_dir)
 
-        user,token = self._login()
-
-       # r = requests.post(f"{url}/users/{USERNAME}/server", headers=headers)
-        url += '/hub/api/user'
-        r = requests.get(url, headers=headers)
-        logging.info(f'token: {self.token}')
-        logging.info(f"GET {url}: {r.status_code} {r.text}")
+        self._login()
+        self._start_server()
        
-        return url
+        return None
 
     def _unzip_request(self,repo):
         logging.debug(f"{__class__.__name__}: unzipping ROCrate")
@@ -66,7 +58,30 @@ class VREMDDash(VRE):
         r.raise_for_status()
     
         logging.info(f"token: {r.json()}")
-        return user,r.json()['token']
+        self.user = user
+        self.api_token = r.json()['token']
+
+    def _start_server(self):
+        url = self.svc_url
+        url = url.rstrip("/")
+
+
+        r = self.session.post(f"{url}/hub/api/users/{self.user}/server",headers={'Authorization': 'token '+self.api_token })
+        logging.info(f"POST server: {r.status_code} {r.text}")
+        # XXX: 400 is OK, it means the server is already running
+
+        #r = self.session.post(f"{url}/hub/api/users/{self.user}/tokens",headers={'Authorization': 'token '+self.api_token },json={"scopes": [f"access:servers!user={self.user}"]})
+
+        # XXX: weak token, good enough to authenticate initial request 
+        r = self.session.post(f"{url}/hub/api/users/{self.user}/tokens",
+                              headers={'Authorization': 'token '+self.api_token },
+                              json={"scopes": [f"read:users!user={self.user}", f"access:servers!server={self.user}"]}
+                            )
+        logging.info(f"POST tokens: {r.status_code} {r.text}")
+
+        self.server_token = r.json()['token']
+
+
  
 
 
