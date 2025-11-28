@@ -5,12 +5,22 @@
             "@id": "./",
             "@type": "Dataset",
             "datePublished": "2025-05-06T14:35:47+00:00",
-            "mainEntity" : { "@id": "#workflow" },
-            "runsOn" : { "@id": "#destination" },
+            "mainEntity": {
+                "@id": "#workflow"
+            },
+            "runsOn": {
+                "@id": "#destination"
+            },
             "hasPart": [
-                { "@id": "#workflow" },
-                { "@id": "#inputfile" },
-                { "@id": "#destination" }
+                {
+                    "@id": "#workflow"
+                },
+                {
+                    "@id": "#textfile"
+                },
+                {
+                    "@id": "#destination"
+                }
             ]
         },
         {
@@ -40,6 +50,9 @@
             "@id": "#haddock",
             "@type": "ComputerLanguage",
             "name": "Haddock",
+            "identifier": {
+                "@id": "https://www.bonvinlab.org/software/haddock3/"
+            },
             "url": {
                 "@id": "https://www.bonvinlab.org/software/haddock3/"
             }
@@ -58,12 +71,13 @@
             "name": "Haddock",
             "memoryRequirements": "4 GiB",
             "processorRequirements": [
-                "2 vCPU",
-                "1 GPU"
+                "2 vCPU"
             ],
             "storageRequirements": "200 GiB",
             "hasPart": [
-                { "@id": "#haddock.yaml" }
+                {
+                    "@id": "#haddock.yaml"
+                }
             ]
         },
         {
