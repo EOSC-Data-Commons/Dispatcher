@@ -43,7 +43,6 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/ocm.json:/etc/nginx/.well-known/ocm.json
       - ./auth-ui:/usr/share/nginx/auth-ui
-      - ./auth-ui2:/usr/share/nginx/auth-ui2
 
       - fcgi-socket:/nginx/temp
     depends_on:
