@@ -19,7 +19,9 @@
                 authSuccess: true,
             };
             console.log(`window location origin ${window.location.origin}`)
+            window.opener.postMessage(message, "https://dev1.player.eosc-data-commons.eu");
             window.opener.postMessage(message, "https://dev2.player.eosc-data-commons.eu");
+            window.opener.postMessage(message, "https://dev3.player.eosc-data-commons.eu");
             window.opener.postMessage(message, "http://localhost:8000/");
 
             // window.opener.postMessage(message, window.location.origin);
