@@ -62,16 +62,8 @@ http {
             alias /usr/share/nginx/auth-ui/;
             index index.html;
             try_files $uri $uri/ =404;
-        }
-        # Serve static auth UI files
-        location /auth2 {
-            alias /usr/share/nginx/auth-ui2/;
-            index index.html;
-            try_files $uri $uri/ =404;
-        }
-        
+        }      
        
-
 
         location / {
             add_header 'Access-Control-Allow-Methods' 'GET, POST, HEAD, OPTIONS';
