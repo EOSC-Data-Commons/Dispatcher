@@ -1,5 +1,6 @@
 import logging
 import requests
+import copy
 import time
 import yaml
 from imclient import IMClient
@@ -10,6 +11,29 @@ logging.basicConfig(level=logging.INFO)
 
 
 class IM:
+
+    GET_DATA_NODE_TEMPLATE = {
+        "type": "tosca.nodes.SoftwareComponent",
+        "interfaces": {
+            "Standard": {
+                "configure": {
+                    "implementation": (
+                        "https://raw.githubusercontent.com/grycap/"
+                        "tosca/main/artifacts/download_data.yml"
+                    ),
+                    "inputs": {
+                        "data_url": "",
+                        "local_path": "/opt",
+                        "wait_to_download": True,
+                        "max_download_time": 1800,
+                        "unarchive_file": False,
+                    },
+                }
+            }
+        },
+        "requirements": [{"host": "simple_node"}],
+    }
+
     def __init__(self, access_token: str):
         auth = self._build_auth_config(access_token)
 
@@ -115,11 +139,74 @@ class IM:
 
         return yaml.dump(tosca_dict)
 
+    def _get_compute_nodes(self, tosca_dict: dict) -> dict:
+        """Extracts compute nodes from the TOSCA template."""
+        compute_nodes = {}
+        node_templates = tosca_dict.get("topology_template", {}).get(
+            "node_templates", {}
+        )
+        for node_name, node in node_templates.items():
+            if node.get("type").endswith("Compute"):
+                compute_nodes[node_name] = node
+        return compute_nodes
+
+    def _add_files_to_tosca_template(self, tosca_template: str, service: dict) -> str:
+        """Adds input files to the TOSCA template for staging in."""
+        input_files = service.get("input", [])
+        if input_files:
+            tosca_dict = yaml.safe_load(tosca_template)
+            # Get compute nodes where files will be staged
+            compute_nodes = self._get_compute_nodes(tosca_dict)
+            for i, input_file in enumerate(input_files):
+                file_url = input_file.get("url")
+                # Check if the input is of type File
+                if input_file.get("@type") != "File":
+                    logging.warning("Input is not of type File, skipping.")
+                    continue
+
+                # Check if contentLocation is provided
+                compute_name = None
+                file_dest = input_file.get("contentLocation")
+                # and extract compute node name if specified. Format is compute_name:dest_dir
+                if file_dest and ":" in file_dest:
+                    compute_name = file_dest.split(":")[0]
+                    file_dest = file_dest.split(":")[1]
+
+                if compute_name and compute_name not in compute_nodes:
+                    logging.error(
+                        "Compute node %s not found in TOSCA template, skipping file.",
+                        compute_name,
+                    )
+                    continue
+                if not compute_name:
+                    # If no compute node specified, use the first one
+                    compute_name = list(compute_nodes.keys())[0]
+
+                # Add get_data node template
+                node_templates = tosca_dict.get("topology_template", {}).get(
+                    "node_templates", {}
+                )
+                get_data = copy.deepcopy(IM.GET_DATA_NODE_TEMPLATE)
+                get_data_inputs = get_data["interfaces"]["Standard"]["configure"][
+                    "inputs"
+                ]
+                if file_dest:
+                    get_data_inputs["local_path"] = file_dest
+                get_data_inputs["data_url"] = file_url
+                node_templates[f"get_data_{i}"] = get_data
+
+                # Update requirement to link to the specified compute node
+                get_data["requirements"][0]["host"] = compute_name
+
+            return yaml.dump(tosca_dict)
+
+        return tosca_template
+
     def _gen_tosca_template(self, service: dict) -> str:
         """
         Generates a TOSCA template for the service.
         """
-        # @TODO: get the TOSCA template from the service entity
+        # get the TOSCA template from the service entity
         # get the memory and CPU requirements
         # edit the inputs of the TOSCA template
         # (we must use allways the same names for the inputs for cpu and memory, etc.)
@@ -136,6 +223,8 @@ class IM:
         tosca_template = self._get_tosca_template(tosca_template_url)
         # Add inputs to the TOSCA template
         tosca_template = self._add_inputs_to_tosca_template(tosca_template, service)
+        # Add input files to stage in
+        tosca_template = self._add_files_to_tosca_template(tosca_template, service)
 
         return tosca_template
 
