@@ -186,7 +186,7 @@
             }, 500);
         }
         function receiveAuthMessage(event) {
-            const expectedOrigin = window.location.origin;
+            const expectedOrigin = "https://dev3.player.eosc-data-commons.eu";
             if (event.origin !== expectedOrigin) {
                 console.warn(`Ignoring message from untrusted origin: ${event.origin}`);
                 return;
@@ -196,6 +196,7 @@
             }
             window.removeEventListener('message', receiveAuthMessage, false);
             const data = event.data;
+            console.log(data)
             if (data && data.authSuccess) {
                 updateStatus(`Authentication Successful! Token received.`, 'text-green-400');
             } else {
@@ -269,7 +270,8 @@
                     method: 'POST',
                     credentials: 'include',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+
                     },
                     body: metadata
                 });

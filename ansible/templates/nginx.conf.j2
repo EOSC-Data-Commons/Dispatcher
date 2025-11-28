@@ -15,6 +15,29 @@ http {
     sendfile        on;
     keepalive_timeout  65;
 
+     map $http_origin $cors_origin {
+        default "";
+        # Local development origins
+        "~^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$" $http_origin;
+        "~^https?://localhost$" $http_origin;
+        "~^https?://127\.0\.0\.1$" $http_origin;
+        "~^http?://(localhost|127\.0\.0\.1)(:[0-9]+)?$" $http_origin;
+        "~^http?://localhost$" $http_origin;
+        "~^http?://127\.0\.0\.1$" $http_origin;
+        # Development server origins
+        
+        "https://dev1.player.eosc-data-commons.eu" $http_origin;
+        "https://dev2.player.eosc-data-commons.eu" $http_origin;
+        "https://dev3.player.eosc-data-commons.eu" $http_origin;
+        
+        "https://dev.matchmaker.eosc-data-commons.eu" $http_origin;
+
+        # If you also need HTTP versions (not recommended for production)
+        # "http://dev1.player.eosc-data-commons.eu" $http_origin;
+        # "http://dev2.player.eosc-data-commons.eu" $http_origin;
+        # "http://dev3.player.eosc-data-commons.eu" $http_origin;
+    }
+
     server {
         listen 80;
         location /.well-known/acme-challenge/ {
@@ -29,7 +52,10 @@ http {
 
         ssl_certificate {{nginx.cert}}/fullchain.pem;
         ssl_certificate_key {{nginx.cert}}/privkey.pem;
-        
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, HEAD, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type' always;
+
                 
         # Serve static auth UI files
         location /auth {
@@ -44,7 +70,25 @@ http {
             try_files $uri $uri/ =404;
         }
         
+       
+
+
         location / {
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, HEAD, OPTIONS';
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+
+                add_header 'Access-Control-Allow-Origin' $cors_origin always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, HEAD, OPTIONS';
+                add_header 'Access-Control-Allow-Headers' 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type';
+                add_header 'Access-Control-Max-Age' 57542400;
+                add_header 'Content-Type' 'text/plain; charset=UTF-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
             proxy_pass https://web:{{api.port}}/oauth2/login;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -53,12 +97,48 @@ http {
         }
 
         location /requests {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+
+                add_header 'Access-Control-Allow-Origin' $cors_origin always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, HEAD, OPTIONS';
+                add_header 'Access-Control-Allow-Headers' 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type';
+                add_header 'Access-Control-Max-Age' 57542400;
+                add_header 'Content-Type' 'text/plain; charset=UTF-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
+
             proxy_pass https://web:{{api.port}}/requests;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
+
+        location /anon_requests {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' $cors_origin always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, HEAD, OPTIONS';
+                add_header 'Access-Control-Allow-Headers' 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type';
+                add_header 'Access-Control-Max-Age' 57542400;
+                add_header 'Content-Type' 'text/plain; charset=UTF-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
+
+
+            proxy_pass https://web:{{api.port}}/anon_requests;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
 	    location /oauth2 {
             proxy_pass https://web:{{api.port}}/oauth2;
             proxy_set_header Host $host;
