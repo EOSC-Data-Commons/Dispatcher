@@ -37,14 +37,13 @@ class VREHaddock(VRE):
                 status_code=400, detail="Missing url in workflow entity"
             )
 
-        headers = {"Content-Type": "application/json", "Accept": "application/json"}
-
         data = {
             "public": public,
             "request_state": modify_for_api_data_input(files),
             "workflow_id": workflow_url,
             "workflow_target_type": "trs_url",
         }
+
         url = self.svc_url
 
         logging.info(f"{self.__class__.__name__}: calling {url} with {data}")
