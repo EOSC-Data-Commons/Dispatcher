@@ -1,5 +1,4 @@
-from app.routers import requests
-from app.routers import auth
+from app.routers import requests, auth, anonymous_requests
 from fastapi import FastAPI
 from fastapi_oauth2.middleware import OAuth2Middleware
 from fastapi_oauth2.router import router as oauth2_router
@@ -14,6 +13,7 @@ app = FastAPI()
 app.include_router(oauth2_router)
 app.include_router(requests.router)
 app.include_router(auth.router)
+app.include_router(anonymous_requests.router)
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_key_file)
@@ -36,4 +36,6 @@ client = OAuth2Client(
     ),
 )
 
-app.add_middleware(OAuth2Middleware, config=OAuth2Config(clients=[client]))
+app.add_middleware(
+    OAuth2Middleware, config=OAuth2Config(clients=[client], same_site="none")
+)
