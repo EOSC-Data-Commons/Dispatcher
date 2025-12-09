@@ -150,57 +150,77 @@ class IM:
                 compute_nodes[node_name] = node
         return compute_nodes
 
+    def _validate_input_file(self, input_file: dict) -> bool:
+        """Validates if the input is of type File and has a url."""
+        if input_file.get("@type") != "File":
+            logging.warning("Input is not of type File, skipping.")
+            return False
+        if not input_file.get("url"):
+            logging.warning("Input does not have a url, skipping.")
+            return False
+        return True
+
+    def _parse_compute_and_dest(self, input_file: dict, compute_nodes: dict) -> tuple:
+        """Parses contentLocation to extract compute node name and destination path."""
+        content_location = input_file.get("contentLocation")
+        compute_name = None
+        if content_location and ":" in content_location:
+            parts = content_location.split(":")
+            return parts[0], parts[1]
+        if compute_nodes:
+            compute_name = list(compute_nodes.keys())[0]
+        return compute_name, content_location
+
+    def _validate_compute_node(self, compute_name: str, compute_nodes: dict) -> bool:
+        """Validates if the compute node exists in the TOSCA template."""
+        if not compute_name:
+            logging.error("No compute node available.")
+            return False
+        if compute_name and compute_name not in compute_nodes:
+            logging.error(
+                "Compute node %s not found in TOSCA template, skipping file.",
+                compute_name,
+            )
+            return False
+        return True
+
+    @staticmethod
+    def _gen_get_data_node(file_url: str, file_dest: str, compute_name: str) -> dict:
+        get_data = copy.deepcopy(IM.GET_DATA_NODE_TEMPLATE)
+        get_data_inputs = get_data["interfaces"]["Standard"]["configure"]["inputs"]
+        if file_dest:
+            get_data_inputs["local_path"] = file_dest
+        get_data_inputs["data_url"] = file_url
+        get_data["requirements"][0]["host"] = compute_name
+        return get_data
+
     def _add_files_to_tosca_template(self, tosca_template: str, service: dict) -> str:
         """Adds input files to the TOSCA template for staging in."""
         input_files = service.get("input", [])
-        if input_files:
-            tosca_dict = yaml.safe_load(tosca_template)
-            # Get compute nodes where files will be staged
-            compute_nodes = self._get_compute_nodes(tosca_dict)
-            for i, input_file in enumerate(input_files):
-                file_url = input_file.get("url")
-                # Check if the input is of type File
-                if input_file.get("@type") != "File":
-                    logging.warning("Input is not of type File, skipping.")
-                    continue
+        if not input_files:
+            return tosca_template
 
-                # Check if contentLocation is provided
-                compute_name = None
-                file_dest = input_file.get("contentLocation")
-                # and extract compute node name if specified. Format is compute_name:dest_dir
-                if file_dest and ":" in file_dest:
-                    compute_name = file_dest.split(":")[0]
-                    file_dest = file_dest.split(":")[1]
+        tosca_dict = yaml.safe_load(tosca_template)
+        compute_nodes = self._get_compute_nodes(tosca_dict)
+        node_templates = tosca_dict.get("topology_template", {}).get(
+            "node_templates", {}
+        )
 
-                if compute_name and compute_name not in compute_nodes:
-                    logging.error(
-                        "Compute node %s not found in TOSCA template, skipping file.",
-                        compute_name,
-                    )
-                    continue
-                if not compute_name:
-                    # If no compute node specified, use the first one
-                    compute_name = list(compute_nodes.keys())[0]
+        for i, input_file in enumerate(input_files):
+            if not self._validate_input_file(input_file):
+                continue
 
-                # Add get_data node template
-                node_templates = tosca_dict.get("topology_template", {}).get(
-                    "node_templates", {}
-                )
-                get_data = copy.deepcopy(IM.GET_DATA_NODE_TEMPLATE)
-                get_data_inputs = get_data["interfaces"]["Standard"]["configure"][
-                    "inputs"
-                ]
-                if file_dest:
-                    get_data_inputs["local_path"] = file_dest
-                get_data_inputs["data_url"] = file_url
-                node_templates[f"get_data_{i}"] = get_data
+            compute_name, file_dest = self._parse_compute_and_dest(
+                input_file, compute_nodes
+            )
+            if not self._validate_compute_node(compute_name, compute_nodes):
+                continue
 
-                # Update requirement to link to the specified compute node
-                get_data["requirements"][0]["host"] = compute_name
+            node_templates[f"get_data_{i}"] = self._gen_get_data_node(
+                input_file.get("url"), file_dest, compute_name
+            )
 
-            return yaml.dump(tosca_dict)
-
-        return tosca_template
+        return yaml.dump(tosca_dict)
 
     def _gen_tosca_template(self, service: dict) -> str:
         """
