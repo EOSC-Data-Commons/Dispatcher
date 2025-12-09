@@ -148,3 +148,61 @@ def test_run_service(mock_add_inputs, mock_get_tosca, mock_settings):
     log = im.run_service(service)
     assert log == {"outputs": {"url": "http://some.url"}}
     mock_im_client.create.assert_called_once_with("modified_template", desc_type="yaml")
+
+
+def test_add_input_files_to_tosca_template(mock_settings):
+    test_tosca = {
+        "topology_template": {
+            "inputs": {},
+            "node_templates": {"compute1": {"type": "tosca.nodes.Compute"}},
+        }
+    }
+
+    service = {
+        "input": [
+            {
+                "@type": "File",
+                "url": "http://example.com/data1.txt",
+                "contentLocation": "compute1:/data",
+            },
+            {
+                "@type": "File",
+                "url": "http://example.com/data2.txt",
+                "contentLocation": "/data",
+            },
+        ]
+    }
+
+    im = IM("test_token")
+    updated_tosca_str = im._add_files_to_tosca_template(
+        yaml.safe_dump(test_tosca), service
+    )
+    updated_tosca = yaml.safe_load(updated_tosca_str)
+    node_templates = updated_tosca["topology_template"]["node_templates"]
+    assert len(node_templates) == 3
+    assert "get_data_0" in node_templates
+    assert "get_data_1" in node_templates
+
+    get_data_0 = node_templates["get_data_0"]
+    assert get_data_0["type"] == "tosca.nodes.SoftwareComponent"
+    assert (
+        get_data_0["interfaces"]["Standard"]["configure"]["inputs"]["data_url"]
+        == "http://example.com/data1.txt"
+    )
+    assert (
+        get_data_0["interfaces"]["Standard"]["configure"]["inputs"]["local_path"]
+        == "/data"
+    )
+    assert get_data_0["requirements"][0]["host"] == "compute1"
+
+    get_data_1 = node_templates["get_data_1"]
+    assert get_data_1["type"] == "tosca.nodes.SoftwareComponent"
+    assert (
+        get_data_1["interfaces"]["Standard"]["configure"]["inputs"]["data_url"]
+        == "http://example.com/data2.txt"
+    )
+    assert (
+        get_data_1["interfaces"]["Standard"]["configure"]["inputs"]["local_path"]
+        == "/data"
+    )
+    assert get_data_1["requirements"][0]["host"] == "compute1"
