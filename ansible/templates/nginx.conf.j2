@@ -29,16 +29,6 @@ http {
 
         ssl_certificate {{nginx.cert}}/fullchain.pem;
         ssl_certificate_key {{nginx.cert}}/privkey.pem;
-        
-                
-        # Serve static auth UI files
-        location /auth {
-            alias /usr/share/nginx/auth-ui/;
-            index index.html;
-            try_files $uri $uri/ =404;
-        }
-        
-        
         location / {
             proxy_pass https://web:{{api.port}}/oauth2/login;
             proxy_set_header Host $host;
