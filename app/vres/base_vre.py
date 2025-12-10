@@ -24,7 +24,7 @@ class IMClientProtocol(Protocol):
 class VRE(ABC):
     def __init__(
         self,
-        crate: Any,
+        crate: Any | None = None,
         update_state: Optional[Callable] = None,
         body: Any | None = None,
         token: str | None = None,
