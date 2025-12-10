@@ -24,10 +24,10 @@ class IMClientProtocol(Protocol):
 class VRE(ABC):
     def __init__(
         self,
-        crate: Any | None = None,
+        crate: Any,
+        update_state: Optional[Callable] = None,
         body: Any | None = None,
         token: str | None = None,
-        update_state: Optional[Callable] = None,
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
     ) -> None:
         self.crate = crate
@@ -103,7 +103,11 @@ class VREFactory:
         self.table[vre_type] = cls
 
     def __call__(
-        self, crate, body=None, update_state: Optional[Callable] = None, **kwargs
+        self,
+        crate,
+        body=None,
+        update_state: Optional[Callable] = None,
+        **kwargs,
     ):
         elang = crate.mainEntity.get("programmingLanguage").get("identifier")
         if not self.is_registered(elang):
