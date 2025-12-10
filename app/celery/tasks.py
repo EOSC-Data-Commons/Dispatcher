@@ -7,11 +7,16 @@ from typing import Dict
 import copy
 
 
-@celery.task(name="vre_from_zipfile")
-def vre_from_zipfile(parsed_zipfile: tuple[Dict, bytes], token):
+@celery.task(
+    name="vre_from_zipfile",
+    bind=True,
+)
+def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
     crate = ROCrate(source=copy.deepcopy(parsed_zipfile[0]))
     zip_file = parsed_zipfile[1]
-    vre_handler = vre_factory(crate=crate, body=zip_file, token=token)
+    vre_handler = vre_factory(
+        crate=crate, body=zip_file, token=token, update_state=self.update_state
+    )
     return {"url": vre_handler.post()}
 
 
