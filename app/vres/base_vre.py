@@ -2,9 +2,10 @@ import sys
 from app.services.im import IM
 from fastapi import HTTPException
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Mapping, Protocol, runtime_checkable
+from typing import Any, Callable, Mapping, Optional, Protocol, runtime_checkable
 from app.exceptions import VREError, VREConfigurationError
 import logging
+import app.constants as constants
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -24,15 +25,21 @@ class VRE(ABC):
     def __init__(
         self,
         crate: Any | None = None,
+        update_state: Optional[Callable] = None,
         body: Any | None = None,
         token: str | None = None,
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
+        **kwargs,
     ) -> None:
         self.crate = crate
         self.body = body
         self.token = token
+        self._update_state = update_state
         self._im_factory = im_factory or self._default_im_factory
         self.svc_url = self.setup_service().rstrip("/")
+        # Store any additional kwargs for subclasses
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     @abstractmethod
     def get_default_service(self) -> str:
@@ -57,9 +64,12 @@ class VRE(ABC):
                 raise TypeError(
                     "Injected IM factory must return an object implementing IMClientProtocol"
                 )
+            self.update_task_status(constants.IM_SEQUENCE_STARTED)
             outputs = im_client.run_service(dest)
+            self.update_task_status(constants.IM_SEQUENCE_FINISHED)
             if outputs is None:
                 raise VREConfigurationError("Failed to deploy service via IM")
+            self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
             return outputs.get("url", self.get_default_service())
 
         # Anything else is an error.
@@ -67,10 +77,11 @@ class VRE(ABC):
             f"Invalid service type in runsOn: {dest.get('serviceType')!r}"
         )
 
+    def update_task_status(self, stage):
+        self._update_state(state="PROGRESS", meta={"stage": stage})
+
     @staticmethod
     def _default_im_factory(token: str | None) -> IMClientProtocol:
-        from app.services.im import IM
-
         return IM(token)
 
     @abstractmethod
@@ -95,14 +106,22 @@ class VREFactory:
             raise ValueError(f"{vre_type} already registered")
         self.table[vre_type] = cls
 
-    def __call__(self, crate, body=None, **kwargs):
+    def __call__(
+        self,
+        crate,
+        body=None,
+        update_state: Optional[Callable] = None,
+        **kwargs,
+    ):
         elang = crate.mainEntity.get("programmingLanguage").get("identifier")
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
         logger.debug(f"crate {crate}")
         logger.debug(f"elang {elang}")
         logger.debug(self.table[elang])
-        return self.table[elang](crate=crate, body=body, **kwargs)
+        return self.table[elang](
+            crate=crate, body=body, update_state=update_state, **kwargs
+        )
 
 
 vre_factory = VREFactory()

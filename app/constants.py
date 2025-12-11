@@ -14,3 +14,7 @@ SCIPION_PROGRAMMING_LANGUAGE = "http://scipion.i2pc.es/"
 
 OSCAR_DEFAULT_SERVICE = "https://some.oscar.instance/"
 OSCAR_PROGRAMMING_LANGUAGE = "https://oscar.grycap.net/"
+
+IM_SEQUENCE_STARTED = "IM sequence started"
+IM_SEQUENCE_FINISHED = "IM sequence finished"
+IM_SEQUENCE_SUCCESSFUL = "IM sequence successful"
