@@ -29,6 +29,7 @@ class VRE(ABC):
         body: Any | None = None,
         token: str | None = None,
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
+        **kwargs,
     ) -> None:
         self.crate = crate
         self.body = body
@@ -36,6 +37,9 @@ class VRE(ABC):
         self._update_state = update_state
         self._im_factory = im_factory or self._default_im_factory
         self.svc_url = self.setup_service().rstrip("/")
+        # Store any additional kwargs for subclasses
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     @abstractmethod
     def get_default_service(self) -> str:
