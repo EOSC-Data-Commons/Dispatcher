@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     git_repos: str = ""
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
-
+    im_max_time: int = 36000 # 10h
+    im_sleep: int = 30
+    im_max_retries: int = 3
+    redis_port: int = 6379
 
 settings = Settings()
