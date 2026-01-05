@@ -1,7 +1,6 @@
 # test/conftest.py
 import pytest
-from unittest.mock import Mock, patch
-
+from unittest.mock import patch
 from fixtures.dummy_crate import (
     DummyEntity,
     DummyCrate,
