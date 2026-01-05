@@ -11,3 +11,4 @@ ssl/
 .vault-password.txt
 ansible.log
 *.zip
+.coverage
