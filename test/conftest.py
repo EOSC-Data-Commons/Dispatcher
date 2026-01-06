@@ -1,4 +1,5 @@
 # test/conftest.py
+import os
 import pytest
 from unittest.mock import patch
 from fixtures.dummy_crate import (
@@ -11,6 +12,9 @@ from fixtures.dummy_crate import (
 from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
 from app.vres.sciencemesh import VREScienceMesh
+import io
+import zipfile as zf
+from app.config import settings
 
 pytest_plugins = ["pytest_asyncio"]
 
@@ -55,11 +59,33 @@ def galaxy_vre(dummy_galaxy_crate):
     return vre
 
 
+@pytest.fixture(autouse=True)
+def tmp_dir_setup(tmpdir):
+    """Fixture to execute asserts before and after a test is run"""
+    settings.git_repos = tmpdir
+    settings.host = ""
+    yield
+
+
+def create_test_zip_body():
+    # Create a ZIP file in memory with test content
+    zip_buffer = io.BytesIO()
+    with zf.ZipFile(zip_buffer, "w") as zip_file:
+        zip_file.writestr("ro-crate-metadata.json", '{"@context": "..."}')
+        zip_file.writestr("README.md", "# Test")
+        zip_file.writestr("input.txt", "test data")
+        zip_file.writestr("script.py", "print('hello')")
+
+    return zip_buffer.getvalue()
+
+
 @pytest.fixture
 def binder_vre(dummy_binder_crate):
     vre = VREBinder()
     vre.crate = dummy_binder_crate
     vre.svc_url = "https://mybinder.org"
+    vre.body = create_test_zip_body()
+
     return vre
 
 
