@@ -8,6 +8,7 @@ from fixtures.dummy_crate import (
     WORKFLOW_URL,
     FILE_1,
     FILE_2,
+    ONE_DATA_FILE,
 )
 from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
@@ -27,6 +28,18 @@ def dummy_galaxy_crate():
 
     return DummyCrate(
         main_entity=workflow, other_entities=[file1, file2], root_dataset={}
+    )
+
+
+@pytest.fixture
+def dummy_galaxy_crate_onedata():
+    workflow = DummyEntity(_type="Dataset", url=WORKFLOW_URL, name="myworkflow.ga")
+    file1 = DummyEntity(_type="File", **FILE_1)
+    file2 = DummyEntity(_type="File", **FILE_2)
+    file3 = DummyEntity(_type="File", **ONE_DATA_FILE)
+
+    return DummyCrate(
+        main_entity=workflow, other_entities=[file1, file2, file3], root_dataset={}
     )
 
 
@@ -55,6 +68,14 @@ def dummy_sciencemesh_crate():
 def galaxy_vre(dummy_galaxy_crate):
     vre = VREGalaxy()
     vre.crate = dummy_galaxy_crate
+    vre.svc_url = "https://usegalaxy.eu/"
+    return vre
+
+
+@pytest.fixture
+def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
+    vre = VREGalaxy()
+    vre.crate = dummy_galaxy_crate_onedata
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
 

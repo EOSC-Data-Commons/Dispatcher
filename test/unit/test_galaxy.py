@@ -7,7 +7,7 @@ from fixtures.dummy_crate import DummyEntity, DummyCrate, WORKFLOW_URL
 from app.exceptions import WorkflowURLError
 
 
-# TODO FILE1, FILE2 move somewhere else
+# TODO FILE1, FILE2 move somewhere else, split to 2 tests
 def test_prepare_workflow_data_success(galaxy_vre):
     """_prepare_workflow_data must return the exact dict that Galaxy expects."""
     payload = galaxy_vre._prepare_workflow_data()
@@ -22,6 +22,19 @@ def test_prepare_workflow_data_success(galaxy_vre):
         assert spec["class"] == "File"
         assert spec["filetype"] == "fastq"
         assert spec["location"].endswith(".fastq")
+
+
+def test_prepare_workflow_onedata_success(galaxy_vre_onedata):
+    """_prepare_workflow_data must return the exact dict that Galaxy expects."""
+    payload = galaxy_vre_onedata._prepare_workflow_data()
+
+    request_state = payload["request_state"]
+
+    assert request_state["onedata_file"]["filetype"] == "tiff"
+    assert (
+        request_state["onedata_file"]["location"]
+        == "https://demo.onedata.org/api/v3/onezone/shares/data/00000000007EADF3736861726547756964233964613065396530393037303130393062356433623965356632643832353138636830386464233665366232326436663332623633646233346663666163353365353265323333636864386261233437656434633633333638393264396361626239316435636430623161663436636830343438/content"
+    )
 
 
 def test_post_happy_path(galaxy_vre, requests_mock):
