@@ -8,10 +8,13 @@ import urllib
 import uuid
 from app.config import settings
 from app.constants import BINDER_DEFAULT_SERVICE, BINDER_PROGRAMMING_LANGUAGE
+import git
+import os
 
 logger = logging.getLogger("uvicorn.error")
 
 # TODO: cleanup the created repos
+# TODO: hardcoded value of /git path from the nginx paths
 
 # touch .git/git-daemon-export-ok
 
@@ -33,7 +36,6 @@ class VREBinder(VRE):
 
     def _get_binder_url(self, request_id):
         url = self.svc_url.rstrip("/")
-        # TODO: hardcoded value of /git path
         local_git_url = f"https://{settings.host}/git/{request_id}"
         logger.debug(local_git_url)
         return f"{url}/git/{urllib.parse.quote_plus(local_git_url)}/HEAD"
@@ -42,19 +44,17 @@ class VREBinder(VRE):
         with open(f"{repo}/.git/git-daemon-export-ok", "w") as f:
             f.write("I am here\n")
 
-    def _initialize_temporary_git_repo(self, repo):
-        result = subprocess.run(
-            f'cd {repo} && git init && git config user.email "dispatcher@dispatcher.com" && git config user.name "dispatcher" && git add * && git commit -m "on the fly"',
-            shell=True,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            logger.error(result)
-            raise RuntimeError("create temporary git repo")
+    def _initialize_temporary_git_repo(self, repo_path):
+        os.chdir(repo_path)
 
-        logger.info(result.stdout)
-        logger.info(result.stderr)
+        repo = git.Repo.init(repo_path)
+        with repo.config_writer() as git_config:
+            git_config.set_value("user", "email", "dispatcher@dispatcher.com")
+            git_config.set_value("user", "name", "dispatcher")
+
+        repo.index.add("*")
+
+        repo.index.commit("on the fly")
 
     def _generate_repository_name(self, request_id):
         gitrepos = settings.git_repos
