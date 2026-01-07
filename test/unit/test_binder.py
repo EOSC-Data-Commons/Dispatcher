@@ -14,7 +14,7 @@ def test_post_happy_path(binder_vre):
 
     assert (
         final_url
-        == f"{binder_vre.svc_url.rstrip("/")}/git/{urllib.parse.quote_plus(local_git_url)}/HEAD"
+        == f'{binder_vre.svc_url.rstrip("/")}/git/{urllib.parse.quote_plus(local_git_url)}/HEAD'
     )
 
 
