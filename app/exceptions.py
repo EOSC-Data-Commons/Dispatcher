@@ -59,3 +59,9 @@ class ExternalDataSourceError(VREError):
     """Raised when external source fails"""
 
     pass
+
+
+class MissingOCMParameters(VREConfigurationError):
+    """Raised when OCM share request misses required entities (receiver, owner, sender, destination)"""
+
+    pass
