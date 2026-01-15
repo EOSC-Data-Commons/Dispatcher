@@ -43,6 +43,10 @@ class GalaxyAPIError(ExternalServiceError):
     pass
 
 
+class ScienceMeshAPIError(ExternalServiceError):
+    pass
+
+
 class InvalidGalaxyResponseError(ExternalServiceError):
     """Raised when Galaxy API returns unexpected response"""
 

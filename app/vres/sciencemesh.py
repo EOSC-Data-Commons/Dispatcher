@@ -3,7 +3,7 @@ import requests
 import logging
 from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
 from app.config import settings
-from app.exceptions import MissingOCMParameters
+from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 
 logging.basicConfig(level=logging.INFO)
 
@@ -15,11 +15,18 @@ class VREScienceMesh(VRE):
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = self.create_ocm_share_request()
-        logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
-        response = requests.post(
-            f"{self.svc_url}/ocm/shares", headers=headers, json=data
-        )
-        logging.info(f"{self.__class__.__name__}: returned {response.text}")
+        logging.info(f"{self.__class__.__name__}: {self.crate.get("#destination")}")
+
+        try:
+            logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
+            response = requests.post(
+                f"{self.svc_url}/ocm/shares", headers=headers, json=data
+            )
+            logging.info(f"{self.__class__.__name__}: returned {response.text}")
+            response.raise_for_status()
+        except requests.RequestException as e:
+            logging.error(f"{self.__class__.__name__}: API request failed: {e}")
+            raise ScienceMeshAPIError("ScienceMesh API call failed") from e
         return response.json()
 
     def create_ocm_share_request(self):
@@ -29,6 +36,8 @@ class VREScienceMesh(VRE):
         destination = self.crate.get("#destination")
         if destination is None:
             destination = {"url": self.svc_url}
+        logging.info(f"{self.__class__.__name__}: destinatin: {destination}")
+
         if not receiver or not owner or not sender or not destination:
             raise MissingOCMParameters(
                 "Missing required entities (receiver, owner, sender, destination) for OCM share request"
