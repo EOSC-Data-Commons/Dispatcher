@@ -1,7 +1,6 @@
 import pytest
 from rocrate.rocrate import ROCrate
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
-from pathlib import Path
 
 
 def test_post_errors_with_empty_rocrate(sciencemesh_vre):
