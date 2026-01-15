@@ -15,7 +15,6 @@ class VREScienceMesh(VRE):
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = self.create_ocm_share_request()
-        logging.info(f"{self.__class__.__name__}: {self.crate.get("#destination")}")
 
         try:
             logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
@@ -36,7 +35,6 @@ class VREScienceMesh(VRE):
         destination = self.crate.get("#destination")
         if destination is None:
             destination = {"url": self.svc_url}
-        logging.info(f"{self.__class__.__name__}: destinatin: {destination}")
 
         if not receiver or not owner or not sender or not destination:
             raise MissingOCMParameters(
