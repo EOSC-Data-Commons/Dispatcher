@@ -1,5 +1,6 @@
 # test/conftest.py
 import os
+from pathlib import Path
 import pytest
 from unittest.mock import patch
 from fixtures.dummy_crate import (
@@ -16,6 +17,7 @@ from app.vres.sciencemesh import VREScienceMesh
 import io
 import zipfile as zf
 from app.config import settings
+from rocrate.rocrate import ROCrate
 
 pytest_plugins = ["pytest_asyncio"]
 
@@ -111,11 +113,47 @@ def binder_vre(dummy_binder_crate):
 
 
 @pytest.fixture
-def sciencemesh_vre(dummy_sciencemesh_crate):
+def sciencemesh_rocrate():
+    test_dir = Path(os.path.abspath(__file__))
+    metadata_path = test_dir.parent.joinpath("sciencemesh", "ro-crate-metadata.json")
+    return os.path.dirname(metadata_path)
+
+
+@pytest.fixture
+def sciencemesh_vre(sciencemesh_rocrate):
     vre = VREScienceMesh()
-    vre.crate = dummy_sciencemesh_crate
+    vre.crate = ROCrate(sciencemesh_rocrate)
     vre.svc_url = "https://sciencemesh.example.org"
     return vre
+
+
+@pytest.fixture
+def ocm_share_request(sciencemesh_vre):
+    receiver = sciencemesh_vre.crate.get("#receiver")
+    owner = sciencemesh_vre.crate.get("#owner")
+    sender = sciencemesh_vre.crate.get("#sender")
+
+    sender_userid = sender.get("userid")
+    if sender_userid and "@" in sender_userid:
+        sender_userid = sender_userid.split("@")[0] + "@" + settings.host
+
+    ocm_share_request = {
+        "shareWith": receiver.get("userid"),
+        "name": sciencemesh_vre.crate.mainEntity.get("name"),
+        "description": sciencemesh_vre.crate.mainEntity.get("description"),
+        "providerId": "n/a",
+        "resourceId": "n/a",
+        "owner": owner.get("userid"),
+        "senderDisplayName": sender.get("name"),
+        "sender": sender_userid,
+        "resourceType": "ro-crate",
+        "shareType": "user",
+        "protocols": {
+            "name": "multi",
+            "rocrate": sciencemesh_vre.crate.metadata.generate(),
+        },
+    }
+    return ocm_share_request
 
 
 @pytest.fixture
