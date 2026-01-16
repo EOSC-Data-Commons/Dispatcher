@@ -11,24 +11,21 @@ def test_post_errors_with_empty_rocrate(sciencemesh_vre):
         sciencemesh_vre.post()
 
 
-def test_post_errors_without_receiver_entity(sciencemesh_vre, sciencemesh_rocrate):
-    sciencemesh_vre.crate = ROCrate(sciencemesh_rocrate)
+def test_post_errors_without_receiver_entity(sciencemesh_vre):
     sciencemesh_vre.crate.delete("#receiver")
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
-def test_post_errors_without_owner_entity(sciencemesh_vre, sciencemesh_rocrate):
-    sciencemesh_vre.crate = ROCrate(sciencemesh_rocrate)
+def test_post_errors_without_owner_entity(sciencemesh_vre):
     sciencemesh_vre.crate.delete("#owner")
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
-def test_post_errors_without_sender_entity(sciencemesh_vre, sciencemesh_rocrate):
-    sciencemesh_vre.crate = ROCrate(sciencemesh_rocrate)
+def test_post_errors_without_sender_entity(sciencemesh_vre):
     sciencemesh_vre.crate.delete("#sender")
 
     with pytest.raises(MissingOCMParameters):

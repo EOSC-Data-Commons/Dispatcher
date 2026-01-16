@@ -18,13 +18,26 @@ import io
 import zipfile as zf
 from app.config import settings
 from rocrate.rocrate import ROCrate
+from app.constants import (
+    BINDER_PROGRAMMING_LANGUAGE,
+    SCIENCEMESH_PROGRAMMING_LANGUAGE,
+    GALAXY_PROGRAMMING_LANGUAGE,
+    OSCAR_PROGRAMMING_LANGUAGE,
+)
 
 pytest_plugins = ["pytest_asyncio"]
 
 
 @pytest.fixture
 def dummy_galaxy_crate():
-    workflow = DummyEntity(_type="Dataset", url=WORKFLOW_URL, name="myworkflow.ga")
+    workflow = DummyEntity(
+        _type="Dataset",
+        url=WORKFLOW_URL,
+        name="myworkflow.ga",
+        programmingLanguage={
+            "identifier": GALAXY_PROGRAMMING_LANGUAGE,
+        },
+    )
     file1 = DummyEntity(_type="File", **FILE_1)
     file2 = DummyEntity(_type="File", **FILE_2)
 
@@ -51,6 +64,31 @@ def dummy_binder_crate():
         _type="SoftwareSourceCode",
         url="https://github.com/example/notebook-repo",
         name="notebook-repo",
+        programmingLanguage={
+            "identifier": BINDER_PROGRAMMING_LANGUAGE,
+        },
+    )
+    return DummyCrate(main_entity=main)
+
+
+@pytest.fixture
+def dummy_oscar_crate():
+    main = DummyEntity(
+        _type="SoftwareSourceCode",
+        programmingLanguage={
+            "identifier": OSCAR_PROGRAMMING_LANGUAGE,
+        },
+    )
+    return DummyCrate(main_entity=main)
+
+
+@pytest.fixture
+def dummy_crate_with_unkown_vre_type():
+    main = DummyEntity(
+        _type="SoftwareSourceCode",
+        programmingLanguage={
+            "identifier": "random programming language",
+        },
     )
     return DummyCrate(main_entity=main)
 
@@ -62,6 +100,9 @@ def dummy_sciencemesh_crate():
         url="https://example.org/somefile.txt",
         name="somefile.txt",
         encodingFormat="text/plain",
+        programmingLanguage={
+            "identifier": SCIENCEMESH_PROGRAMMING_LANGUAGE,
+        },
     )
     return DummyCrate(main_entity=main)
 
@@ -116,13 +157,13 @@ def binder_vre(dummy_binder_crate):
 def sciencemesh_rocrate():
     test_dir = Path(os.path.abspath(__file__))
     metadata_path = test_dir.parent.joinpath("sciencemesh", "ro-crate-metadata.json")
-    return os.path.dirname(metadata_path)
+    return ROCrate(os.path.dirname(metadata_path))
 
 
 @pytest.fixture
 def sciencemesh_vre(sciencemesh_rocrate):
     vre = VREScienceMesh()
-    vre.crate = ROCrate(sciencemesh_rocrate)
+    vre.crate = sciencemesh_rocrate
     vre.svc_url = "https://sciencemesh.example.org"
     return vre
 
