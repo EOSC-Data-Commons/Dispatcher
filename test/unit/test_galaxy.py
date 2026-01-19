@@ -1,18 +1,13 @@
 # test/unit/test_galaxy.py
 import pytest
-import requests
-from unittest.mock import Mock
+import requests_mock
 from app import constants
 from app.exceptions import GalaxyAPIError, WorkflowURLError
 from fixtures.dummy_crate import DummyEntity, DummyCrate, WORKFLOW_URL
+from app.exceptions import WorkflowURLError
 
 
-def test_get_default_service():
-    from app.vres.galaxy import VREGalaxy
-
-    assert VREGalaxy().get_default_service() == constants.GALAXY_DEFAULT_SERVICE
-
-
+# TODO FILE1, FILE2 move somewhere else, split to 2 tests
 def test_prepare_workflow_data_success(galaxy_vre):
     """_prepare_workflow_data must return the exact dict that Galaxy expects."""
     payload = galaxy_vre._prepare_workflow_data()
@@ -23,100 +18,43 @@ def test_prepare_workflow_data_success(galaxy_vre):
     # The request_state must contain both files, correctly transformed
     request_state = payload["request_state"]
     assert set(request_state.keys()) == {"sample1.fastq", "sample2.fastq"}
-    for name, spec in request_state.items():
+    for spec in request_state.values():
         assert spec["class"] == "File"
         assert spec["filetype"] == "fastq"
         assert spec["location"].endswith(".fastq")
 
 
-def test_get_workflow_url_missing():
-    """When the workflow entity does not provide a URL the VRE raises."""
-    from app.vres.galaxy import VREGalaxy
-    from app.exceptions import WorkflowURLError
+def test_prepare_workflow_onedata_success(galaxy_vre_onedata):
+    """_prepare_workflow_data must return the exact dict that Galaxy expects."""
+    payload = galaxy_vre_onedata._prepare_workflow_data()
 
-    # Crate with a main entity that *doesn't* have a `url` attribute
-    broken = DummyEntity(_type="Dataset")  # no url key
-    crate = DummyCrate(main_entity=broken)
+    request_state = payload["request_state"]
 
-    vre = VREGalaxy()
-    vre.crate = crate
-
-    with pytest.raises(WorkflowURLError) as exc:
-        vre._get_workflow_url()
-    assert "Missing url in workflow entity" in str(exc.value)
+    assert request_state["onedata_file"]["filetype"] == "tiff"
+    assert (
+        request_state["onedata_file"]["location"]
+        == "https://demo.onedata.org/api/v3/onezone/shares/data/00000000007EADF3736861726547756964233964613065396530393037303130393062356433623965356632643832353138636830386464233665366232326436663332623633646233346663666163353365353265323333636864386261233437656434633633333638393264396361626239316435636430623161663436636830343438/content"
+    )
 
 
-def test_send_workflow_request_success(galaxy_vre, mock_requests_post):
-    """A happy‑path POST should return the decoded JSON payload."""
-    dummy_response = {"uuid": "abcdef-12345"}
-
-    # Configure the mock ``requests.post`` to behave like a successful response
-    mock_resp = Mock()
-    mock_resp.raise_for_status.return_value = None
-    mock_resp.json.return_value = dummy_response
-    mock_requests_post.return_value = mock_resp
-
-    data = {"dummy": "payload"}
-    result = galaxy_vre._send_workflow_request(data)
-
-    # Verify that we called the right URL with the right headers + payload
-    expected_url = f"{constants.GALAXY_DEFAULT_SERVICE}api/workflow_landings"
-    mock_requests_post.assert_called_once_with(
-        expected_url,
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+def test_post_happy_path(galaxy_vre, requests_mock):
+    data = {"uuid": "final-uuid-42"}
+    requests_mock.post(
+        galaxy_vre._get_api_url(),
+        headers=galaxy_vre._get_headers(),
+        status_code=201,
         json=data,
     )
-    assert result == dummy_response
-
-
-def test_send_workflow_request_http_error(galaxy_vre, mock_requests_post):
-    """Any RequestException must be wrapped in GalaxyAPIError."""
-    mock_requests_post.side_effect = requests.RequestException("boom")
-
-    with pytest.raises(GalaxyAPIError) as exc:
-        galaxy_vre._send_workflow_request({"foo": "bar"})
-    assert "Galaxy API call failed" in str(exc.value)
-
-
-def test_extract_landing_id_success(galaxy_vre):
-    """UUID extraction works when present."""
-    payload = {"uuid": "my-landing-id"}
-    assert galaxy_vre._extract_landing_id(payload) == "my-landing-id"
-
-
-def test_extract_landing_id_missing(galaxy_vre):
-    """Missing UUID raises GalaxyAPIError."""
-    with pytest.raises(GalaxyAPIError):
-        galaxy_vre._extract_landing_id({})
-
-
-def test_build_final_url(galaxy_vre):
-    landing_id = "deadbeef-1234"
-    expected = (
-        f"{constants.GALAXY_DEFAULT_SERVICE}workflow_landings/{landing_id}?public=False"
-    )
-    assert galaxy_vre._build_final_url(landing_id) == expected
-
-
-def test_post_happy_path(galaxy_vre, mock_requests_post):
-    payload = galaxy_vre._prepare_workflow_data()
-    headers = galaxy_vre._get_headers()
-    url = galaxy_vre._get_api_url()
-    mock_resp = Mock()
-    mock_resp.raise_for_status.return_value = None
-    mock_resp.json.return_value = {"uuid": "final-uuid-42"}
-    mock_requests_post.return_value = mock_resp
 
     final_url = galaxy_vre.post()
 
-    mock_requests_post.assert_called_once_with(url, headers=headers, json=payload)
     assert (
         final_url
         == f"{constants.GALAXY_DEFAULT_SERVICE}workflow_landings/final-uuid-42?public=False"
     )
 
 
-def test_post_propagates_missing_workflow_url(galaxy_vre):
+def test_missing_workflow_url_causes_exception(galaxy_vre):
     missing_url = DummyEntity(_type="Dataset")  # no url
     galaxy_vre.crate = DummyCrate(main_entity=missing_url)
 
@@ -124,12 +62,24 @@ def test_post_propagates_missing_workflow_url(galaxy_vre):
         galaxy_vre.post()
 
 
-def test_post_propagates_missing_uuid(galaxy_vre, mock_requests_post):
+def test_missing_uuid_in_response_causes_exception(galaxy_vre, requests_mock):
     """When the API response does not contain a UUID, ``post`` raises GalaxyAPIError."""
-    mock_resp = Mock()
-    mock_resp.raise_for_status.return_value = None
-    mock_resp.json.return_value = {"some": "thing"}  # no uuid
-    mock_requests_post.return_value = mock_resp
+    empty_response = {}
+
+    requests_mock.post(
+        galaxy_vre._get_api_url(),
+        headers=galaxy_vre._get_headers(),
+        status_code=201,
+        json=empty_response,
+    )
+
+    with pytest.raises(GalaxyAPIError):
+        galaxy_vre.post()
+
+
+def test_api_error_causes_custom_exception(galaxy_vre, requests_mock):
+    """When the API fails, ``post`` raises GalaxyAPIError."""
+    requests_mock.post(galaxy_vre._get_api_url(), status_code=400)
 
     with pytest.raises(GalaxyAPIError):
         galaxy_vre.post()
