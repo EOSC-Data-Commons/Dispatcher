@@ -6,7 +6,6 @@ import yaml
 from imclient import IMClient
 from app.config import settings
 
-
 logging.basicConfig(level=logging.INFO)
 
 

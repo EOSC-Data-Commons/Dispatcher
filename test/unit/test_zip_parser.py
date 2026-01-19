@@ -18,6 +18,17 @@ def create_test_zip_with_rocrate() -> bytes:
     return zip_buffer.getvalue()
 
 
+def create_test_zip_with_invalid_json() -> bytes:
+    rocrate_data = {"test": "data"}
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        zip_file.writestr("ro-crate-metadata.json", "invalid json")
+
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue()
+
+
 def create_test_zip_without_metadata() -> bytes:
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -60,3 +71,16 @@ async def test_parse_zipfile_missing_metadata():
         await parse_zipfile(mock_uploadfile)
 
     assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_parse_zipfile_errors_with_invalid_json():
+    zip_content = create_test_zip_with_invalid_json()
+    mock_uploadfile = create_mock_uploadfile(zip_content)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await parse_zipfile(mock_uploadfile)
+
+    assert exc_info.value.detail.startswith(
+        "Handling request failed. Invalid JSON format"
+    )

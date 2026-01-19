@@ -16,6 +16,16 @@ FILE_2 = {
 }
 
 
+ONE_DATA_FILE = {
+    "name": "onedata_file",
+    "encodingFormat": "image/tiff",
+    "onedata:onezoneDomain": "demo.onedata.org",
+    "onedata:spaceId": "6e6b22d6f32b63db34fcfac53e52e233chd8ba",
+    "onedata:fileId": "00000000007EADF3736861726547756964233964613065396530393037303130393062356433623965356632643832353138636830386464233665366232326436663332623633646233346663666163353365353265323333636864386261233437656434633633333638393264396361626239316435636430623161663436636830343438",
+    "onedata:publicAccess": True,
+}
+
+
 class DummyEntity:
     """
     Minimal entity that mimics the subset of a RO‑Crate Entity used by the VRE code.
