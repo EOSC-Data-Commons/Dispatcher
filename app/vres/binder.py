@@ -13,11 +13,6 @@ import os
 
 logger = logging.getLogger("uvicorn.error")
 
-# TODO: cleanup the created repos
-# TODO: hardcoded value of /git path from the nginx paths
-
-# touch .git/git-daemon-export-ok
-
 
 class VREBinder(VRE):
     def get_default_service(self):
