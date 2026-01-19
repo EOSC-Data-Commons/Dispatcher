@@ -3,7 +3,6 @@ from fastapi.responses import RedirectResponse
 from fastapi import Depends, Request, APIRouter
 from typing import Annotated
 
-
 router = APIRouter(
     prefix="/oauth2",
     tags=["oauth2"],
