@@ -30,6 +30,27 @@ class VREHaddock(VRE):
             )
             return result
 
+        # TODO: vygenerovat heslo v mainu
+        # zadne cookies nedostanu
+        def register(url, password="password123"):
+            data = {
+                "username": "dummy@example.com",
+                "password": password,
+                "password2": password,
+            }
+            response = requests.post(f"{url}/register/", data=data)
+            print("Status:", response.status_code)
+            return response
+
+        def login():
+            return
+
+        def upload():
+            return
+
+        def prepare_scenario():
+            return
+
         files = [e for e in self.crate.get_entities() if e.type == "File"]
         workflow_url = self.crate.mainEntity.get("url")
         if workflow_url is None:

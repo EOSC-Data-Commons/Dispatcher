@@ -73,7 +73,7 @@
             "processorRequirements": [
                 "2 vCPU"
             ],
-            "storageRequirements": "200 GiB",
+            "storageRequirements": "50 GiB",
             "hasPart": [
                 {
                     "@id": "#haddock.yaml"
