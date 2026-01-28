@@ -15,17 +15,11 @@ class VREScienceMesh(VRE):
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = self.create_ocm_share_request()
-
-        try:
-            logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
-            response = requests.post(
-                f"{self.svc_url}/ocm/shares", headers=headers, json=data
-            )
-            logging.info(f"{self.__class__.__name__}: returned {response.text}")
-            response.raise_for_status()
-        except requests.RequestException as e:
-            logging.error(f"{self.__class__.__name__}: API request failed: {e}")
-            raise ScienceMeshAPIError("ScienceMesh API call failed") from e
+        logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
+        response = requests.post(
+            f"{self.svc_url}/ocm/shares", headers=headers, json=data, verify=False
+        )
+        logging.info(f"{self.__class__.__name__}: returned {response.text}")
         return response.json()
 
     def create_ocm_share_request(self):
@@ -41,7 +35,11 @@ class VREScienceMesh(VRE):
                 "Missing required entities (receiver, owner, sender, destination) for OCM share request"
             )
 
-        sender_userid = self._generate_userid(sender)
+        # The sender user ID needs to be altered to match the dispatcher's public FQDN
+        # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@<dispatcher public FQDN>
+        sender_userid = sender.get("userid")
+        if sender_userid and "@" in sender_userid:
+            sender_userid = sender_userid.split("@")[0] + "@" + "dispatcher.egi.eu"
 
         # Create OCM share request JSON structure
         ocm_share_request = {
@@ -55,7 +53,7 @@ class VREScienceMesh(VRE):
             "sender": sender_userid,
             "resourceType": "ro-crate",
             "shareType": "user",
-            "protocols": {"name": "multi", "rocrate": self.crate.metadata.generate()},
+            "protocol": {"name": "multi", "embedded": {"payload": self.crate.metadata.generate()}},
         }
         return ocm_share_request
 
