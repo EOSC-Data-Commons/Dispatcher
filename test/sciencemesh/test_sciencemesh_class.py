@@ -12,7 +12,8 @@ import requests
 from rocrate.rocrate import ROCrate
 
 # Add the app directory to Python path to import VREScienceMesh
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../app"))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, project_root)
 
 from app.vres.base_vre import vre_factory
 from app.vres.sciencemesh import VREScienceMesh
@@ -39,7 +40,7 @@ def main():
     # Create VREScienceMesh instance
     try:
         vre = vre_factory(crate)
-        print(f"Service URL: {vre.service['url']}")
+        print(f"Service URL: {vre.get_default_service()}")
     except Exception as e:
         print(f"Error creating VREScienceMesh: {e}")
         return

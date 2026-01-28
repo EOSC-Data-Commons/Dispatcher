@@ -69,7 +69,7 @@ def receive_ocm_share():
             "sender",
             "resourceType",
             "shareType",
-            "protocols",
+            "protocol",
         ]
 
         missing_fields = [field for field in required_fields if field not in share_data]
@@ -99,10 +99,10 @@ def receive_ocm_share():
             )
 
         # Validate protocols
-        protocols = share_data.get("protocols", {})
-        if "rocrate" not in protocols:
-            logger.error("Missing RO-Crate data in protocols")
-            return jsonify({"error": "Missing RO-Crate data in protocols"}), 400
+        protocol = share_data.get("protocol", {})
+        if "embedded" not in protocol:
+            logger.error("Missing embedded data in protocol")
+            return jsonify({"error": "Missing `embedded` data in protocol"}), 400
 
         # Process the share request
         share_id = f"share_{len(received_shares) + 1}_{int(datetime.now().timestamp())}"
