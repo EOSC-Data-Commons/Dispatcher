@@ -41,11 +41,7 @@ class VREScienceMesh(VRE):
                 "Missing required entities (receiver, owner, sender, destination) for OCM share request"
             )
 
-        # The sender user ID needs to be altered to match the dispatcher's public FQDN
-        # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@<dispatcher public FQDN>
-        sender_userid = sender.get("userid")
-        if sender_userid and "@" in sender_userid:
-            sender_userid = sender_userid.split("@")[0] + "@" + "dispatcher.egi.eu"
+        sender_userid = self._generate_userid(sender)
 
         # Create OCM share request JSON structure
         ocm_share_request = {
@@ -59,7 +55,10 @@ class VREScienceMesh(VRE):
             "sender": sender_userid,
             "resourceType": "ro-crate",
             "shareType": "user",
-            "protocol": {"name": "multi", "embedded": {"payload": self.crate.metadata.generate()}},
+            "protocol": {
+                "name": "multi",
+                "embedded": {"payload": self.crate.metadata.generate()},
+            },
         }
         return ocm_share_request
 
