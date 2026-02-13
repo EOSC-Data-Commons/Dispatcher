@@ -18,13 +18,13 @@ class VREBinder(VRE):
     def get_default_service(self):
         return BINDER_DEFAULT_SERVICE
 
-    def post(self, request_id):
-        repo = self._generate_repository_name(request_id)
+    def post(self):
+        repo = self._generate_repository_name(self._request_id)
         self._create(repo)
         self._write_source_files(repo)
         self._initialize_temporary_git_repo(repo)
         self._write_example_file(repo)
-        return self._get_binder_url(request_id)
+        return self._get_binder_url(self._request_id)
 
     def _create(self, repo):
         os.mkdir(repo)
