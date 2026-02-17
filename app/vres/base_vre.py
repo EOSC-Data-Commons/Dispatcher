@@ -25,6 +25,7 @@ class VRE(ABC):
         self,
         crate: Any | None = None,
         update_state: Optional[Callable] = None,
+        request_id: Optional[int] = None,
         body: Any | None = None,
         token: str | None = None,
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
@@ -34,6 +35,7 @@ class VRE(ABC):
         self.body = body
         self.token = token
         self._update_state = update_state
+        self._request_id = request_id
         self._im_factory = im_factory or self._default_im_factory
         self.svc_url = self.setup_service().rstrip("/")
         # Store any additional kwargs for subclasses
@@ -110,6 +112,7 @@ class VREFactory:
         crate,
         body=None,
         update_state: Optional[Callable] = None,
+        request_id: Optional[int] = None,
         **kwargs,
     ):
         elang = crate.mainEntity.get("programmingLanguage").get("identifier")
@@ -119,7 +122,11 @@ class VREFactory:
         logger.debug(f"elang {elang}")
         logger.debug(self.table[elang])
         return self.table[elang](
-            crate=crate, body=body, update_state=update_state, **kwargs
+            crate=crate,
+            body=body,
+            update_state=update_state,
+            request_id=request_id,
+            **kwargs,
         )
 
 

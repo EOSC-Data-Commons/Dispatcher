@@ -149,7 +149,7 @@ def binder_vre(dummy_binder_crate):
     vre.crate = dummy_binder_crate
     vre.svc_url = "https://mybinder.org"
     vre.body = create_test_zip_body()
-
+    vre._request_id = 0
     return vre
 
 
