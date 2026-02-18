@@ -34,11 +34,42 @@ class VREJupyter(VRE):
         self.upload_notebook(notebook_content, notebook_name, user_name, api_token)
         return f"{self.get_default_service()}/user/{user_name}"
 
+    def _get_username(self):
+        userinfo = self._get_userinfo()
+        user_name = userinfo.get("name")
+        return user_name
+
+    def _get_userinfo(self):
+        userinfo_url = f"{self.get_default_service()}/services/jwt/user"
+        userinfo = requests.get(
+            userinfo_url, headers=self._get_headers("Bearer", self.token)
+        ).json()
+
+        return userinfo
+
     def _start_jupyter_server(self, user_name):
         url = f"{self.get_default_service()}/services/jwt/users/{user_name}/servers/"
         response = requests.post(url, headers=self._get_headers("Bearer", self.token))
         response.raise_for_status()
-        print(response)
+
+    def _create_api_token(self, username: Optional[str] = None) -> str:
+        """Create a new API token for Jupyter Server API access."""
+        url = f"{self.get_default_service()}/services/jwt/users/{username}/tokens"
+
+        try:
+            response = requests.post(
+                url, headers=self._get_headers("Bearer", self.token)
+            )
+            response.raise_for_status()
+            token_data = response.json()
+            print(token_data)
+            api_token = token_data.get("token")
+            if not api_token:
+                raise exceptions.ServiceError("Token not found in response")
+            return api_token
+        except requests.RequestException as e:
+            logging.error(f"Failed to create API token: {e}")
+            raise exceptions.ServiceError(f"Token creation failed: {e}")
 
     def _get_notebook_from_zipfile(self):
         copied_file_name = ""
@@ -59,38 +90,6 @@ class VREJupyter(VRE):
         ):
             time.sleep(10)
             info = self._get_userinfo()
-
-    def _get_username(self):
-        userinfo = self._get_userinfo()
-        user_name = userinfo.get("name")
-        return user_name
-
-    def _get_userinfo(self):
-        userinfo_url = f"{self.get_default_service()}/services/jwt/user"
-        userinfo = requests.get(
-            userinfo_url, headers=self._get_headers("Bearer", self.token)
-        ).json()
-
-        return userinfo
-
-    def _create_api_token(self, username: Optional[str] = None) -> str:
-        """Create a new API token for Jupyter Server API access."""
-        url = f"{self.get_default_service()}/services/jwt/users/{username}/tokens"
-
-        try:
-            response = requests.post(
-                url, headers=self._get_headers("Bearer", self.token)
-            )
-            response.raise_for_status()
-            token_data = response.json()
-            print(token_data)
-            api_token = token_data.get("token")
-            if not api_token:
-                raise exceptions.ServiceError("Token not found in response")
-            return api_token
-        except requests.RequestException as e:
-            logging.error(f"Failed to create API token: {e}")
-            raise exceptions.ServiceError(f"Token creation failed: {e}")
 
     def upload_notebook(
         self,
