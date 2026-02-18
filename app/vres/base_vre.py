@@ -1,5 +1,6 @@
 import sys
 from app.services.im import IM
+from app.services.kubernetes import KubernetesClient
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Optional, Protocol, runtime_checkable
 from app.exceptions import VREError, VREConfigurationError
@@ -70,6 +71,27 @@ class VRE(ABC):
                 raise VREConfigurationError("Failed to deploy service via IM")
             self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
             return outputs.get("url", self.get_default_service())
+
+        # Kubernetes case – delegate to Kubernetes deployment.
+        if dest.get("serviceType") == "Kubernetes":
+            self.update_task_status(constants.KUBERNETES_SEQUENCE_STARTED)
+            try:
+                kubernetes_client = KubernetesClient(self.token)
+                outputs = kubernetes_client.run_service(
+                    dest, getattr(self.crate, "root_dataset", {})
+                )
+                self.update_task_status(constants.KUBERNETES_SEQUENCE_FINISHED)
+                if outputs is None:
+                    raise VREConfigurationError(
+                        "Failed to deploy service to Kubernetes"
+                    )
+                self.update_task_status(constants.KUBERNETES_SEQUENCE_SUCCESSFUL)
+                return outputs.get("url", self.get_default_service())
+            except Exception as e:
+                logger.error(f"Kubernetes deployment failed: {e}")
+                raise VREConfigurationError(
+                    f"Failed to deploy service to Kubernetes: {e}"
+                )
 
         # Anything else is an error.
         raise VREConfigurationError(

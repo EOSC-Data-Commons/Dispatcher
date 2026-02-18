@@ -18,3 +18,7 @@ OSCAR_PROGRAMMING_LANGUAGE = "https://oscar.grycap.net/"
 IM_SEQUENCE_STARTED = "IM sequence started"
 IM_SEQUENCE_FINISHED = "IM sequence finished"
 IM_SEQUENCE_SUCCESSFUL = "IM sequence successful"
+
+KUBERNETES_SEQUENCE_STARTED = "Kubernetes deployment sequence started"
+KUBERNETES_SEQUENCE_FINISHED = "Kubernetes deployment sequence finished"
+KUBERNETES_SEQUENCE_SUCCESSFUL = "Kubernetes deployment sequence successful"
