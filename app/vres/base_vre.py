@@ -1,6 +1,8 @@
 import sys
+from app import constants
 from app.services.im import IM
 from vre_rocrate import RuntimePlatform
+from app.services.kubernetes import KubernetesClient
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 from app.exceptions import VREConfigurationError
@@ -61,20 +63,38 @@ class VRE(ABC):
         if isinstance(dest, str):
             return dest
 
-        # RuntimePlatform with installUrl – delegate to Infrastructure Manager.
+        # RuntimePlatform with installUrl – delegate to Infrastructure Manager or Kubernetes.
         if dest.install_url is not None:
-            logger.error(f"IM dest {dest}")
-            im_client = self._im_factory(self.token, self.update_task_status)  # type: ignore[arg-type]
-            if not isinstance(im_client, IMClientProtocol):
-                raise TypeError(
-                    "Injected IM factory must return an object implementing IMClientProtocol"
-                )
-            outputs = im_client.run_service(dest)
-            if outputs is None:
-                raise VREConfigurationError("Failed to deploy service via IM")
-            return outputs.get("url", self.get_default_service())
-
-        raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
+            if dest.name == "Infrastructure Manager":
+                logger.error(f"IM dest {dest}")
+                im_client = self._im_factory(self.token, self.update_task_status)  # type: ignore[arg-type]
+                if not isinstance(im_client, IMClientProtocol):
+                    raise TypeError(
+                        "Injected IM factory must return an object implementing IMClientProtocol"
+                    )
+                outputs = im_client.run_service(dest)
+                if outputs is None:
+                    raise VREConfigurationError("Failed to deploy service via IM")
+                return outputs.get("url", self.get_default_service())
+            if dest.name == "Kubernetes":
+                logger.error(f"Kubernetes dest {dest}")
+                self.update_task_status(constants.KUBERNETES_SEQUENCE_STARTED)
+                try:
+                    kubernetes_client = KubernetesClient(self.token)
+                    outputs = kubernetes_client.run_service(
+                        dest, getattr(self.crate, "root_dataset", {})
+                    )
+                    self.update_task_status(constants.KUBERNETES_SEQUENCE_FINISHED)
+                    if outputs is None:
+                        raise VREConfigurationError("Failed to deploy service to Kubernetes")
+                    self.update_task_status(constants.KUBERNETES_SEQUENCE_SUCCESSFUL)
+                    return outputs.get("url", self.get_default_service())
+                except Exception as e:
+                    logger.error(f"Kubernetes deployment failed: {e}")
+                    raise VREConfigurationError(
+                        f"Failed to deploy service to Kubernetes: {e}"
+                    )
+            raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
 
     def update_task_status(self, stage):
         self._update_state(state="PROGRESS", meta={"stage": stage})

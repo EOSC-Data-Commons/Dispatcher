@@ -1,0 +1,100 @@
+{
+    "@context": [
+        "https://w3id.org/ro/crate/1.1/context",
+        {
+            "runsOn": "https://w3id.org/ro/terms/test#runsOn"
+        }
+    ],
+    "@graph": [
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": "Scipion Example Workflow",
+            "description": "This is an example of a workflow using the Scipion platform.",
+            "license": "GNU General Public License v3.0",
+            "datePublished": "2026-02-16T14:35:47+00:00",
+            "mainEntity": {
+                "@id": "#workflow"
+            },
+            "runsOn": {
+                "@id": "#destination"
+            },
+            "hasPart": [
+                {
+                    "@id": "#workflow"
+                },
+                {
+                    "@id": "#textfile"
+                },
+                {
+                    "@id": "#destination"
+                }
+            ]
+        },
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "about": {
+                "@id": "./"
+            },
+            "conformsTo": {
+                "@id": "https://w3id.org/ro/crate/1.1"
+            }
+        },
+        {
+            "@id": "#workflow",
+            "@type": [
+                "File",
+                "SoftwareSourceCode",
+                "ComputationalWorkflow"
+            ],
+            "name": "Example scipion workflow",
+            "programmingLanguage": {
+                "@id": "#scipion"
+            },
+            "url": "https://workflowhub.eu/workflows/69/git/1/raw/Relion_3_tutorial-betagal.json"
+        },
+        {
+            "@id": "#scipion",
+            "@type": "ComputerLanguage",
+            "name": "Scipion",
+            "url": {
+                "@id": "http://scipion.i2pc.es/"
+            },
+            "identifier": {
+                "@id": "http://scipion.i2pc.es/"
+            }
+        },
+        {
+            "@id": "#textfile",
+            "@type": "File",
+            "name": "simpletext_input",
+            "url": "https://example-files.online-convert.com/document/txt/example.txt",
+            "encodingFormat": "text/txt"
+        },
+        {
+            "@id": "#destination",
+            "@type": "Service",
+            "serviceType": "Kubernetes",
+            "name": "Scipion",
+            "memoryRequirements": "4 GiB",
+            "processorRequirements": [
+                "2 vCPU"
+            ],
+            "storageRequirements": "200 GiB",
+            "hasPart": [
+                {
+                    "@id": "#scipion.url"
+                }
+            ]
+        },
+        {
+            "@id": "#scipion.url",
+            "@type": "Repo",
+            "name": "Scipion Helm Chart",
+            "encodingFormat": "text/yaml",
+            "chartName": "hello-world",
+            "url": "https://helm.github.io/examples"
+        }
+    ]
+}

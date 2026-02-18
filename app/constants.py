@@ -18,3 +18,7 @@ IM_SEQUENCE_FINISHED = "IM sequence finished"
 IM_SEQUENCE_SUCCESSFUL = "IM sequence successful"
 
 JUPYTER_DEFAULT_SERVICE = "https://notebooks-dev.egi.zcu.cz"
+
+KUBERNETES_SEQUENCE_STARTED = "Kubernetes deployment sequence started"
+KUBERNETES_SEQUENCE_FINISHED = "Kubernetes deployment sequence finished"
+KUBERNETES_SEQUENCE_SUCCESSFUL = "Kubernetes deployment sequence successful"
