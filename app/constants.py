@@ -3,6 +3,9 @@ GALAXY_WORKFLOW_TARGET_TYPE = "trs_url"
 GALAXY_PUBLIC_DEFAULT = False
 GALAXY_PROGRAMMING_LANGUAGE = "https://galaxyproject.org/"
 
+RRP_PROGRAMMING_LANGUAGE = "https://rrp-eosc.ethz.ch"
+RRP_DEFAULT_SERVICE = "https://rrp-eosc.ethz.ch"
+
 BINDER_DEFAULT_SERVICE = "https://mybinder.org"
 BINDER_PROGRAMMING_LANGUAGE = "https://jupyter.org/binder/"
 
