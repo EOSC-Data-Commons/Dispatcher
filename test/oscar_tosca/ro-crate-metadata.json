@@ -93,7 +93,7 @@
             "@type": "File",
             "name": "OSCAR TOSCA template file",
             "encodingFormat": "text/yaml",
-            "url": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/main/templates/oscar.yaml"
+            "url": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/oscar.yaml"
         }
     ]
 }
