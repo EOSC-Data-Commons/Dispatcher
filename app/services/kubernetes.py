@@ -1,14 +1,13 @@
 import logging
-import requests
+import subprocess
 import time
-import yaml
-import tarfile
-from pathlib import Path
-from typing import Dict, Optional
-from kubernetes import client, config, watch
+from typing import Dict
+from kubernetes import client as k8s_client, config
 from kubernetes.client.rest import ApiException
-from pyhelm.client import HelmClient
-from app.config import settings
+from vre_rocrate import RuntimePlatform
+import tempfile
+import os
+import yaml
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,313 +20,135 @@ class KubernetesDeploymentError(Exception):
 
 
 class KubernetesClient:
-    """Client for deploying services to Kubernetes clusters using Helm."""
+    """Client for deploying services to Kubernetes clusters using Helm 3 CLI."""
 
-    def __init__(
-        self, access_token: str = None, kubeconfig: str = None, context: str = None
-    ):
-        """Initialize the Kubernetes client.
-
-        Args:
-            access_token: Optional token for authentication with cloud providers
-            kubeconfig: Path to kubeconfig file
-            context: Kubernetes context to use
-        """
-        self.access_token = access_token
-        self.kubeconfig = kubeconfig
-        self.context = context
-        self.namespace = "default"
+    def __init__(self, kubeconfig: str = None, context: str = None):
+        self.kubeconfig = "/usr/src/app/k8s-config.yaml"
+        self.context = "kuba-cluster"
+        self.namespace = "vondrak-ns"
         self.release_name = None
-        self.helm_client = None
         self._setup_kubernetes_client()
 
     def _setup_kubernetes_client(self) -> None:
-        """Setup Kubernetes Python client."""
         try:
             if self.kubeconfig:
-                config.load_kube_config(
-                    config_file=self.kubeconfig, context=self.context
-                )
+                config.load_kube_config(config_file=self.kubeconfig)
+                logger.info(f"Loaded config from {self.kubeconfig}")
             else:
-                config.load_incluster_config()
-            logger.info("Kubernetes client configured successfully")
+                try:
+                    config.load_incluster_config()
+                    logger.info("Loaded in-cluster config")
+                except config.ConfigException:
+                    config.load_kube_config()
+                    logger.info("Loaded local default kubeconfig (~/.kube/config)")
         except Exception as e:
-            logger.warning(
-                f"Failed to load kubeconfig: {e}. Will attempt in-cluster config."
-            )
-            try:
-                config.load_incluster_config()
-            except Exception as e:
-                raise KubernetesDeploymentError(
-                    f"Failed to initialize Kubernetes client: {e}"
-                )
+            raise KubernetesDeploymentError(f"K8s init failed: {e}")
 
-    def _setup_helm_client(self) -> None:
-        """Setup Helm client."""
-        try:
-            self.helm_client = HelmClient(
-                kubeconfig=self.kubeconfig, context=self.context
-            )
-            logger.info("Helm client configured successfully")
-        except Exception as e:
-            raise KubernetesDeploymentError(f"Failed to initialize Helm client: {e}")
-
-    def validate_kubernetes_config(self, dest: dict) -> None:
-        """Validate that required Kubernetes configuration is provided.
+    def build_helm_values(self, rp: RuntimePlatform) -> Dict:
+        """Build Helm values from RuntimePlatform configuration.
 
         Args:
-            dest: Destination configuration dictionary
-
-        Raises:
-            KubernetesDeploymentError: If required fields are missing
-        """
-        required_fields = ["releaseName"]
-        for field in required_fields:
-            if not dest.get(field):
-                raise KubernetesDeploymentError(
-                    f"Missing required field in Kubernetes config: {field}"
-                )
-
-        # Either helmChartUrl or hasPart with chart info must be present
-        if not dest.get("helmChartUrl") and not dest.get("hasPart"):
-            raise KubernetesDeploymentError(
-                "Missing Helm chart URL or hasPart configuration"
-            )
-
-        if dest.get("namespace"):
-            self.namespace = dest["namespace"]
-
-    def download_helm_chart(self, chart_url: str, dest_dir: str = "/tmp") -> str:
-        """Download Helm chart from URL.
-
-        Args:
-            chart_url: URL to the Helm chart (tar.gz file)
-            dest_dir: Destination directory for the chart
+            rp: RuntimePlatform with resource requirements.
 
         Returns:
-            Path to the downloaded chart
-
-        Raises:
-            KubernetesDeploymentError: If download fails
-        """
-        try:
-            logger.info(f"Downloading Helm chart from {chart_url}")
-            response = requests.get(chart_url, timeout=300)
-            response.raise_for_status()
-
-            # Extract filename from URL
-            filename = chart_url.split("/")[-1]
-            if not filename.endswith(".tar.gz"):
-                filename = "chart.tar.gz"
-
-            file_path = Path(dest_dir) / filename
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-
-            with open(file_path, "wb") as f:
-                f.write(response.content)
-
-            logger.info(f"Helm chart downloaded to {file_path}")
-            return str(file_path)
-
-        except requests.RequestException as e:
-            raise KubernetesDeploymentError(f"Failed to download Helm chart: {e}")
-        except Exception as e:
-            raise KubernetesDeploymentError(f"Error saving Helm chart: {e}")
-
-    def extract_helm_chart(self, chart_archive: str, dest_dir: str = "/tmp") -> str:
-        """Extract Helm chart from tar.gz archive.
-
-        Args:
-            chart_archive: Path to the tar.gz chart archive
-            dest_dir: Destination directory for extraction
-
-        Returns:
-            Path to the extracted chart directory
-
-        Raises:
-            KubernetesDeploymentError: If extraction fails
-        """
-        try:
-            logger.info(f"Extracting Helm chart from {chart_archive}")
-
-            extract_path = Path(dest_dir) / "helm_charts"
-            extract_path.mkdir(parents=True, exist_ok=True)
-
-            with tarfile.open(chart_archive, "r:gz") as tar:
-                tar.extractall(path=str(extract_path))
-
-            logger.info(f"Helm chart extracted to {extract_path}")
-
-            # Find the chart directory (first directory in the extracted content)
-            subdirs = list(extract_path.glob("*/"))
-            if subdirs:
-                chart_dir = subdirs[0]
-            else:
-                chart_dir = extract_path
-
-            return str(chart_dir)
-
-        except tarfile.TarError as e:
-            raise KubernetesDeploymentError(f"Failed to extract Helm chart: {e}")
-        except Exception as e:
-            raise KubernetesDeploymentError(f"Error extracting Helm chart: {e}")
-
-    def build_helm_values(self, service: dict) -> Dict:
-        """Build Helm values from service configuration.
-
-        Args:
-            service: Service configuration dictionary
-
-        Returns:
-            Dictionary of Helm values
+            Dictionary of Helm values.
         """
         values = {}
 
-        # Add resource requirements
-        if service.get("processorRequirements"):
-            cpus = service["processorRequirements"]
-            if isinstance(cpus, list) and cpus:
-                cpus = cpus[0]
-            if isinstance(cpus, str) and "vCPU" in cpus:
-                values["resources"] = values.get("resources", {})
-                values["resources"]["requests"] = values["resources"].get(
-                    "requests", {}
-                )
-                cpu_value = cpus.replace("vCPU", "").strip()
-                values["resources"]["requests"]["cpu"] = cpu_value
-                values["resources"]["limits"] = values["resources"].get("limits", {})
-                values["resources"]["limits"]["cpu"] = cpu_value
+        values["extraPodConfig"] = {
+            "securityContext": {
+                "runAsNonRoot": True,
+                "fsGroupChangePolicy": "OnRootMismatch",
+                "seccompProfile": {"type": "RuntimeDefault"},
+            }
+        }
 
-        if service.get("memoryRequirements"):
-            memory = service["memoryRequirements"]
-            if values.get("resources") is None:
-                values["resources"] = {}
-            if values["resources"].get("requests") is None:
-                values["resources"]["requests"] = {}
-            if values["resources"].get("limits") is None:
-                values["resources"]["limits"] = {}
-            values["resources"]["requests"]["memory"] = memory
-            values["resources"]["limits"]["memory"] = memory
+        values["containerSecurityContext"] = {
+            "allowPrivilegeEscalation": False,
+            "capabilities": {"drop": ["ALL"]},
+            "runAsNonRoot": True,
+            "runAsUser": 1000,
+            "runAsGroup": 1000,
+            "readOnlyRootFilesystem": True,
+            "seccompProfile": {"type": "RuntimeDefault"},
+        }
 
-        # Add input files if any
-        if service.get("input"):
-            values["inputFiles"] = service["input"]
+        if rp.num_cpus > 1:
+            cpu_value = str(rp.num_cpus)
+            values.setdefault("resources", {}).setdefault("requests", {})["cpu"] = cpu_value
+            values["resources"].setdefault("limits", {})["cpu"] = cpu_value
+
+        if rp.memory:
+            values.setdefault("resources", {}).setdefault("requests", {})["memory"] = rp.memory
+            values["resources"].setdefault("limits", {})["memory"] = rp.memory
+
+        if rp.storage:
+            values.setdefault("persistence", {})["size"] = rp.storage
+
+        if rp.input_files:
+            values["inputFiles"] = [{"url": f.url} for f in rp.input_files]
 
         return values
 
-    def add_helm_repository(self, repo_name: str, repo_url: str) -> None:
-        """Add a Helm repository.
-
-        Args:
-            repo_name: Name for the repository
-            repo_url: URL of the Helm repository
-
-        Raises:
-            KubernetesDeploymentError: If adding repository fails
-        """
-        try:
-            if not self.helm_client:
-                self._setup_helm_client()
-
-            logger.info(f"Adding Helm repository {repo_name} from {repo_url}")
-            self.helm_client.repo_add(repo_name, repo_url)
-            self.helm_client.repo_update()
-            logger.info(f"Helm repository {repo_name} added successfully")
-
-        except Exception as e:
-            raise KubernetesDeploymentError(f"Failed to add Helm repository: {e}")
-
-    def install_helm_chart(
+    def install_release(
         self,
-        chart: str,
+        repo_url: str,
+        chart_name: str,
         release_name: str,
         values: Dict = None,
-        repo_name: str = None,
-        repo_url: str = None,
     ) -> None:
-        """Install Helm chart to Kubernetes cluster.
+        """Install Helm chart using helm CLI via subprocess.
 
         Args:
-            chart: Helm chart name or path
+            repo_url: URL of the Helm repository
+            chart_name: Name of the chart
             release_name: Name for the Helm release
             values: Dictionary of Helm values
-            repo_name: Optional Helm repository name
-            repo_url: Optional Helm repository URL
 
         Raises:
             KubernetesDeploymentError: If installation fails
         """
         try:
-            if not self.helm_client:
-                self._setup_helm_client()
+            repo_name = "dynamic-repo"
+            subprocess.run(["helm", "repo", "add", repo_name, repo_url], check=True)
+            subprocess.run(["helm", "repo", "update"], check=True)
 
-            # Add repository if provided
-            if repo_url and repo_name:
-                self.add_helm_repository(repo_name, repo_url)
-                chart = f"{repo_name}/{chart}"
+            cmd = [
+                "helm", "install", release_name,
+                f"{repo_name}/{chart_name}",
+                "--namespace", self.namespace,
+                "--wait", "--atomic",
+                "--kubeconfig", self.kubeconfig,
+                "--kube-context", self.context,
+            ]
+
+            if values:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".yaml", delete=False
+                ) as f:
+                    yaml.safe_dump(values, f)
+                    values_file = f.name
+                cmd.extend(["--values", values_file])
+                try:
+                    logger.info(
+                        f"Installing release {release_name} with chart {chart_name}"
+                    )
+                    subprocess.run(cmd, check=True)
+                finally:
+                    os.unlink(values_file)
+            else:
+                logger.info(
+                    f"Installing release {release_name} with chart {chart_name}"
+                )
+                subprocess.run(cmd, check=True)
 
             logger.info(
-                f"Installing Helm chart {chart} with release name {release_name}"
+                f"Helm release installed successfully: {release_name}"
             )
-
-            self.helm_client.install(
-                chart=chart,
-                release_name=release_name,
-                namespace=self.namespace,
-                values=values or {},
-                wait=True,
-                timeout=600,
-            )
-
-            logger.info(f"Helm chart installed successfully: {release_name}")
             self.release_name = release_name
 
-        except Exception as e:
-            raise KubernetesDeploymentError(f"Failed to install Helm chart: {e}")
-
-    def wait_for_deployment(
-        self,
-        deployment_name: str,
-        timeout: int = 600,
-    ) -> None:
-        """Wait for Kubernetes deployment to be ready.
-
-        Args:
-            deployment_name: Name of the deployment
-            timeout: Maximum time to wait in seconds
-
-        Raises:
-            KubernetesDeploymentError: If deployment fails or times out
-        """
-        try:
-            logger.info(f"Waiting for deployment {deployment_name} to be ready...")
-
-            v1 = client.AppsV1Api()
-            w = watch.Watch()
-
-            start_time = time.time()
-            for event in w.stream(
-                v1.list_namespaced_deployment,
-                self.namespace,
-                field_selector=f"metadata.name={deployment_name}",
-                timeout_seconds=timeout,
-            ):
-                deployment = event["object"]
-                if deployment.status.updated_replicas == deployment.spec.replicas:
-                    logger.info(f"Deployment {deployment_name} is ready")
-                    return
-
-                if time.time() - start_time > timeout:
-                    raise TimeoutError(
-                        f"Deployment {deployment_name} did not become ready within {timeout}s"
-                    )
-
-        except TimeoutError as e:
-            raise KubernetesDeploymentError(str(e))
-        except ApiException as e:
-            raise KubernetesDeploymentError(f"Failed to check deployment status: {e}")
-        except Exception as e:
-            raise KubernetesDeploymentError(f"Error waiting for deployment: {e}")
+        except subprocess.CalledProcessError as e:
+            raise KubernetesDeploymentError(f"Failed to install Helm release: {e}")
 
     def get_service_url(
         self,
@@ -349,7 +170,7 @@ class KubernetesClient:
         try:
             logger.info(f"Retrieving URL for service {service_name}")
 
-            v1 = client.CoreV1Api()
+            v1 = k8s_client.CoreV1Api()
             start_time = time.time()
 
             while time.time() - start_time < timeout:
@@ -363,6 +184,13 @@ class KubernetesClient:
                         if service_url:
                             logger.info(f"Service URL: {service_url}")
                             return service_url
+
+                    # Check for ClusterIP
+                    if service.spec.type == "ClusterIP":
+                        cluster_ip = service.spec.cluster_ip
+                        if cluster_ip:
+                            logger.info(f"Service ClusterIP: {cluster_ip}")
+                            return f"http://{cluster_ip}"
 
                     # Check for NodePort
                     if service.spec.type == "NodePort":
@@ -387,66 +215,43 @@ class KubernetesClient:
         except Exception as e:
             raise KubernetesDeploymentError(f"Error getting service URL: {e}")
 
-    def run_service(self, dest: dict, service: dict = None) -> Dict:
+    def run_service(self, rp: RuntimePlatform, chart_info: dict) -> Dict:
         """Deploy service to Kubernetes cluster.
 
         Args:
-            dest: Destination configuration with Kubernetes details
-            service: Service configuration (optional)
+            rp: RuntimePlatform with resource requirements and install_url (helm repo).
+            chart_info: Chart configuration dict with chartName.
 
         Returns:
-            Dictionary with deployment results including URL
+            Dictionary with deployment results including URL.
 
         Raises:
-            KubernetesDeploymentError: If deployment fails
+            KubernetesDeploymentError: If deployment fails.
         """
         try:
-            # Validate configuration
-            self.validate_kubernetes_config(dest)
+            if not rp.install_url:
+                raise KubernetesDeploymentError(
+                    "installUrl (helm repo URL) is required for Kubernetes deployment"
+                )
+            if not chart_info.get("chartName"):
+                raise KubernetesDeploymentError(
+                    "chartName is required in chart configuration"
+                )
 
-            release_name = dest["releaseName"]
-            service_name = dest.get("serviceName", release_name)
+            release_name = rp.name or f"release-{os.urandom(4).hex()}"
+            service_name = release_name
 
-            # Determine chart source
-            chart_name = None
-            repo_name = None
-            repo_url = None
+            values = self.build_helm_values(rp)
 
-            if dest.get("helmChartUrl"):
-                # Download and extract chart from URL
-                chart_archive = self.download_helm_chart(dest["helmChartUrl"])
-                chart_path = self.extract_helm_chart(chart_archive)
-                chart_name = chart_path
-            elif dest.get("hasPart"):
-                # Extract from hasPart (ro-crate format)
-                has_part = dest.get("hasPart")
-                if isinstance(has_part, list) and has_part:
-                    chart_info = has_part[0]
-                    chart_name = chart_info.get("chartName", "hello-world")
-                    repo_url = chart_info.get("url")
-                    repo_name = chart_info.get("name", "default")
+            logger.info(f"Deploying release {release_name} with values: {values}")
 
-            if not chart_name:
-                raise KubernetesDeploymentError("No valid chart source found")
-
-            # Build Helm values
-            values = {}
-            if service:
-                values = self.build_helm_values(service)
-
-            # Install Helm chart
-            self.install_helm_chart(
-                chart=chart_name,
+            self.install_release(
+                repo_url=rp.install_url,
+                chart_name=chart_info["chartName"],
                 release_name=release_name,
                 values=values,
-                repo_name=repo_name,
-                repo_url=repo_url,
             )
 
-            # Wait for deployment
-            self.wait_for_deployment(release_name)
-
-            # Get service URL
             service_url = self.get_service_url(service_name)
 
             return {
@@ -463,22 +268,20 @@ class KubernetesClient:
                 f"Unexpected error deploying to Kubernetes: {e}"
             )
 
-    def destroy_service(self, release_name: str) -> None:
-        """Uninstall Helm release.
-
-        Args:
-            release_name: Name of the Helm release to uninstall
-
-        Raises:
-            KubernetesDeploymentError: If uninstall fails
-        """
+    def uninstall_release(self, release_name: str) -> None:
+        """Uninstall Helm release using helm CLI subprocess."""
         try:
-            if not self.helm_client:
-                self._setup_helm_client()
-
             logger.info(f"Uninstalling Helm release {release_name}")
-            self.helm_client.uninstall(release_name, namespace=self.namespace)
+            subprocess.run(
+                [
+                    "helm", "uninstall", release_name,
+                    "--namespace", self.namespace,
+                    "--wait",
+                    "--kubeconfig", self.kubeconfig,
+                    "--kube-context", self.context,
+                ],
+                check=True,
+            )
             logger.info(f"Helm release uninstalled successfully: {release_name}")
-
-        except Exception as e:
+        except subprocess.CalledProcessError as e:
             raise KubernetesDeploymentError(f"Failed to uninstall Helm release: {e}")

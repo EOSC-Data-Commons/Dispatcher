@@ -78,15 +78,20 @@ class VRE(ABC):
                 return outputs.get("url", self.get_default_service())
             if dest.name == "Kubernetes":
                 logger.error(f"Kubernetes dest {dest}")
+                chart_info = self._resolve_chart_info()
+                if chart_info is None:
+                    raise VREConfigurationError(
+                        "Missing hasPart chart configuration for Kubernetes deployment"
+                    )
                 self.update_task_status(constants.KUBERNETES_SEQUENCE_STARTED)
                 try:
-                    kubernetes_client = KubernetesClient(self.token)
-                    outputs = kubernetes_client.run_service(
-                        dest, getattr(self.crate, "root_dataset", {})
-                    )
+                    kubernetes_client = KubernetesClient()
+                    outputs = kubernetes_client.run_service(dest, chart_info)
                     self.update_task_status(constants.KUBERNETES_SEQUENCE_FINISHED)
                     if outputs is None:
-                        raise VREConfigurationError("Failed to deploy service to Kubernetes")
+                        raise VREConfigurationError(
+                            "Failed to deploy service to Kubernetes"
+                        )
                     self.update_task_status(constants.KUBERNETES_SEQUENCE_SUCCESSFUL)
                     return outputs.get("url", self.get_default_service())
                 except Exception as e:
@@ -95,6 +100,26 @@ class VRE(ABC):
                         f"Failed to deploy service to Kubernetes: {e}"
                     )
             raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
+
+        raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
+
+    def _resolve_chart_info(self) -> dict | None:
+        """Extract Helm chart metadata from the runtimePlatform raw entity."""
+        if self.request_package is None:
+            return None
+        raw_rp = self.request_package.workflow.properties.get("runtimePlatform")
+        if not isinstance(raw_rp, dict):
+            return None
+        entity_id = raw_rp.get("@id")
+        if not entity_id:
+            return None
+        entity = self.request_package.get_entity(entity_id)
+        if not entity:
+            return None
+        chart_name = entity.get("chartName")
+        if not chart_name:
+            return None
+        return {"chartName": chart_name}
 
     def update_task_status(self, stage):
         self._update_state(state="PROGRESS", meta={"stage": stage})

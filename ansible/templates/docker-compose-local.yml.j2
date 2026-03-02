@@ -1,6 +1,8 @@
 services:
   redis:
     image: redis:7
+    ports:
+      - "6379:6379"
 
   web:
     build: .
@@ -22,18 +24,35 @@ services:
 
   worker:
     build: .
+    network_mode: "host"
     command: celery -A app.celery.worker.celery worker --loglevel=info 
     volumes:
       - git-repos-volume:/{{git.repos}}
       - .:/usr/src
+      # Mount the kubeconfig and the minikube certificates
+      - /home/tomas/.kube:/home/celery/.kube:ro
+      - /home/tomas/.minikube:/home/tomas/.minikube:ro
+      # helm cache
+      # - /home/tomas/.cache/helm:/home/celery/.cache/helm:rw
+      # - /home/tomas/.config/helm:/home/celery/.config/helm:rw
+      - /home/tomas/Documents/cesnet/local-dispatcher/kuba-cluster.yaml.yml:/usr/src/app/k8s-config.yaml:ro
+      - /home/tomas/.minikube:/home/tomas/.minikube:ro
     user: "celery" 
     environment:
-      - CELERY_BROKER_URL=redis://redis:{{ redis.port }}/0
-      - CELERY_RESULT_BACKEND=redis://redis:{{ redis.port }}/0
+      # - CELERY_BROKER_URL=redis://redis:{{ redis.port }}/0
+      # - CELERY_RESULT_BACKEND=redis://redis:{{ redis.port }}/0
+      - CELERY_BROKER_URL=redis://localhost:6379/0
+      - CELERY_RESULT_BACKEND=redis://localhost:6379/0
       - ENV=development
+      # helm
+      - HELM_CONFIG_HOME=/tmp/helm/config
+      - HELM_CACHE_HOME=/tmp/helm/cache
+      - HELM_DATA_HOME=/tmp/helm/data
     depends_on:
       - web
       - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   nginx:
     image: nginxinc/nginx-unprivileged:latest
