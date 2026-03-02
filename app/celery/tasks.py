@@ -5,6 +5,7 @@ from fastapi import UploadFile
 from app.exceptions import GalaxyAPIError
 from typing import Dict
 import copy
+import asyncio
 
 
 @celery.task(
@@ -17,7 +18,7 @@ def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
     vre_handler = vre_factory(
         crate=crate, body=zip_file, token=token, update_state=self.update_state
     )
-    return {"url": vre_handler.post(self.request.id)}
+    return {"url": vre_handler.post()}
 
 
 @celery.task(
@@ -29,5 +30,7 @@ def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
 )
 def vre_from_rocrate(self, data: Dict, token):
     crate = ROCrate(source=copy.deepcopy(data))
-    vre_handler = vre_factory(crate=crate, token=token, update_state=self.update_state)
-    return {"url": vre_handler.post(self.request.id)}
+    vre_handler = asyncio.run(
+        (vre_factory(crate=crate, token=token, update_state=self.update_state))
+    )
+    return {"url": vre_handler.post()}

@@ -24,4 +24,4 @@ black>=25.1.0
 GitPython>=3.1.46
 requests-mock>=1.12.1
 kubernetes>=25.3.0
-pyhelm>=1.2.1
+pyhelm3>=0.4.0

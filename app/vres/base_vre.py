@@ -1,4 +1,5 @@
 import sys
+import asyncio
 from app.services.im import IM
 from app.services.kubernetes import KubernetesClient
 from abc import ABC, abstractmethod
@@ -36,7 +37,8 @@ class VRE(ABC):
         self.token = token
         self._update_state = update_state
         self._im_factory = im_factory or self._default_im_factory
-        self.svc_url = self.setup_service().rstrip("/")
+        # Run async setup_service in sync context
+        self.svc_url = None
         # Store any additional kwargs for subclasses
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -45,11 +47,12 @@ class VRE(ABC):
     def get_default_service(self) -> str:
         pass
 
-    def setup_service(self):
+    async def setup_service(self):
         dest = getattr(self.crate, "root_dataset", {}).get("runsOn")
-        return self._resolve_runs_on(dest)
+        self.svc_url = (await self._resolve_runs_on(dest)).rstrip("/")
+        return self
 
-    def _resolve_runs_on(self, dest: Mapping[str, Any] | None) -> str:
+    async def _resolve_runs_on(self, dest: Mapping[str, Any] | None) -> str:
         if dest is None:
             return self.get_default_service()
 
@@ -76,8 +79,8 @@ class VRE(ABC):
         if dest.get("serviceType") == "Kubernetes":
             self.update_task_status(constants.KUBERNETES_SEQUENCE_STARTED)
             try:
-                kubernetes_client = KubernetesClient(self.token)
-                outputs = kubernetes_client.run_service(
+                kubernetes_client = KubernetesClient()
+                outputs = await kubernetes_client.run_service(
                     dest, getattr(self.crate, "root_dataset", {})
                 )
                 self.update_task_status(constants.KUBERNETES_SEQUENCE_FINISHED)
@@ -127,7 +130,7 @@ class VREFactory:
             raise ValueError(f"{vre_type} already registered")
         self.table[vre_type] = cls
 
-    def __call__(
+    async def __call__(
         self,
         crate,
         body=None,
@@ -140,9 +143,10 @@ class VREFactory:
         logger.debug(f"crate {crate}")
         logger.debug(f"elang {elang}")
         logger.debug(self.table[elang])
-        return self.table[elang](
+        instance = self.table[elang](
             crate=crate, body=body, update_state=update_state, **kwargs
         )
+        return await instance.setup_service()
 
 
 vre_factory = VREFactory()
