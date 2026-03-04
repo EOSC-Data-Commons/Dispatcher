@@ -93,8 +93,8 @@
             "@type": "Repo",
             "name": "Scipion Helm Chart",
             "encodingFormat": "text/yaml",
-            "chartName": "hello-world",
-            "url": "https://helm.github.io/examples"
+            "chartName": "nginx",
+            "url": "https://charts.bitnami.com/bitnami"
         }
     ]
 }
