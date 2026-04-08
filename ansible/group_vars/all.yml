@@ -3,6 +3,7 @@ dispatcher:
   branch: master
   dir: /opt/edc/dispatcher
 
+
 git:
   # macos
   # backend: /Library/Developer/CommandLineTools/usr/libexec/git-core/git-http-backend
@@ -41,11 +42,3 @@ im:
     max_time: 36000 # 10h
     sleep: 30
     max_retries: 3
-    # # region: RegionOne
-
-    # In case of EGI Cloud Compute site
-    # In this case, the Dispatcher must use the EGI Check-in production instance to authenticate users
-    #type: demo
-    #site: "CESNET-MCCG2"
-    #VO: vo.eosc-data-commons.eu
-    
