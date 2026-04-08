@@ -55,7 +55,10 @@ class VREScienceMesh(VRE):
             "sender": sender_userid,
             "resourceType": "ro-crate",
             "shareType": "user",
-            "protocols": {"name": "multi", "rocrate": self.crate.metadata.generate()},
+            "protocol": {
+                "name": "multi",
+                "embedded": {"payload": self.crate.metadata.generate()},
+            },
         }
         return ocm_share_request
 

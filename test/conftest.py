@@ -189,9 +189,9 @@ def ocm_share_request(sciencemesh_vre):
         "sender": sender_userid,
         "resourceType": "ro-crate",
         "shareType": "user",
-        "protocols": {
+        "protocol": {
             "name": "multi",
-            "rocrate": sciencemesh_vre.crate.metadata.generate(),
+            "embedded": {"payload": sciencemesh_vre.crate.metadata.generate()},
         },
     }
     return ocm_share_request

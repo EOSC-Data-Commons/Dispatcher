@@ -10,15 +10,31 @@
             "creator": {
                 "@id": "#creator"
             },
-            "mainEntity": { "@id": "#workflow" },
-            "runsOn": { "@id": "#destination" },
+            "mainEntity": {
+                "@id": "#workflow"
+            },
+            "runsOn": {
+                "@id": "#destination"
+            },
             "hasPart": [
-                { "@id": "#workflow" },
-                { "@id": "#dataset-csv" },
-                { "@id": "#creator" },
-                { "@id": "#destination" },
-                { "@id": "#receiver" },
-                { "@id": "#sender" }
+                {
+                    "@id": "#workflow"
+                },
+                {
+                    "@id": "#dataset-csv"
+                },
+                {
+                    "@id": "#creator"
+                },
+                {
+                    "@id": "#destination"
+                },
+                {
+                    "@id": "#receiver"
+                },
+                {
+                    "@id": "#sender"
+                }
             ]
         },
         {
@@ -62,7 +78,7 @@
             "@id": "#sciencemesh-jupyter",
             "@type": "ComputerLanguage",
             "identifier": {
-                "@id": "https://cernbox.cern.ch/"
+                "@id": "https://qa.cernbox.cern.ch/"
             },
             "name": "Jupyter Notebook",
             "url": {
