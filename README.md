@@ -48,7 +48,8 @@ To deploy your own Dispatcher instance you need:
 1. Prepare a clean Ubuntu machine (VM) with public ip, DNS name `DISPATCHER_HOSTNAME` and at least ports 22, 80, and 443 open, and make sure (install public key etc) `ssh ubuntu@DISPATCHER_HOSTNAME` works from your current environment.
 2. Register `DISPATCHER_HOSTNAME` as a service provider with EGI Checkin (development instance):
    - Go to https://aai.egi.eu/federation/egi/services/ and log in
-   - Click on `New service`, choose `Development` for `Integration Environment`, and fill in the few mandatory fields
+   - Click on `New service`, choose `Demo` for `Integration Environment`, and fill in the few mandatory fields
+       - alternatively, use `Development` and change `api.environment` in `ansible/group_vars/dispatchers/vars.yml` to `dev`; in the Development environment, one can approve the service registration him/herself getting faster turnaround, but it may not be stable
    - Click on `Protocol specific` and choose `OIDC Service`; keep the defautl values except the following
    - Provide two `Redirect URI` values:
        - `https://DISPATCHER_HOSTNAME/oauth2/egi-checkin/token`
@@ -104,4 +105,5 @@ Again, zip [test/alphafind-notebook](test/alphafind-notebook) and post the file 
 
 ### ScienceMesh
 Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.
+
 
