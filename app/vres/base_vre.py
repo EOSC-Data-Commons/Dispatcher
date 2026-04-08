@@ -1,7 +1,7 @@
 import sys
 from app.services.im import IM
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Mapping, Optional, Protocol, runtime_checkable
+from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 from app.exceptions import VREError, VREConfigurationError
 import logging
 import app.constants as constants
@@ -23,11 +23,11 @@ class IMClientProtocol(Protocol):
 class VRE(ABC):
     def __init__(
         self,
-        crate: Any | None = None,
-        update_state: Optional[Callable] = None,
-        request_id: Optional[int] = None,
+        crate: Any,
+        token: str,
+        request_id: int,
+        update_state: Callable,
         body: Any | None = None,
-        token: str | None = None,
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
         **kwargs,
     ) -> None:
@@ -109,10 +109,11 @@ class VREFactory:
 
     def __call__(
         self,
-        crate,
-        body=None,
-        update_state: Optional[Callable] = None,
-        request_id: Optional[int] = None,
+        crate: Any,
+        token: str,
+        request_id: int,
+        update_state: Callable,
+        body: Any | None = None,
         **kwargs,
     ):
         elang = crate.mainEntity.get("programmingLanguage").get("identifier")
@@ -123,9 +124,10 @@ class VREFactory:
         logger.debug(self.table[elang])
         return self.table[elang](
             crate=crate,
-            body=body,
-            update_state=update_state,
+            token=token,
             request_id=request_id,
+            update_state=update_state,
+            body=body,
             **kwargs,
         )
 

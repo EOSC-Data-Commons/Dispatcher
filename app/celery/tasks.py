@@ -16,10 +16,10 @@ def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
     zip_file = parsed_zipfile[1]
     vre_handler = vre_factory(
         crate=crate,
-        body=zip_file,
         token=token,
-        update_state=self.update_state,
         request_id=self.request.id,
+        update_state=self.update_state,
+        body=zip_file,
     )
     return {"url": vre_handler.post()}
 
@@ -36,7 +36,7 @@ def vre_from_rocrate(self, data: Dict, token):
     vre_handler = vre_factory(
         crate=crate,
         token=token,
-        update_state=self.update_state,
         request_id=self.request.id,
+        update_state=self.update_state,
     )
     return {"url": vre_handler.post()}
