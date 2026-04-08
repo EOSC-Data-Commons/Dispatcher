@@ -19,7 +19,9 @@ class VREScienceMesh(VRE):
         try:
             logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
             response = requests.post(
-                f"{self.svc_url}/ocm/shares", headers=headers, json=data
+                f"{self.svc_url}/ocm/shares",
+                headers=headers,
+                json=data,
             )
             logging.info(f"{self.__class__.__name__}: returned {response.text}")
             response.raise_for_status()
@@ -46,14 +48,14 @@ class VREScienceMesh(VRE):
         # Create OCM share request JSON structure
         ocm_share_request = {
             "shareWith": receiver.get("userid"),
-            "name": self.crate.mainEntity.get("name"),
-            "description": self.crate.mainEntity.get("description"),
+            "name": self.crate.name,
+            "description": self.crate.description,
             "providerId": "n/a",
             "resourceId": "n/a",
             "owner": owner.get("userid"),
             "senderDisplayName": sender.get("name"),
             "sender": sender_userid,
-            "resourceType": "ro-crate",
+            "resourceType": "embedded",
             "shareType": "user",
             "protocol": {
                 "name": "multi",
