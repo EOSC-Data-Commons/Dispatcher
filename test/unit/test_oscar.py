@@ -23,7 +23,9 @@ def load_json(file_name):
 def test_lifecycle(mock_delete, mock_post, mock_get):
     """Test OSCAR VRE post function"""
     crate = ROCrate(source=load_json("../oscar/ro-crate-metadata.json"))
-    vreoscar = VREOSCAR(crate=crate, token="dummy_token")
+    vreoscar = VREOSCAR(
+        crate=crate, token="dummy_token", request_id=0, update_state=None
+    )
     fdl = load_json("../oscar/cowsay.json")
     script_content = """#!/bin/sh
 if [ "$INPUT_TYPE" = "json" ]
@@ -89,7 +91,9 @@ def test_no_hasparts():
     crate = MagicMock()
     crate.mainEntity = {"hasPart": []}
     crate.root_dataset = {}
-    vreoscar = VREOSCAR(crate=crate, token="dummy_token")
+    vreoscar = VREOSCAR(
+        crate=crate, token="dummy_token", request_id=0, update_state=None
+    )
 
     with pytest.raises(VREConfigurationError) as exc:
         vreoscar._get_fdl_from_crate()
@@ -101,7 +105,9 @@ def test_invalid_entity_type():
     crate = MagicMock()
     crate.mainEntity = {"hasPart": [{"@type": "NotAFile"}]}
     crate.root_dataset = {}
-    vreoscar = VREOSCAR(crate=crate, token="dummy_token")
+    vreoscar = VREOSCAR(
+        crate=crate, token="dummy_token", request_id=0, update_state=None
+    )
 
     with pytest.raises(VREConfigurationError) as exc:
         vreoscar._get_fdl_from_crate()
@@ -116,7 +122,9 @@ def test_fdl_missing():
     }
     crate.root_dataset = {}
     crate.dereference.return_value = {"url": "http://some-url"}
-    vreoscar = VREOSCAR(crate=crate, token="dummy_token")
+    vreoscar = VREOSCAR(
+        crate=crate, token="dummy_token", request_id=0, update_state=None
+    )
 
     with pytest.raises(VREConfigurationError) as exc:
         vreoscar._get_fdl_from_crate()
@@ -139,7 +147,9 @@ def test_oscar_creation_error(mock_post, mock_get):
     }
     crate.root_dataset = {}
     crate.dereference.return_value = {"url": "http://some-url"}
-    vreoscar = VREOSCAR(crate=crate, token="dummy_token")
+    vreoscar = VREOSCAR(
+        crate=crate, token="dummy_token", request_id=0, update_state=None
+    )
 
     with pytest.raises(ExternalServiceError) as exc:
         vreoscar.post()
