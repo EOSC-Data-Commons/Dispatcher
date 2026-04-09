@@ -6,13 +6,13 @@ GALAXY_PROGRAMMING_LANGUAGE = "https://galaxyproject.org/"
 BINDER_DEFAULT_SERVICE = "https://mybinder.org"
 BINDER_PROGRAMMING_LANGUAGE = "https://jupyter.org/binder/"
 
-SCIENCEMESH_DEFAULT_SERVICE = "https://cernbox.cern.ch/"
-SCIENCEMESH_PROGRAMMING_LANGUAGE = "https://cernbox.cern.ch/"
+SCIENCEMESH_DEFAULT_SERVICE = "https://qa.cernbox.cern.ch"
+SCIENCEMESH_PROGRAMMING_LANGUAGE = "https://qa.cernbox.cern.ch"
 
 SCIPION_DEFAULT_SERVICE = "https://scipion.i2pc.es/"
 SCIPION_PROGRAMMING_LANGUAGE = "http://scipion.i2pc.es/"
 
-OSCAR_DEFAULT_SERVICE = "https://some.oscar.instance/"
+OSCAR_DEFAULT_SERVICE = "https://oscar.vre.eosc-data-commons.eu"
 OSCAR_PROGRAMMING_LANGUAGE = "https://oscar.grycap.net/"
 
 IM_SEQUENCE_STARTED = "IM sequence started"

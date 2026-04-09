@@ -10,15 +10,31 @@
             "creator": {
                 "@id": "#creator"
             },
-            "mainEntity": { "@id": "#workflow" },
-            "runsOn": { "@id": "#destination" },
+            "mainEntity": {
+                "@id": "#workflow"
+            },
+            "runsOn": {
+                "@id": "#destination"
+            },
             "hasPart": [
-                { "@id": "#workflow" },
-                { "@id": "#dataset-csv" },
-                { "@id": "#creator" },
-                { "@id": "#destination" },
-                { "@id": "#receiver" },
-                { "@id": "#sender" }
+                {
+                    "@id": "#workflow"
+                },
+                {
+                    "@id": "#dataset-csv"
+                },
+                {
+                    "@id": "#creator"
+                },
+                {
+                    "@id": "#destination"
+                },
+                {
+                    "@id": "#receiver"
+                },
+                {
+                    "@id": "#sender"
+                }
             ]
         },
         {
@@ -38,22 +54,21 @@
                 "SoftwareSourceCode",
                 "ComputationalWorkflow"
             ],
-            "name": "ScienceMesh Data Analysis Notebook",
+            "name": "CMSDimuon_py.ipynb",
             "description": "Jupyter notebook for analyzing research data in ScienceMesh environment",
             "programmingLanguage": {
                 "@id": "#sciencemesh-jupyter"
             },
-            "url": "https://raw.githubusercontent.com/rawe0/example_notebook/main/data_analysis_example.ipynb",
+            "url": "https://raw.githubusercontent.com/dpiparo/swanExamples/refs/heads/master/notebooks/CMSDimuon_py.ipynb",
             "encodingFormat": "application/x-ipynb+json"
         },
         {
             "@id": "#dataset-csv",
             "@type": "File",
-            "name": "research_data.csv",
-            "description": "Sample research dataset in CSV format",
-            "url": "https://raw.githubusercontent.com/rawe0/example_notebook/main/sample_data.csv",
+            "name": "MuRun2010B.csv",
+            "description": "Sample dataset of dimuon events from CMS Open Data, used in the Jupyter notebook for analysis exercise",
+            "url": "https://raw.githubusercontent.com/dpiparo/swanExamples/master/notebooks/MuRun2010B.csv",
             "encodingFormat": "text/csv",
-            "contentSize": "443",
             "license": {
                 "@id": "https://creativecommons.org/licenses/by/4.0/"
             }
@@ -62,7 +77,7 @@
             "@id": "#sciencemesh-jupyter",
             "@type": "ComputerLanguage",
             "identifier": {
-                "@id": "https://cernbox.cern.ch/"
+                "@id": "https://qa.cernbox.cern.ch"
             },
             "name": "Jupyter Notebook",
             "url": {
@@ -73,7 +88,7 @@
             "@id": "#destination",
             "@type": "Service",
             "name": "ScienceMesh Service",
-            "url": "http://localhost:5000",
+            "url": "https://qa.cernbox.cern.ch",
             "description": "ScienceMesh federated storage and collaboration platform"
         },
         {
@@ -96,7 +111,7 @@
         {
             "@id": "#receiver",
             "@type": "Person",
-            "userid": "rasmus.oscar.welander@cernbox.cern.ch"
+            "userid": "rwelande@cernbox.cern.ch"
         }
     ]
 }
