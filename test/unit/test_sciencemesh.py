@@ -69,7 +69,7 @@ def test_post_succeeds_without_destination_entity(sciencemesh_vre, requests_mock
     assert sciencemesh_vre.post() == json
 
 
-def test_post_sends_correct_oscm_share_request(
+def test_post_sends_correct_ocm_share_request(
     sciencemesh_vre, requests_mock, ocm_share_request
 ):
     requests_mock.post(

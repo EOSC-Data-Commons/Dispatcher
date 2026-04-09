@@ -19,7 +19,9 @@ class VREScienceMesh(VRE):
         try:
             logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
             response = requests.post(
-                f"{self.svc_url}/ocm/shares", headers=headers, json=data
+                f"{self.svc_url}/ocm/shares",
+                headers=headers,
+                json=data,
             )
             logging.info(f"{self.__class__.__name__}: returned {response.text}")
             response.raise_for_status()
@@ -53,7 +55,7 @@ class VREScienceMesh(VRE):
             "owner": owner.get("userid"),
             "senderDisplayName": sender.get("name"),
             "sender": sender_userid,
-            "resourceType": "ro-crate",
+            "resourceType": "embedded",
             "shareType": "user",
             "protocol": {
                 "name": "multi",
