@@ -35,15 +35,15 @@ class VREMDDash(VRE):
         r.raise_for_status()
         logging.info(f"GET {url}/hub/jwt_login {r.text}")
     
-        r = session.get(url + "/hub/home",headers=bearer)
+        r = self.session.get(url + "/hub/home",headers=bearer)
         r.raise_for_status()
         logging.info(f"GET {url}/hub/home {r.text}")
+        self.xsrf_token = self.session.cookies.get("_xsrf")
 
-        r = session.get(url + "/hub/api/user",headers=bearer)
+        r = self.session.get(url + "/hub/api/user",headers=bearer)
         r.raise_for_status()
         logging.info(f"GET {url}/hub/api/user: {r.json()}")
 
-        self.xsrf_token = session.cookies.get("_xsrf")
         self.user = r.json()['name']
 
 
@@ -51,8 +51,8 @@ class VREMDDash(VRE):
         url = self.svc_url
         url = url.rstrip("/")
 
-        r.self.session.post(
-                f"{url}/hub/api/users/{self.user}/servers",
+        r = self.session.post(
+                f"{url}/hub/api/users/{self.user}/servers/",
                 headers = {
                     "X-XSRFToken": self.xsrf_token,
                     "Content-Type": "application/json",
