@@ -21,3 +21,4 @@ IM_SEQUENCE_SUCCESSFUL = "IM sequence successful"
 
 MDDASH_DEFAULT_SERVICE = "https://mddash-edc.dyn.cloud.e-infra.cz"
 MDDASH_PROGRAMMING_LANGUAGE = "https://github.com/CERIT-SC/mddash"
+MDDASH_DEFAULT_PROTOCOL = "https://github.com/sb-ncbr/mddash-notebooks.git"

@@ -7,7 +7,7 @@ import uuid
 import tempfile
 import time
 from app.config import settings
-from app.constants import MDDASH_DEFAULT_SERVICE, MDDASH_PROGRAMMING_LANGUAGE
+from app.constants import MDDASH_DEFAULT_SERVICE, MDDASH_PROGRAMMING_LANGUAGE, MDDASH_DEFAULT_PROTOCOL
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,8 +22,10 @@ class VREMDDash(VRE):
         self._login()
         self._start_server()
         self._wait_for_server()
+        self._auth_mddash()
+        self._create_experiment()
        
-        return None
+        return f"{self.svc_url}{self.singleuser}dash/"
 
     def _login(self):
         url = self.svc_url
@@ -92,16 +94,39 @@ class VREMDDash(VRE):
     
                 if is_ready and not is_stopped:
                     server_ready = True
-                    server_url_path = default_server.get("url", "")
                     break
     
             time.sleep(retry_interval)
     
         if not server_ready:
             raise RuntimeError(f"{self.user} did not start within {max_retries*retry_interval}s")
-    
- 
-        
 
+        self.singleuser = default_server.get("url","")
+    
+    def _auth_mddash(self):
+        url = self.svc_url
+        url = url.rstrip("/")
+
+        resp = self.session.get(f"{url}{self.singleuser}dash/",allow_redirects=True)
+        resp.raise_for_status()
+
+        if "mddash-auth" not in self.session.cookies:
+            raise RuntimeError("mddash-auth cookie not set")
+        
+    def _create_experiment(self):
+        url = self.svc_url
+        url = url.rstrip("/")
+
+        pdb = '1L2Y' # XXX
+
+        resp = self.session.post(
+                f"{url}{self.singleuser}dash/api/experiments",
+                data={
+                    "experiment-name" : f"{self.task}: {pdb}",
+                    "type": "pdb", # XXX
+                    "pdb-id": pdb,
+                    "notebooks-repo": MDDASH_DEFAULT_PROTOCOL # XXX
+                })
+        resp.raise_for_status()
         
 vre_factory.register(MDDASH_PROGRAMMING_LANGUAGE, VREMDDash)
