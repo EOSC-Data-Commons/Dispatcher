@@ -5,6 +5,7 @@ import logging
 import requests
 import uuid
 import tempfile
+import time
 from app.config import settings
 from app.constants import MDDASH_DEFAULT_SERVICE, MDDASH_PROGRAMMING_LANGUAGE
 
@@ -20,6 +21,7 @@ class VREMDDash(VRE):
 
         self._login()
         self._start_server()
+        self._wait_for_server()
        
         return None
 
@@ -63,6 +65,43 @@ class VREMDDash(VRE):
         if (r.status_code != 400):  # OK, server already exists
             r.raise_for_status()
         logging.info(f"{url}/hub/api/users/{self.user}/servers: {r.text}")
+
+    def _wait_for_server(self):
+        url = self.svc_url
+        url = url.rstrip("/")
+
+        max_retries = 60
+        retry_interval = 5
+        server_ready = False
+
+        user_api_url = url + '/hub/api/user'
+    
+        for i in range(max_retries):
+            logging.info(f"--- Poll attempt {i+1}/{max_retries}")
+    
+            resp = self.session.get(user_api_url)
+            resp.raise_for_status()
+    
+            if resp.status_code == 200:
+                user_info = resp.json()
+                servers = user_info.get("servers", {})
+                default_server = servers.get("", {})
+    
+                is_ready = default_server.get("ready", False)
+                is_stopped = default_server.get("stopped", True)
+    
+                if is_ready and not is_stopped:
+                    server_ready = True
+                    server_url_path = default_server.get("url", "")
+                    break
+    
+            time.sleep(retry_interval)
+    
+        if not server_ready:
+            raise RuntimeError(f"{self.user} did not start within {max_retries*retry_interval}s")
+    
+ 
+        
 
         
 vre_factory.register(MDDASH_PROGRAMMING_LANGUAGE, VREMDDash)
