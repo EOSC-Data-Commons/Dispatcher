@@ -29,7 +29,8 @@
             "name": "Example MDDash call",
             "programmingLanguage": {
                 "@id": "#mddash"
-            }
+            },
+            "url": "https://github.com/sb-ncbr/mddash-notebooks.git"
         },
         {
             "@id": "#mddash",

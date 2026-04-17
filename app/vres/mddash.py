@@ -117,7 +117,14 @@ class VREMDDash(VRE):
         url = self.svc_url
         url = url.rstrip("/")
 
-        pdb = '1L2Y' # XXX
+        pdb_entity = self.crate.dereference("#pdb")
+        if pdb_entity is None:
+            raise RuntimeError("Entity #pdb not found in ROCrate")
+        pdb = pdb_entity.get("name")
+        if pdb is None:
+            raise RuntimeError("Entity #pdb has no 'name' attribute")
+
+        notebooks_repo = self.crate.mainEntity.get("url", MDDASH_DEFAULT_PROTOCOL)
 
         resp = self.session.post(
                 f"{url}{self.singleuser}dash/api/experiments",
@@ -125,7 +132,7 @@ class VREMDDash(VRE):
                     "experiment-name" : f"{self.task}: {pdb}",
                     "type": "pdb", # XXX
                     "pdb-id": pdb,
-                    "notebooks-repo": MDDASH_DEFAULT_PROTOCOL # XXX
+                    "notebooks-repo": notebooks_repo
                 })
         resp.raise_for_status()
         
