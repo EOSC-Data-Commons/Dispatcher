@@ -145,11 +145,14 @@ def create_test_zip_body():
 
 @pytest.fixture
 def binder_vre(dummy_binder_crate):
-    vre = VREBinder()
-    vre.crate = dummy_binder_crate
+    vre = VREBinder(
+        crate=dummy_binder_crate,
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        body=create_test_zip_body(),
+    )
     vre.svc_url = "https://mybinder.org"
-    vre.body = create_test_zip_body()
-    vre._request_id = 0
     return vre
 
 
