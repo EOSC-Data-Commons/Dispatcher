@@ -193,6 +193,7 @@ def ocm_share_request(sciencemesh_vre):
         "resourceType": "embedded",
         "shareType": "user",
         "protocol": {
+        "protocol": {
             "name": "multi",
             "embedded": {
                 "payload": sciencemesh_vre.request_package.generate_metadata()
