@@ -25,7 +25,7 @@ class VREOSCAR(VRE):
         if self.fld_json:
             return self.fld_json
 
-        workflow_parts = self.request_package.get_main_entity_property("hasPart", [])
+        workflow_parts = self.request_package.get_workflow_parts()
         if not workflow_parts:
             raise VREConfigurationError("Missing hasPart in workflow entity")
 
@@ -103,7 +103,7 @@ class VREOSCAR(VRE):
         if runs_on:
             non_input_files.append(runs_on.get("@id"))
         non_input_files.append(self.request_package.get_main_entity_property("@id"))
-        for elem in self.request_package.get_main_entity_property("hasPart", []):
+        for elem in self.request_package.get_workflow_parts():
             if elem.get("@type") == "File":
                 non_input_files.append(elem.get("@id"))
         return [

@@ -24,7 +24,7 @@ class VREGalaxy(VRE):
 
     def _prepare_workflow_data(self):
         """Prepare the workflow data for the API request."""
-        files = self.self.request_package.get_file_entities()
+        files = self.request_package.get_file_entities()
         workflow_url = self.request_package.get_workflow_url()
 
         return {
@@ -97,3 +97,4 @@ class VREGalaxy(VRE):
 
 
 vre_factory.register(GALAXY_PROGRAMMING_LANGUAGE, VREGalaxy)
+

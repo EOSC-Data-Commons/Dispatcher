@@ -110,7 +110,7 @@ def dummy_sciencemesh_crate():
 @pytest.fixture
 def galaxy_vre(dummy_galaxy_crate):
     vre = VREGalaxy()
-    vre.crate = dummy_galaxy_crate
+    vre.request_package._crate = dummy_galaxy_crate
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
 
@@ -118,7 +118,7 @@ def galaxy_vre(dummy_galaxy_crate):
 @pytest.fixture
 def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
     vre = VREGalaxy()
-    vre.crate = dummy_galaxy_crate_onedata
+    vre.request_package._crate = dummy_galaxy_crate_onedata
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
 
@@ -163,7 +163,7 @@ def sciencemesh_rocrate():
 @pytest.fixture
 def sciencemesh_vre(sciencemesh_rocrate):
     vre = VREScienceMesh()
-    vre.crate = sciencemesh_rocrate
+    vre.request_package._crate = sciencemesh_rocrate
     vre.svc_url = "https://sciencemesh.example.org"
     return vre
 
@@ -189,7 +189,7 @@ def ocm_share_request(sciencemesh_vre):
         "sender": sender_userid,
         "resourceType": "ro-crate",
         "shareType": "user",
-        "protocols": {
+        "protocol": {
             "name": "multi",
             "embedded": {
                 "payload": sciencemesh_vre.request_package.generate_metadata()
