@@ -29,10 +29,10 @@ class VREScienceMesh(VRE):
         return response.json()
 
     def create_ocm_share_request(self):
-        receiver = self.crate.get("#receiver")
-        owner = self.crate.get("#owner")
-        sender = self.crate.get("#sender")
-        destination = self.crate.get("#destination")
+        receiver = self.request_package.get_custom_entity("#receiver")
+        owner = self.request_package.get_custom_entity("#owner")
+        sender = self.request_package.get_custom_entity("#sender")
+        destination = self.request_package.get_custom_entity("#destination")
         if destination is None:
             destination = {"url": self.svc_url}
 
@@ -46,8 +46,8 @@ class VREScienceMesh(VRE):
         # Create OCM share request JSON structure
         ocm_share_request = {
             "shareWith": receiver.get("userid"),
-            "name": self.crate.mainEntity.get("name"),
-            "description": self.crate.mainEntity.get("description"),
+            "name": self.request_package.get_crate_name(),
+            "description": self.request_package.get_crate_description(),
             "providerId": "n/a",
             "resourceId": "n/a",
             "owner": owner.get("userid"),
@@ -55,7 +55,10 @@ class VREScienceMesh(VRE):
             "sender": sender_userid,
             "resourceType": "ro-crate",
             "shareType": "user",
-            "protocols": {"name": "multi", "rocrate": self.crate.metadata.generate()},
+            "protocol": {
+                "name": "multi",
+                "embedded": {"payload": self.request_package.generate_metadata()},
+            },
         }
         return ocm_share_request
 

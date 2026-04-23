@@ -5,6 +5,7 @@ from typing import Any, Callable, Mapping, Optional, Protocol, runtime_checkable
 from app.exceptions import VREError, VREConfigurationError
 import logging
 import app.constants as constants
+from .request_package import RequestPackage
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -31,7 +32,7 @@ class VRE(ABC):
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
         **kwargs,
     ) -> None:
-        self.crate = crate
+        self.request_package = RequestPackage(crate)
         self.body = body
         self.token = token
         self._update_state = update_state
@@ -47,7 +48,7 @@ class VRE(ABC):
         pass
 
     def setup_service(self):
-        dest = getattr(self.crate, "root_dataset", {}).get("runsOn")
+        dest = self.request_package.get_runs_on_service()
         return self._resolve_runs_on(dest)
 
     def _resolve_runs_on(self, dest: Mapping[str, Any] | None) -> str:
