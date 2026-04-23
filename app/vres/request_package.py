@@ -66,6 +66,16 @@ class RequestPackage:
         """
         return self._main_entity
 
+    def get_workflow_parts(self) -> List[Any]:
+        """Get the hasPart list from the main workflow entity.
+
+        Returns:
+            List of workflow part entities, or empty list if not present.
+        """
+        if self._main_entity is None:
+            return []
+        return self._main_entity.get("hasPart", [])
+
     def get_file_entities(self) -> List[Any]:
         """Get all entities of type File.
 

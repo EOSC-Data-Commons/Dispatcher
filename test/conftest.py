@@ -115,6 +115,7 @@ def galaxy_vre(dummy_galaxy_crate):
         request_id=0,
         update_state=None,
     )
+    vre.request_package._crate = dummy_galaxy_crate
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
 
@@ -127,6 +128,7 @@ def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
         request_id=0,
         update_state=None,
     )
+    vre.request_package._crate = dummy_galaxy_crate_onedata
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
 
@@ -179,6 +181,7 @@ def sciencemesh_vre(sciencemesh_rocrate):
         request_id=0,
         update_state=None,
     )
+    vre.request_package._crate = sciencemesh_rocrate
     vre.svc_url = "https://sciencemesh.example.org"
     return vre
 
@@ -205,6 +208,33 @@ def ocm_share_request(sciencemesh_vre):
         "resourceType": "embedded",
         "shareType": "user",
         "protocol": {
+            "name": "multi",
+            "embedded": {
+                "payload": sciencemesh_vre.request_package.generate_metadata()
+            },
+        },
+    }
+    return ocm_share_request
+
+
+@pytest.fixture
+def mock_requests_post():
+    with patch("requests.post") as _mock:
+        yield _mock
+
+
+    ocm_share_request = {
+        "shareWith": receiver.get("userid"),
+        "name": sciencemesh_vre.request_package.get_crate_name(),
+        "description": sciencemesh_vre.request_package.get_crate_description(),
+        "providerId": "n/a",
+        "resourceId": "n/a",
+        "owner": owner.get("userid"),
+        "senderDisplayName": sender.get("name"),
+        "sender": sender_userid,
+        "resourceType": "embedded",
+        "shareType": "user",
+        "protocols": {
             "name": "multi",
             "embedded": {
                 "payload": sciencemesh_vre.request_package.generate_metadata()
