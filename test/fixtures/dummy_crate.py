@@ -64,6 +64,32 @@ class DummyCrate:
         self._entities = other_entities or []
         # ``root_dataset`` is what ``VRE.setup_service`` looks at.
         self.root_dataset = root_dataset or {}
+        self._custom_entities: Dict[str, Any] = {}
+        self.name = getattr(main_entity, "name", None) if main_entity else None
+        self.description = (
+            getattr(main_entity, "description", None) if main_entity else None
+        )
+        self.metadata = DummyMetadata()
 
     def get_entities(self) -> List[DummyEntity]:
         return self._entities
+
+    def get(self, entity_id: str, default: Any = None) -> Any:
+        """Get a custom entity by ID."""
+        return self._custom_entities.get(entity_id, default)
+
+    def set_custom_entity(self, entity_id: str, entity: Any) -> None:
+        """Set a custom entity for testing."""
+        self._custom_entities[entity_id] = entity
+
+    def delete(self, entity_id: str) -> None:
+        """Delete a custom entity."""
+        self._custom_entities.pop(entity_id, None)
+
+
+class DummyMetadata:
+    """Dummy metadata object for testing."""
+
+    def generate(self) -> Dict[str, Any]:
+        """Return dummy metadata."""
+        return {"@context": "test", "@graph": []}

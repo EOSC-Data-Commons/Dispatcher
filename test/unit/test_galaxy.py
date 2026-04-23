@@ -56,7 +56,8 @@ def test_post_happy_path(galaxy_vre, requests_mock):
 
 def test_missing_workflow_url_causes_exception(galaxy_vre):
     missing_url = DummyEntity(_type="Dataset")  # no url
-    galaxy_vre.crate = DummyCrate(main_entity=missing_url)
+    galaxy_vre.request_package._crate = DummyCrate(main_entity=missing_url)
+    galaxy_vre.request_package.refresh()
 
     with pytest.raises(WorkflowURLError):
         galaxy_vre.post()
