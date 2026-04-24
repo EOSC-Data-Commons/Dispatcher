@@ -25,7 +25,7 @@ class VREOSCAR(VRE):
         if self.fld_json:
             return self.fld_json
 
-        workflow_parts = self.crate.mainEntity.get("hasPart", [])
+        workflow_parts = self.request_package.get_workflow_parts()
         if not workflow_parts:
             raise VREConfigurationError("Missing hasPart in workflow entity")
 
@@ -36,7 +36,7 @@ class VREOSCAR(VRE):
             if not elem.get("@type") == "File":
                 raise VREConfigurationError("Invalid hasPart type in workflow entity")
 
-            ref_elem = self.crate.dereference(elem.get("@id"))
+            ref_elem = self.request_package.dereference(elem.get("@id"))
             if not ref_elem:
                 logging.error("Could not dereference entity %s", elem.get("@id"))
                 continue
@@ -99,15 +99,17 @@ class VREOSCAR(VRE):
     def _get_input_files(self):
         # Get all files except the workflow and destination
         non_input_files = []
-        non_input_files.append(self.crate.root_dataset.get("runsOn").get("@id"))
-        non_input_files.append(self.crate.mainEntity.get("@id"))
-        for elem in self.crate.mainEntity.get("hasPart", []):
+        runs_on = self.request_package.get_runs_on_service()
+        if runs_on:
+            non_input_files.append(runs_on.get("@id"))
+        non_input_files.append(self.request_package.get_main_entity_property("@id"))
+        for elem in self.request_package.get_workflow_parts():
             if elem.get("@type") == "File":
                 non_input_files.append(elem.get("@id"))
         return [
             e
-            for e in self.crate.get_entities()
-            if e.type == "File" and e.get("@id") not in non_input_files
+            for e in self.request_package.get_file_entities()
+            if e.get("@id") not in non_input_files
         ]
 
     def _invoke_service(self, oscar_url, service_name, files):

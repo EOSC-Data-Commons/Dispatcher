@@ -24,8 +24,8 @@ class VREGalaxy(VRE):
 
     def _prepare_workflow_data(self):
         """Prepare the workflow data for the API request."""
-        files = self._get_workflow_files()
-        workflow_url = self._get_workflow_url()
+        files = self.request_package.get_file_entities()
+        workflow_url = self.request_package.get_workflow_url()
 
         return {
             "public": GALAXY_PUBLIC_DEFAULT,
@@ -34,41 +34,24 @@ class VREGalaxy(VRE):
             "workflow_target_type": GALAXY_WORKFLOW_TARGET_TYPE,
         }
 
-    def _get_workflow_files(self):
-        """Extract file entities from the crate."""
-        return [e for e in self.crate.get_entities() if e.type == "File"]
-
-    def _get_workflow_url(self):
-        """Extract workflow URL from the crate."""
-        workflow_url = self.crate.mainEntity.get("url")
-        if workflow_url is None:
-            # checked here, as some other vres might be actual files
-            logging.error(f"{self.__class__.__name__}: Missing url in workflow entity")
-            raise exceptions.WorkflowURLError("Missing url in workflow entity")
-        return workflow_url
-
     def _modify_for_api_data_input(self, files):
-        """Convert file entities to API-compatible format."""
+        """Convert file entities to API-compatible format.
+
+        Uses RequestPackage to extract file info and builds the Galaxy API format.
+
+        Args:
+            files: List of file entities from the crate.
+
+        Returns:
+            Dict mapping file names to their metadata for Galaxy API.
+        """
         result = {}
-        for f in files:
-            properties = f.properties()
-
-            file_meta = {
+        for name, file_type, location in self.request_package.extract_file_info(files):
+            result[name] = {
                 "class": "File",
-                "filetype": properties["encodingFormat"].split("/")[-1],
+                "filetype": file_type.split("/")[-1] if file_type else "",
+                "location": location,
             }
-
-            if "onedata:fileId" in properties:
-                oz_domain = properties["onedata:onezoneDomain"]
-                file_id = properties["onedata:fileId"]
-                file_meta["location"] = (
-                    f"https://{oz_domain}/api/v3/onezone/shares/data/{file_id}/content"
-                )
-            else:
-                file_meta["location"] = f["url"]
-
-            result[properties["name"]] = file_meta
-
         return result
 
     def _send_workflow_request(self, data):
@@ -114,3 +97,4 @@ class VREGalaxy(VRE):
 
 
 vre_factory.register(GALAXY_PROGRAMMING_LANGUAGE, VREGalaxy)
+
