@@ -41,7 +41,10 @@
         "@id": "https://w3id.org/workflowhub/workflow-ro-crate#galaxy"
       },
       "encodingFormat": "application/json",
-      "contentUrl": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/PLAIN_GALAXY/descriptor//Galaxy-Workflow-reverse_file_galaxy_workflow.ga"
+      "contentUrl": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/PLAIN_GALAXY/descriptor//Galaxy-Workflow-reverse_file_galaxy_workflow.ga",
+      "softwareRequirements": {
+        "@id": "#destination"
+      }
     },
     {
       "@id": "inputs/example.txt",
