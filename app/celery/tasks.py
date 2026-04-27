@@ -1,21 +1,35 @@
-from .worker import celery
-from app.vres.base_vre import vre_factory
-from rocrate.rocrate import ROCrate
-from fastapi import UploadFile
-from app.exceptions import GalaxyAPIError
+"""Celery tasks for VRE processing.
+
+This module defines asynchronous tasks for creating VRE instances from
+ROCrate data, either from ZIP files or direct metadata.
+"""
+
 from typing import Dict
-import copy
+
+from .worker import celery
+from app.domain.rocrate import ROCrateFactory
+from app.exceptions import GalaxyAPIError
+from app.vres.base_vre import vre_factory
 
 
-@celery.task(
-    name="vre_from_zipfile",
-    bind=True,
-)
-def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
-    crate = ROCrate(source=copy.deepcopy(parsed_zipfile[0]))
+@celery.task(name="vre_from_zipfile", bind=True)
+def vre_from_zipfile(
+    self, parsed_zipfile: tuple[Dict, bytes], token: str
+) -> Dict[str, str]:
+    """Create a VRE from a parsed ZIP file containing a ROCrate.
+
+    Args:
+        parsed_zipfile: Tuple of (metadata_dict, zip_file_bytes).
+        token: Authentication token for the VRE.
+
+    Returns:
+        Dictionary containing the result URL.
+    """
+    package = ROCrateFactory.create_from_source(parsed_zipfile[0])
     zip_file = parsed_zipfile[1]
+
     vre_handler = vre_factory(
-        crate=crate,
+        request_package=package,
         token=token,
         request_id=self.request.id,
         update_state=self.update_state,
@@ -31,10 +45,20 @@ def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
     max_retries=3,
     bind=True,
 )
-def vre_from_rocrate(self, data: Dict, token):
-    crate = ROCrate(source=copy.deepcopy(data))
+def vre_from_rocrate(self, data: Dict, token: str) -> Dict[str, str]:
+    """Create a VRE from ROCrate metadata dictionary.
+
+    Args:
+        data: ROCrate metadata as a dictionary.
+        token: Authentication token for the VRE.
+
+    Returns:
+        Dictionary containing the result URL.
+    """
+    package = ROCrateFactory.create_from_dict(data)
+
     vre_handler = vre_factory(
-        crate=crate,
+        request_package=package,
         token=token,
         request_id=self.request.id,
         update_state=self.update_state,

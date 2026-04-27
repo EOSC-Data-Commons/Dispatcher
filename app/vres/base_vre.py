@@ -5,7 +5,7 @@ from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 from app.exceptions import VREError, VREConfigurationError
 import logging
 import app.constants as constants
-from .request_package import RequestPackage
+from app.domain.rocrate import RequestPackage, ServiceConfig
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -22,9 +22,15 @@ class IMClientProtocol(Protocol):
 
 
 class VRE(ABC):
+    """Base class for all VRE implementations.
+
+    This class requires a RequestPackage instance, which provides strict
+    abstraction over ROCrate. VREs should never receive raw ROCrate instances.
+    """
+
     def __init__(
         self,
-        crate: Any,
+        request_package: RequestPackage,
         token: str,
         request_id: int,
         update_state: Callable,
@@ -32,54 +38,75 @@ class VRE(ABC):
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
         **kwargs,
     ) -> None:
-        self.request_package = RequestPackage(crate)
+        # Strict type checking - must be RequestPackage
+        if not isinstance(request_package, RequestPackage):
+            raise TypeError(
+                f"VRE expects RequestPackage instance, got {type(request_package).__name__}. "
+                "Use ROCrateFactory.create_from_dict() to create a RequestPackage."
+            )
+
+        self.request_package = request_package
         self.body = body
         self.token = token
         self._update_state = update_state
         self._request_id = request_id
         self._im_factory = im_factory or self._default_im_factory
         self.svc_url = self.setup_service().rstrip("/")
+
         # Store any additional kwargs for subclasses
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     @abstractmethod
     def get_default_service(self) -> str:
+        """Return the default service URL for this VRE."""
         pass
 
-    def setup_service(self):
-        dest = self.request_package.get_runs_on_service()
-        return self._resolve_runs_on(dest)
+    def setup_service(self) -> str:
+        """Set up the service by resolving runsOn configuration.
 
-    def _resolve_runs_on(self, dest: Mapping[str, Any] | None) -> str:
-        if dest is None:
+        Uses the ServiceConfig value object from RequestPackage.
+        """
+        service_config = self.request_package.get_service_config()
+
+        if service_config is None:
             return self.get_default_service()
 
-        # No explicit service type – the dict is expected to contain a direct URL.
-        if dest.get("serviceType") is None:
-            return dest.get("url", self.get_default_service())
+        # No explicit service type – use the URL directly
+        if service_config.service_type is None:
+            return service_config.url or self.get_default_service()
 
-        # Infrastructure Manager case – delegate to the injected client.
-        if dest.get("serviceType") == "InfrastructureManager":
-            im_client = self._im_factory(self.token)  # type: ignore[arg-type]
+        # Infrastructure Manager case
+        if service_config.service_type == "InfrastructureManager":
+            im_client = self._im_factory(self.token)
             if not isinstance(im_client, IMClientProtocol):
                 raise TypeError(
                     "Injected IM factory must return an object implementing IMClientProtocol"
                 )
             self.update_task_status(constants.IM_SEQUENCE_STARTED)
+
+            # Convert ServiceConfig to mapping for IM client
+            dest: Mapping[str, Any] = {
+                "url": service_config.url,
+                "serviceType": service_config.service_type,
+                "memoryRequirements": service_config.memory_requirements,
+                "processorRequirements": service_config.processor_requirements,
+                "storageRequirements": service_config.storage_requirements,
+            }
             outputs = im_client.run_service(dest)
             self.update_task_status(constants.IM_SEQUENCE_FINISHED)
+            self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
+
             if outputs is None:
                 raise VREConfigurationError("Failed to deploy service via IM")
-            self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
             return outputs.get("url", self.get_default_service())
 
-        # Anything else is an error.
         raise VREConfigurationError(
-            f"Invalid service type in runsOn: {dest.get('serviceType')!r}"
+            f"Invalid service type in runsOn: {service_config.service_type!r}"
         )
 
-    def update_task_status(self, stage):
+    def update_task_status(self, stage: str) -> None:
+        """Update the task status with the given stage."""
         self._update_state(state="PROGRESS", meta={"stage": stage})
 
     @staticmethod
@@ -87,11 +114,14 @@ class VRE(ABC):
         return IM(token)
 
     @abstractmethod
-    def post(self):
+    def post(self) -> str:
+        """Execute the VRE-specific workflow and return the result URL."""
         pass
 
 
 class VREFactory:
+    """Factory for creating VRE instances from RequestPackage."""
+
     instance = None
     table = {}
 
@@ -100,31 +130,53 @@ class VREFactory:
             cls.instance = super(VREFactory, cls).__new__(cls, *args, **kwargs)
         return cls.instance
 
-    def is_registered(self, vre_type):
+    def is_registered(self, vre_type: str) -> bool:
+        """Check if a VRE type is registered."""
         return vre_type in self.table
 
-    def register(self, vre_type, cls):
+    def register(self, vre_type: str, cls: type) -> None:
+        """Register a VRE class for a language identifier."""
         if self.is_registered(vre_type):
             raise ValueError(f"{vre_type} already registered")
         self.table[vre_type] = cls
 
     def __call__(
         self,
-        crate: Any,
+        request_package: RequestPackage,
         token: str,
         request_id: int,
         update_state: Callable,
         body: Any | None = None,
         **kwargs,
-    ):
-        elang = crate.mainEntity.get("programmingLanguage").get("identifier")
+    ) -> VRE:
+        """Create a VRE instance from a RequestPackage.
+
+        Args:
+            request_package: The RequestPackage containing the ROCrate data.
+            token: Authentication token.
+            request_id: Unique request identifier.
+            update_state: Callback for updating task state.
+            body: Optional request body (e.g., ZIP file content).
+            **kwargs: Additional keyword arguments passed to VRE constructor.
+
+        Returns:
+            An instantiated VRE.
+
+        Raises:
+            ValueError: If the language identifier is not registered.
+        """
+        # Get language identifier from the workflow info
+        workflow = request_package.get_workflow_info()
+        elang = workflow.language_identifier
+
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
-        logger.debug(f"crate {crate}")
-        logger.debug(f"elang {elang}")
-        logger.debug(self.table[elang])
+
+        logger.debug(f"Creating VRE for language: {elang}")
+        logger.debug(f"VRE class: {self.table[elang]}")
+
         return self.table[elang](
-            crate=crate,
+            request_package=request_package,
             token=token,
             request_id=request_id,
             update_state=update_state,
