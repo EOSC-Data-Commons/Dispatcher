@@ -1,6 +1,7 @@
 from .base_vre import VRE, vre_factory
 import requests
 import logging
+import uuid
 from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
@@ -35,6 +36,10 @@ class VREScienceMesh(VRE):
         owner = self.crate.get("#owner")
         sender = self.crate.get("#sender")
         destination = self.crate.get("#destination")
+        resid = self.crate.get("#identifier")
+        if resid is None:
+            # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
+            resid = str(uuid.uuid4())
         if destination is None:
             destination = {"url": self.svc_url}
 
@@ -43,18 +48,16 @@ class VREScienceMesh(VRE):
                 "Missing required entities (receiver, owner, sender, destination) for OCM share request"
             )
 
-        sender_userid = self._generate_userid(sender)
-
         # Create OCM share request JSON structure
         ocm_share_request = {
             "shareWith": receiver.get("userid"),
             "name": self.crate.name,
             "description": self.crate.description,
-            "providerId": "n/a",
-            "resourceId": "n/a",
+            "providerId": str(uuid.uuid4()),   # must be unique for each share
+            "resourceId": resid,
             "owner": owner.get("userid"),
             "senderDisplayName": sender.get("name"),
-            "sender": sender_userid,
+            "sender": self._generate_ocm_address(sender),
             "resourceType": "embedded",
             "shareType": "user",
             "protocol": {
@@ -64,13 +67,13 @@ class VREScienceMesh(VRE):
         }
         return ocm_share_request
 
-    def _generate_userid(self, sender):
-        # The sender user ID needs to be altered to match the dispatcher's public FQDN
-        # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@<dispatcher public FQDN>
+    def _generate_ocm_address(self, sender):
+        # Generate an OCM address out of the sender user ID, that is ensure the host matches the dispatcher's public FQDN
+        # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@egi.eu@<dispatcher's public FQDN>
         sender_userid = sender.get("userid")
-        if sender_userid and "@" in sender_userid:
-            sender_userid = sender_userid.split("@")[0] + "@" + settings.host
-        return sender_userid
+        if not sender_userid:
+            sender_userid = "eosc-dc-user"
+        return sender_userid + "@" + settings.host
 
 
 vre_factory.register(SCIENCEMESH_PROGRAMMING_LANGUAGE, VREScienceMesh)
