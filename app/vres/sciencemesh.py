@@ -4,6 +4,7 @@ This module implements the ScienceMesh OCM sharing VRE, which creates
 shares in the ScienceMesh federation using Open Cloud Mesh protocol.
 """
 
+import logging
 from typing import Any, Dict
 
 import requests
