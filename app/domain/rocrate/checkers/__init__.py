@@ -6,6 +6,15 @@ utility functions for accessing them.
 
 from typing import Dict, Type
 
+from app.constants import (
+    GALAXY_PROGRAMMING_LANGUAGE,
+    JUPYTER_PROGRAMMING_LANGUAGE,
+    BINDER_PROGRAMMING_LANGUAGE,
+    OSCAR_PROGRAMMING_LANGUAGE,
+    SCIENCEMESH_PROGRAMMING_LANGUAGE,
+    SCIPION_PROGRAMMING_LANGUAGE,
+)
+
 from .base import BaseChecker
 
 # Checker classes will be imported lazily to avoid circular imports
@@ -56,14 +65,14 @@ def get_checker_by_vre_type(vre_type: str) -> BaseChecker:
     Raises:
         ValueError: If the VRE type is not recognized.
     """
-    # Map VRE type names to language identifiers
+    # Map VRE type names to language identifiers using constants
     vre_type_map = {
-        "galaxy": "https://galaxyproject.org/",
-        "jupyter": "https://jupyter.org",
-        "binder": "https://jupyter.org/binder/",
-        "oscar": "https://oscar.grycap.net/",
-        "sciencemesh": "https://qa.cernbox.cern.ch",
-        "scipion": "http://scipion.i2pc.es/",
+        "galaxy": GALAXY_PROGRAMMING_LANGUAGE,
+        "jupyter": JUPYTER_PROGRAMMING_LANGUAGE,
+        "binder": BINDER_PROGRAMMING_LANGUAGE,
+        "oscar": OSCAR_PROGRAMMING_LANGUAGE,
+        "sciencemesh": SCIENCEMESH_PROGRAMMING_LANGUAGE,
+        "scipion": SCIPION_PROGRAMMING_LANGUAGE,
     }
     lang_id = vre_type_map.get(vre_type.lower())
     if lang_id is None:
@@ -93,3 +102,25 @@ def get_all_requirements() -> Dict[str, dict]:
         lang_id: checker.get_requirements()
         for lang_id, checker in get_all_checkers().items()
     }
+
+
+# Lazy imports of checker implementations to avoid circular dependencies
+def _load_checkers() -> None:
+    """Lazy load all checker implementations and register them."""
+    from .galaxy import GalaxyChecker
+    from .jupyter import JupyterChecker
+    from .oscar import OSCARChecker
+    from .binder import BinderChecker
+    from .sciencemesh import ScienceMeshChecker
+    from .scipion import ScipionChecker
+
+    register_checker(GALAXY_PROGRAMMING_LANGUAGE, GalaxyChecker)
+    register_checker(JUPYTER_PROGRAMMING_LANGUAGE, JupyterChecker)
+    register_checker(BINDER_PROGRAMMING_LANGUAGE, BinderChecker)
+    register_checker(OSCAR_PROGRAMMING_LANGUAGE, OSCARChecker)
+    register_checker(SCIENCEMESH_PROGRAMMING_LANGUAGE, ScienceMeshChecker)
+    register_checker(SCIPION_PROGRAMMING_LANGUAGE, ScipionChecker)
+
+
+# Pre-register checkers on module import
+_load_checkers()
