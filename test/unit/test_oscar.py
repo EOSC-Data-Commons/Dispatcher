@@ -6,6 +6,7 @@ import os
 import pytest
 from unittest.mock import MagicMock, patch
 from rocrate.rocrate import ROCrate
+from app.constants import OSCAR_DEFAULT_SERVICE
 from app.vres.oscar import VREOSCAR
 from app.exceptions import VREConfigurationError, ExternalServiceError
 
@@ -54,12 +55,11 @@ fi"""
     mock_post.return_value.status_code = 201
 
     result = vreoscar.post()
-    assert result == "https://oscar.vre.eosc-data-commons.eu/system/services/cowsay"
+    assert result == f"{OSCAR_DEFAULT_SERVICE}/system/services/cowsay"
     assert mock_post.call_count == 2
 
     assert (
-        mock_post.call_args_list[0][0][0]
-        == "https://oscar.vre.eosc-data-commons.eu/system/services"
+        mock_post.call_args_list[0][0][0] == f"{OSCAR_DEFAULT_SERVICE}/system/services"
     )
     fdl["script"] = script_content
     assert mock_post.call_args_list[0][1]["json"] == fdl
@@ -68,10 +68,7 @@ fi"""
         "Content-Type": "application/json",
     }
 
-    assert (
-        mock_post.call_args_list[1][0][0]
-        == "https://oscar.vre.eosc-data-commons.eu/job/cowsay"
-    )
+    assert mock_post.call_args_list[1][0][0] == f"{OSCAR_DEFAULT_SERVICE}/job/cowsay"
     assert mock_post.call_args_list[1][1]["data"] == base64.b64encode(
         b"input file content"
     )
@@ -84,7 +81,7 @@ fi"""
     assert mock_delete.call_count == 1
     assert (
         mock_delete.call_args_list[0][0][0]
-        == "https://oscar.vre.eosc-data-commons.eu/system/services/cowsay"
+        == f"{OSCAR_DEFAULT_SERVICE}/system/services/cowsay"
     )
 
 
