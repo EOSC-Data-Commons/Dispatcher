@@ -28,6 +28,7 @@ class VREJupyter(VRE):
     def post(self):
         user_name = self._get_username()
         self._start_jupyter_server(user_name)
+        self.update_task_status("Jupyter server starting")
         api_token = self._create_api_token(user_name)
         notebook_name, notebook_content = self._get_notebook_from_zipfile()
         self._wait_for_server_creation()
@@ -45,11 +46,11 @@ class VREJupyter(VRE):
 
     def _get_userinfo(self):
         userinfo_url = f"{self.get_default_service()}/services/jwt/user"
-        userinfo = requests.get(
+        response = requests.get(
             userinfo_url, headers=self._get_headers("Bearer", self.token)
-        ).json()
-
-        return userinfo
+        )
+        response.raise_for_status()
+        return response.json()
 
     def _start_jupyter_server(self, user_name):
         url = f"{self.get_default_service()}/services/jwt/users/{user_name}/servers/"
