@@ -5,6 +5,7 @@ import time
 import yaml
 from imclient import IMClient
 from app.config import settings
+from app.exceptions import IMError
 
 logging.basicConfig(level=logging.INFO)
 
@@ -248,18 +249,20 @@ class IM:
         return tosca_template
 
     def deploy_service(self, service: dict) -> str:
+        """Deploys the service using using the TOSCA from the service."""
         tosca_template = self._gen_tosca_template(service)
         success, inf_id = self.client.create(tosca_template, desc_type="yaml")
         if not success:
             logging.error(f"Failed to deploy service: {inf_id}")
-            raise Exception(f"Failed to deploy service: {inf_id}")
+            raise IMError(f"Failed to deploy service: {inf_id}")
         logging.info(f"Service deployed successfully with ID: {inf_id}")
         self.inf_id = inf_id
         return inf_id
 
     def wait_for_service(self) -> None:
+        """Waits for the service to be in 'configured' state, indicating it's ready."""
         if self.inf_id is None:
-            raise Exception("No service deployed yet.")
+            raise IMError("No service deployed yet.")
         logging.info(f"Waiting for service {self.inf_id} to be ready...")
 
         max_time = settings.im_max_time
@@ -273,7 +276,11 @@ class IM:
             and retries < settings.im_max_retries
             and wait < max_time
         ):
-            success, res = self.client.get_infra_property(self.inf_id, "state")
+            try:
+                success, res = self.client.get_infra_property(self.inf_id, "state")
+            except Exception as e:
+                logging.exception(f"Error getting infrastructure state: {e}")
+                success = False
 
             if success:
                 state = res["state"]
@@ -290,25 +297,33 @@ class IM:
 
         if state == "configured":
             logging.info(f"Service {self.inf_id} is ready.")
-        elif wait >= max_time:
-            raise TimeoutError("Timeout waiting for service to be ready.")
         else:
-            if state == "unconfigured":
+            msg = f"Service did not reach 'configured' state. Current state: {state}."
+            if wait >= max_time:
+                msg += "(Timeout)"
+            logging.error(msg)
+
+            try:
+                # Get deployment log for debugging
                 success, inflog = self.client.get_infra_property(self.inf_id, "contmsg")
-                if success:
-                    logging.debug(f"Deployment log: {inflog}")
-                else:
-                    logging.debug("Failed to get deployment log.")
-            raise Exception(
-                f"Service did not reach 'configured' state. Current state: {state}"
-            )
+                logging.debug(f"Deployment log: {inflog}")
+            except Exception as e:
+                logging.exception(f"Error getting deployment log: {e}")
+
+            try:
+                logging.debug("Destroying service after error.")
+                self.destroy_service()
+            except Exception:
+                logging.exception("Failed to destroy service after error")
+
+            raise IMError(msg)
 
     def get_service_outputs(self) -> str:
         if self.inf_id is None:
-            raise Exception("No service deployed yet.")
+            raise IMError("No service deployed yet.")
         success, res = self.client.get_infra_property(self.inf_id, "outputs")
         if not success:
-            raise Exception("Failed to get service outputs.")
+            raise IMError("Failed to get service outputs.")
         # Assuming the service URL is the only output
         return res
 
@@ -317,21 +332,11 @@ class IM:
             return
         success, res = self.client.destroy(self.inf_id)
         if not success:
-            raise Exception(f"Failed to destroy service: {res}")
+            raise IMError(f"Failed to destroy service: {res}")
         logging.info(f"Service {self.inf_id} destroyed successfully.")
         self.inf_id = None
 
     def run_service(self, service: dict) -> str:
-        try:
-            self.deploy_service(service)
-            self.wait_for_service()
-            return self.get_service_outputs()
-        except Exception as e:
-            try:
-                logging.error(f"Error during service deployment: {e}")
-                inflog = self.client.get_infra_property(self.inf_id, "contmsg")
-                logging.debug(f"Deployment log: {inflog}")
-                self.destroy_service()
-            except Exception:
-                logging.exception(f"Failed to destroy service after error")
-        return None
+        self.deploy_service(service)
+        self.wait_for_service()
+        return self.get_service_outputs()

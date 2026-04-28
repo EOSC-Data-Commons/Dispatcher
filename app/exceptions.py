@@ -69,3 +69,9 @@ class MissingOCMParameters(VREConfigurationError):
     """Raised when OCM share request misses required entities (receiver, owner, sender, destination)"""
 
     pass
+
+
+class IMError(Exception):
+    """Base exception for all IM-related errors"""
+
+    pass

@@ -1,7 +1,9 @@
 import pytest
 from unittest.mock import Mock, patch
+import requests
 import yaml
 from app.services.im import IM
+from app.exceptions import IMError
 
 
 @pytest.fixture
@@ -89,6 +91,26 @@ def test_deploy_service(mock_get_tosca, mock_add_inputs, mock_settings):
     mock_im_client.create.assert_called_once_with("modified_template", desc_type="yaml")
 
 
+@patch("app.services.im.IM._get_tosca_template", return_value="test_template")
+@patch(
+    "app.services.im.IM._add_inputs_to_tosca_template", return_value="modified_template"
+)
+def test_deploy_service_error_raises_imerror(
+    mock_get_tosca, mock_add_inputs, mock_settings
+):
+    mock_im_client = Mock()
+    mock_im_client.create.return_value = (False, "create error")
+    im = IM("test_token")
+    im.client = mock_im_client
+
+    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+
+    with pytest.raises(IMError, match="Failed to deploy service: create error"):
+        im.deploy_service(service)
+
+    mock_im_client.create.assert_called_once_with("modified_template", desc_type="yaml")
+
+
 def test_wait_for_service_success(mock_settings):
     mock_client = Mock()
     mock_client.get_infra_property.return_value = (True, {"state": "configured"})
@@ -99,6 +121,39 @@ def test_wait_for_service_success(mock_settings):
     im.wait_for_service()
 
     mock_client.get_infra_property.assert_called_with("test_inf_id", "state")
+
+
+def test_wait_for_service_without_deployment_raises_imerror(mock_settings):
+    im = IM("test_token")
+    im.inf_id = None
+
+    with pytest.raises(IMError, match="No service deployed yet"):
+        im.wait_for_service()
+
+
+def test_wait_for_service_error_gets_log_and_destroys(mock_settings):
+    mock_settings.im_max_time = 10
+    mock_settings.im_max_retries = 1
+    mock_settings.im_sleep = 0
+
+    mock_client = Mock()
+    mock_client.get_infra_property.side_effect = [
+        (True, {"state": "failed"}),
+        (True, "deployment failed log"),
+    ]
+    mock_client.destroy.return_value = (True, "Success")
+
+    im = IM("test_token")
+    im.client = mock_client
+    im.inf_id = "test_inf_id"
+
+    with pytest.raises(IMError, match="Current state: failed"):
+        im.wait_for_service()
+
+    mock_client.get_infra_property.assert_any_call("test_inf_id", "state")
+    mock_client.get_infra_property.assert_any_call("test_inf_id", "contmsg")
+    mock_client.destroy.assert_called_once_with("test_inf_id")
+    assert im.inf_id is None
 
 
 def test_destroy_service(mock_settings):
@@ -148,6 +203,36 @@ def test_run_service(mock_add_inputs, mock_get_tosca, mock_settings):
     log = im.run_service(service)
     assert log == {"outputs": {"url": "http://some.url"}}
     mock_im_client.create.assert_called_once_with("modified_template", desc_type="yaml")
+
+
+@patch("app.services.im.IM._get_tosca_template", return_value="test_template")
+@patch(
+    "app.services.im.IM._add_inputs_to_tosca_template", return_value="modified_template"
+)
+def test_run_service_error_cleans_up_and_raises(
+    mock_add_inputs, mock_get_tosca, mock_settings
+):
+    mock_settings.im_max_time = 10
+    mock_settings.im_max_retries = 1
+    mock_settings.im_sleep = 0
+
+    im = IM("test_token")
+    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+
+    mock_im_client = Mock()
+    mock_im_client.create.return_value = (True, "test_inf_id")
+    mock_im_client.get_infra_property.side_effect = [
+        (True, {"state": "failed"}),
+        (True, "deployment failed log"),
+    ]
+    mock_im_client.destroy.return_value = (True, "Success")
+    im.client = mock_im_client
+
+    with pytest.raises(IMError, match="Current state: failed"):
+        im.run_service(service)
+
+    mock_im_client.get_infra_property.assert_any_call("test_inf_id", "contmsg")
+    mock_im_client.destroy.assert_called_once_with("test_inf_id")
 
 
 def test_add_input_files_to_tosca_template(mock_settings):
