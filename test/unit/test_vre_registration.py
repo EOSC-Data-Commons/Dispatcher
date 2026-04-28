@@ -1,75 +1,105 @@
-"""Test that all VRE implementations are registered in __init__.py."""
+"""Test that all VRE implementations are properly registered in __init__.py."""
+
+from __future__ import annotations
 
 import inspect
-import pkgutil
 from importlib import import_module
+from pathlib import Path
+from typing import Type
+
+import pytest
+
+from app.vres.base_vre import VRE, vre_factory
 
 
-def test_all_vre_classes_are_imported_in_init():
+def _get_vre_modules_path() -> Path:
+    """Return the path to the vres package directory."""
+    return Path(import_module("app.vres").__file__).parent
+
+
+def _discover_vre_classes() -> dict[str, Type[VRE]]:
     """
-    Verify that all VRE classes defined in app.vres modules are imported in __init__.py.
+    Discover all concrete VRE implementations in the vres package.
 
-    This test ensures that when new VRE implementations are added, they are properly
-    exported from the package's __init__.py file, which also triggers their factory
-    registration (since each VRE module calls vre_factory.register() on import).
+    Returns:
+        A mapping of class name to VRE subclass, excluding the base VRE class.
     """
-    # Import the vres package and its __init__
-    vres_package = import_module("app.vres")
-    vres_init = import_module("app.vres.__init__")
-    from app.vres.base_vre import VRE, vre_factory
+    vres_classes: dict[str, Type[VRE]] = {}
+    vres_path = _get_vre_modules_path()
 
-    # Get all VRE classes defined in the vres package (excluding base_vre)
-    expected_vre_classes = {}  # name -> class
+    for module_file in vres_path.glob("*.py"):
+        module_name = module_file.stem
 
-    # Walk through all modules in the vres package
-    vres_path = vres_package.__path__
-    for _, module_name, _ in pkgutil.iter_modules(vres_path):
-        # Skip base_vre as it contains the abstract base class
-        if module_name == "base_vre":
+        # Skip base module and private modules
+        if module_name in ("base_vre", "__init__"):
             continue
 
-        # Import the module
         module = import_module(f"app.vres.{module_name}")
 
-        # Find all classes that inherit from VRE and are not the base VRE class
         for name, obj in inspect.getmembers(module, inspect.isclass):
-            # Check if it's defined in this module (not imported)
-            if obj.__module__ == f"app.vres.{module_name}":
-                if issubclass(obj, VRE) and obj is not VRE:
-                    expected_vre_classes[name] = obj
+            # Only include classes defined in this specific module
+            if obj.__module__ != f"app.vres.{module_name}":
+                continue
 
-    # Get all VRE classes exported from __init__.py
-    actual_exports = {}
-    for name, obj in inspect.getmembers(vres_init):
-        if not name.startswith("_") and inspect.isclass(obj):
+            # Include only concrete VRE subclasses
             if issubclass(obj, VRE) and obj is not VRE:
-                actual_exports[name] = obj
+                vres_classes[name] = obj
 
-    # Check that all expected VRE classes are exported
-    missing_classes = set(expected_vre_classes.keys()) - set(actual_exports.keys())
+    return vres_classes
 
-    assert not missing_classes, (
-        f"The following VRE classes are defined but not imported in app.vres.__init__: "
-        f"{sorted(missing_classes)}"
+
+def _get_init_exports() -> dict[str, Type[VRE]]:
+    """
+    Get all VRE classes exported from the vres __init__.py.
+
+    Returns:
+        A mapping of exported name to VRE class.
+    """
+    vres_init = import_module("app.vres.__init__")
+    exports: dict[str, Type[VRE]] = {}
+
+    for name, obj in inspect.getmembers(vres_init, inspect.isclass):
+        if name.startswith("_"):
+            continue
+        if issubclass(obj, VRE) and obj is not VRE:
+            exports[name] = obj
+
+    return exports
+
+
+def test_all_vre_implementations_imported_in_init():
+    """
+    Verify all VRE implementations are imported in app/vres/__init__.py.
+
+    This ensures new VRE classes are properly exposed at the package level
+    and automatically registered with the factory (via module-level registration).
+
+    Fails if a VRE implementation exists but isn't imported in __init__.py.
+    """
+    expected = _discover_vre_classes()
+    actual = _get_init_exports()
+
+    missing = expected.keys() - actual.keys()
+
+    assert not missing, (
+        f"VRE implementations found but not imported in __init__.py: {sorted(missing)}\n\n"
+        "To fix, add import statements like:\n"
+        f"    from .<module> import {', '.join(sorted(missing))}"
     )
 
-    # Check for unexpected exports
-    extra_classes = set(actual_exports.keys()) - set(expected_vre_classes.keys())
 
-    assert not extra_classes, (
-        f"The following classes are exported in __init__.py but are not VRE implementations: "
-        f"{sorted(extra_classes)}"
-    )
+def test_all_init_exports_are_registered_in_factory():
+    """
+    Verify all exported VRE classes are registered with vre_factory.
 
-    # Verify factory has all expected registrations
-    registered_classes = set(vre_factory.table.values())
-    unregistered = [
-        name
-        for name, cls in expected_vre_classes.items()
-        if cls not in registered_classes
-    ]
+    Each VRE module should call vre_factory.register() at module level.
+    This test catches cases where a VRE is imported but not registered.
+    """
+    exports = _get_init_exports()
+    registered = set(vre_factory.table.values())
 
-    assert not unregistered, (
-        f"The following VRE classes are imported in __init__.py but not registered "
-        f"in vre_factory: {unregistered}"
-    )
+    unregistered = [name for name, cls in exports.items() if cls not in registered]
+
+    assert (
+        not unregistered
+    ), f"VRE classes imported but not registered in vre_factory: {unregistered}"
