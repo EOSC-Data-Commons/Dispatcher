@@ -69,3 +69,9 @@ class MissingOCMParameters(VREConfigurationError):
     """Raised when OCM share request misses required entities (receiver, owner, sender, destination)"""
 
     pass
+
+
+class VREAuthenticationError(VREError):
+    """Raised when authentication with VRE service fails"""
+
+    pass
