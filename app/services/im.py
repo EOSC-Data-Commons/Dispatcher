@@ -306,7 +306,10 @@ class IM:
             try:
                 # Get deployment log for debugging
                 success, inflog = self.client.get_infra_property(self.inf_id, "contmsg")
-                logging.debug(f"Deployment log: {inflog}")
+                if success:
+                    logging.debug(f"Deployment log: {inflog}")
+                else:
+                    logging.error(f"Failed to get deployment log {inflog}.")
             except Exception as e:
                 logging.exception(f"Error getting deployment log: {e}")
 
