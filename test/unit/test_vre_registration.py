@@ -100,6 +100,4 @@ def test_all_init_exports_are_registered_in_factory():
 
     unregistered = [name for name, cls in exports.items() if cls not in registered]
 
-    assert (
-        not unregistered
-    ), f"VRE classes imported but not registered in vre_factory: {unregistered}"
+    assert not unregistered, f"VRE classes imported but not registered: {unregistered}"
