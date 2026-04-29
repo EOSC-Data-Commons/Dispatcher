@@ -23,6 +23,11 @@ def mock_settings():
         yield mock_settings
 
 
+def test_init_with_empty_token_raises_imerror():
+    with pytest.raises(IMError, match="Access token not provided for IM."):
+        IM("")
+
+
 def test_build_auth_config_openstack(mock_settings):
     im = IM("test_token")
     auth = im._build_auth_config("test_token")
