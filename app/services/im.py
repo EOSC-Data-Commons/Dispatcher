@@ -67,7 +67,9 @@ class IM:
                 ost_auth["password"] = access_token
             else:
                 if "password" not in settings.im_cloud_provider:
-                    raise IMError(f"Missing {key} field in the OpenStack configuration")
+                    raise IMError(
+                        f"Missing password field in the OpenStack configuration"
+                    )
                 ost_auth["password"] = settings.im_cloud_provider["password"]
             if "domain" in settings.im_cloud_provider:
                 ost_auth["domain"] = settings.im_cloud_provider["domain"]
