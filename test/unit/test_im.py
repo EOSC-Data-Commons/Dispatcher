@@ -69,18 +69,17 @@ topology_template:
         "storageRequirements": "20GB",
     }
 
-    result = IM._add_inputs_to_tosca_template(test_tosca, service)
-    result_dict = yaml.safe_load(result)
+    result = IM._add_inputs_to_tosca_template(yaml.safe_load(test_tosca), service)
 
-    assert result_dict["topology_template"]["inputs"]["mem_size"]["default"] == "2GB"
-    assert result_dict["topology_template"]["inputs"]["num_cpus"]["default"] == 2
-    assert result_dict["topology_template"]["inputs"]["num_gpus"]["default"] == 1
-    assert result_dict["topology_template"]["inputs"]["disk_size"]["default"] == "20GB"
+    assert result["topology_template"]["inputs"]["mem_size"]["default"] == "2GB"
+    assert result["topology_template"]["inputs"]["num_cpus"]["default"] == 2
+    assert result["topology_template"]["inputs"]["num_gpus"]["default"] == 1
+    assert result["topology_template"]["inputs"]["disk_size"]["default"] == "20GB"
 
 
-@patch("app.services.im.IM._get_tosca_template", return_value="test_template")
+@patch("app.services.im.IM._get_tosca_template", return_value={"test": "template"})
 @patch(
-    "app.services.im.IM._add_inputs_to_tosca_template", return_value="modified_template"
+    "app.services.im.IM._add_inputs_to_tosca_template", return_value={"new": "template"}
 )
 def test_deploy_service(mock_get_tosca, mock_add_inputs, mock_settings):
     mock_im_client = Mock()
@@ -93,12 +92,12 @@ def test_deploy_service(mock_get_tosca, mock_add_inputs, mock_settings):
     inf_id = im.deploy_service(service)
 
     assert inf_id == "test_inf_id"
-    mock_im_client.create.assert_called_once_with("modified_template", desc_type="yaml")
+    mock_im_client.create.assert_called_once_with("new: template\n", desc_type="yaml")
 
 
-@patch("app.services.im.IM._get_tosca_template", return_value="test_template")
+@patch("app.services.im.IM._get_tosca_template", return_value={"test": "template"})
 @patch(
-    "app.services.im.IM._add_inputs_to_tosca_template", return_value="modified_template"
+    "app.services.im.IM._add_inputs_to_tosca_template", return_value={"new": "template"}
 )
 def test_deploy_service_error_raises_imerror(
     mock_get_tosca, mock_add_inputs, mock_settings
@@ -113,7 +112,7 @@ def test_deploy_service_error_raises_imerror(
     with pytest.raises(IMError, match="Failed to deploy service: create error"):
         im.deploy_service(service)
 
-    mock_im_client.create.assert_called_once_with("modified_template", desc_type="yaml")
+    mock_im_client.create.assert_called_once_with("new: template\n", desc_type="yaml")
 
 
 def test_wait_for_service_success(mock_settings):
@@ -190,9 +189,9 @@ def test_get_tosca_template(mock_get, mock_settings):
     mock_get.assert_called_once_with(test_url, timeout=10)
 
 
-@patch("app.services.im.IM._get_tosca_template", return_value="test_template")
+@patch("app.services.im.IM._get_tosca_template", return_value={"test": "template"})
 @patch(
-    "app.services.im.IM._add_inputs_to_tosca_template", return_value="modified_template"
+    "app.services.im.IM._add_inputs_to_tosca_template", return_value={"new": "template"}
 )
 def test_run_service(mock_add_inputs, mock_get_tosca, mock_settings):
     im = IM("test_token")
@@ -207,12 +206,12 @@ def test_run_service(mock_add_inputs, mock_get_tosca, mock_settings):
     im.client = mock_im_client
     log = im.run_service(service)
     assert log == {"outputs": {"url": "http://some.url"}}
-    mock_im_client.create.assert_called_once_with("modified_template", desc_type="yaml")
+    mock_im_client.create.assert_called_once_with("new: template\n", desc_type="yaml")
 
 
-@patch("app.services.im.IM._get_tosca_template", return_value="test_template")
+@patch("app.services.im.IM._get_tosca_template", return_value={"test": "template"})
 @patch(
-    "app.services.im.IM._add_inputs_to_tosca_template", return_value="modified_template"
+    "app.services.im.IM._add_inputs_to_tosca_template", return_value={"new": "template"}
 )
 def test_run_service_error_cleans_up_and_raises(
     mock_add_inputs, mock_get_tosca, mock_settings
@@ -264,10 +263,7 @@ def test_add_input_files_to_tosca_template(mock_settings):
     }
 
     im = IM("test_token")
-    updated_tosca_str = im._add_files_to_tosca_template(
-        yaml.safe_dump(test_tosca), service
-    )
-    updated_tosca = yaml.safe_load(updated_tosca_str)
+    updated_tosca = im._add_files_to_tosca_template(test_tosca, service)
     node_templates = updated_tosca["topology_template"]["node_templates"]
     assert len(node_templates) == 3
     assert "get_data_0" in node_templates
