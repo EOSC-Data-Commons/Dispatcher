@@ -74,4 +74,8 @@ class MissingOCMParameters(VREConfigurationError):
 class IMError(Exception):
     """Base exception for all IM-related errors"""
 
+
+class VREAuthenticationError(VREError):
+    """Raised when authentication with VRE service fails"""
+
     pass

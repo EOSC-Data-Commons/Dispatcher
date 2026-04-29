@@ -39,7 +39,7 @@ def zip_rocrate(
     parsed_zipfile: (Dict, bytes) = Depends(parse_zipfile),
     request: Request = None,
 ):
-    task = vre_from_zipfile.apply_async(args=[parsed_zipfile, "placeholder"])
+    task = vre_from_zipfile.apply_async(args=[parsed_zipfile, ""])
     return JSONResponse({"task_id": task.id})
 
 
@@ -48,6 +48,6 @@ def metadata_rocrate(
     data: Dict = Depends(parse_rocrate),
     request: Request = None,
 ):
-    task = vre_from_rocrate.apply_async(args=[data, "placeholder"])
+    task = vre_from_rocrate.apply_async(args=[data, ""])
 
     return JSONResponse({"task_id": task.id})

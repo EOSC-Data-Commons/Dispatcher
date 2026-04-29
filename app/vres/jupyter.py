@@ -28,6 +28,7 @@ class VREJupyter(VRE):
     def post(self):
         user_name = self._get_username()
         self._start_jupyter_server(user_name)
+        self.update_task_status("Jupyter server starting")
         api_token = self._create_api_token(user_name)
         notebook_name, notebook_content = self._get_notebook_from_zipfile()
         self._wait_for_server_creation()
@@ -37,15 +38,19 @@ class VREJupyter(VRE):
     def _get_username(self):
         userinfo = self._get_userinfo()
         user_name = userinfo.get("name")
+        if not user_name:
+            raise exceptions.VREAuthenticationError(
+                "Username not found in userinfo response"
+            )
         return user_name
 
     def _get_userinfo(self):
         userinfo_url = f"{self.get_default_service()}/services/jwt/user"
-        userinfo = requests.get(
+        response = requests.get(
             userinfo_url, headers=self._get_headers("Bearer", self.token)
-        ).json()
-
-        return userinfo
+        )
+        response.raise_for_status()
+        return response.json()
 
     def _start_jupyter_server(self, user_name):
         url = f"{self.get_default_service()}/services/jwt/users/{user_name}/servers/"
@@ -65,11 +70,11 @@ class VREJupyter(VRE):
             print(token_data)
             api_token = token_data.get("token")
             if not api_token:
-                raise exceptions.ServiceError("Token not found in response")
+                raise exceptions.InvalidResponseError("Token not found in response")
             return api_token
         except requests.RequestException as e:
             logging.error(f"Failed to create API token: {e}")
-            raise exceptions.ServiceError(f"Token creation failed: {e}")
+            raise exceptions.ExternalServiceError(f"Token creation failed: {e}")
 
     def _get_notebook_from_zipfile(self):
         copied_file_name = ""
