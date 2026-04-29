@@ -35,6 +35,8 @@ class IM:
     }
 
     def __init__(self, access_token: str):
+        if not access_token:
+            raise IMError("Access token not provided for IM.")
         auth = self._build_auth_config(access_token)
 
         im_endpoint = settings.im_endpoint
@@ -46,14 +48,14 @@ class IM:
         """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
         if not settings.im_cloud_provider.get("type"):
-            raise ValueError(
+            raise IMError(
                 "Cloud provider type is not specified in the configuration."
             )
 
         if settings.im_cloud_provider["type"].lower() == "openstack":
             for key in ["host", "username", "auth_version", "tenant"]:
                 if key not in settings.im_cloud_provider:
-                    raise ValueError(
+                    raise IMError(
                         f"Missing {key} field in the OpenStack configuration"
                     )
             ost_auth = {
@@ -68,7 +70,7 @@ class IM:
                 ost_auth["password"] = access_token
             else:
                 if "password" not in settings.im_cloud_provider:
-                    raise ValueError(
+                    raise IMError(
                         f"Missing {key} field in the OpenStack configuration"
                     )
                 ost_auth["password"] = settings.im_cloud_provider["password"]
@@ -80,7 +82,7 @@ class IM:
         elif settings.im_cloud_provider["type"].lower() == "egi":
             for key in ["VO", "site"]:
                 if key not in settings.im_cloud_provider:
-                    raise ValueError(f"Missing {key} field in the EGI configuration")
+                    raise IMError(f"Missing {key} field in the EGI configuration")
             auth.append(
                 {
                     "id": "eodcegicloud",
@@ -91,7 +93,7 @@ class IM:
                 }
             )
         else:
-            raise ValueError(
+            raise IMError(
                 f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}"
             )
         return auth
@@ -104,7 +106,7 @@ class IM:
             return response.text
         except requests.RequestException:
             logging.exception(f"Error fetching TOSCA template from {url}")
-            raise Exception(f"Failed to fetch TOSCA template from: {url}")
+            raise IMError(f"Failed to fetch TOSCA template from: {url}")
 
     @staticmethod
     def _update_input_default(inputs, key, value):
