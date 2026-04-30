@@ -160,6 +160,40 @@ def test_wait_for_service_error_gets_log_and_destroys(mock_settings):
     assert im.inf_id is None
 
 
+def test_wait_for_service_retries_state_errors_until_max_retries(mock_settings):
+    mock_settings.im_max_time = 100
+    mock_settings.im_max_retries = 3
+    mock_settings.im_sleep = 0
+
+    def mock_get_infra_property(_inf_id, prop):
+        if prop == "state":
+            raise Exception("state retrieval error")
+        if prop == "contmsg":
+            return True, "deployment log"
+        return False, None
+
+    mock_client = Mock()
+    mock_client.get_infra_property.side_effect = mock_get_infra_property
+    mock_client.destroy.return_value = (True, "Success")
+
+    im = IM("test_token")
+    im.client = mock_client
+    im.inf_id = "test_inf_id"
+
+    with pytest.raises(IMError, match="Current state: unknown"):
+        im.wait_for_service()
+
+    state_calls = [
+        call
+        for call in mock_client.get_infra_property.call_args_list
+        if call.args == ("test_inf_id", "state")
+    ]
+    assert len(state_calls) == mock_settings.im_max_retries
+    mock_client.get_infra_property.assert_any_call("test_inf_id", "contmsg")
+    mock_client.destroy.assert_called_once_with("test_inf_id")
+    assert im.inf_id is None
+
+
 def test_destroy_service(mock_settings):
     mock_client = Mock()
     mock_client.destroy.return_value = (True, "Success")
