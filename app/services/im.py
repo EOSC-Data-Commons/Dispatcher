@@ -3,8 +3,10 @@ import requests
 import copy
 import time
 import yaml
+from typing import Any, Mapping
 from imclient import IMClient
 from app.config import settings
+from app.exceptions import IMError
 
 logging.basicConfig(level=logging.INFO)
 
@@ -33,7 +35,9 @@ class IM:
         "requirements": [{"host": "simple_node"}],
     }
 
-    def __init__(self, access_token: str):
+    def __init__(self, access_token: str | None):
+        if not access_token:
+            raise IMError("Access token not provided for IM.")
         auth = self._build_auth_config(access_token)
 
         im_endpoint = settings.im_endpoint
@@ -45,16 +49,12 @@ class IM:
         """Build authentication configuration based on deployment type."""
         auth = [{"type": "InfrastructureManager", "token": access_token}]
         if not settings.im_cloud_provider.get("type"):
-            raise ValueError(
-                "Cloud provider type is not specified in the configuration."
-            )
+            raise IMError("Cloud provider type is not specified in the configuration.")
 
         if settings.im_cloud_provider["type"].lower() == "openstack":
             for key in ["host", "username", "auth_version", "tenant"]:
                 if key not in settings.im_cloud_provider:
-                    raise ValueError(
-                        f"Missing {key} field in the OpenStack configuration"
-                    )
+                    raise IMError(f"Missing {key} field in the OpenStack configuration")
             ost_auth = {
                 "id": "eodcostcloud",
                 "type": "OpenStack",
@@ -67,8 +67,8 @@ class IM:
                 ost_auth["password"] = access_token
             else:
                 if "password" not in settings.im_cloud_provider:
-                    raise ValueError(
-                        f"Missing {key} field in the OpenStack configuration"
+                    raise IMError(
+                        f"Missing password field in the OpenStack configuration"
                     )
                 ost_auth["password"] = settings.im_cloud_provider["password"]
             if "domain" in settings.im_cloud_provider:
@@ -79,7 +79,7 @@ class IM:
         elif settings.im_cloud_provider["type"].lower() == "egi":
             for key in ["VO", "site"]:
                 if key not in settings.im_cloud_provider:
-                    raise ValueError(f"Missing {key} field in the EGI configuration")
+                    raise IMError(f"Missing {key} field in the EGI configuration")
             auth.append(
                 {
                     "id": "eodcegicloud",
@@ -90,23 +90,23 @@ class IM:
                 }
             )
         else:
-            raise ValueError(
+            raise IMError(
                 f"Unsupported cloud provider type: {settings.im_cloud_provider['type']}"
             )
         return auth
 
     @staticmethod
-    def _get_tosca_template(url: str) -> str:
+    def _get_tosca_template(url: str) -> dict:
         try:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
-            return response.text
+            return yaml.safe_load(response.text)
         except requests.RequestException:
             logging.exception(f"Error fetching TOSCA template from {url}")
-            raise Exception(f"Failed to fetch TOSCA template from: {url}")
+            raise IMError(f"Failed to fetch TOSCA template from: {url}")
 
     @staticmethod
-    def _update_input_default(inputs, key, value):
+    def _update_input_default(inputs: dict, key: str, value: Any) -> None:
         if value:
             if inputs.get(key, {}).get("default") is not None:
                 inputs[key]["default"] = value
@@ -114,11 +114,12 @@ class IM:
                 logging.warning(f"The TOSCA template does not define '{key}' input.")
 
     @staticmethod
-    def _add_inputs_to_tosca_template(tosca_template: str, service: dict) -> str:
+    def _add_inputs_to_tosca_template(
+        tosca_template: dict, service: Mapping[str, Any]
+    ) -> dict:
         memory = service.get("memoryRequirements")
         cpus = service.get("processorRequirements")
         storage = service.get("storageRequirements")
-        tosca_dict = yaml.safe_load(tosca_template)
         num_cpus = 1  # Default value
         num_gpus = 0  # Default value
         if isinstance(cpus, str) and "vCPU" in cpus:
@@ -130,13 +131,13 @@ class IM:
                 if "GPU" in cpu:
                     num_gpus = int(cpu.replace("GPU", "").strip())
 
-        inputs = tosca_dict["topology_template"]["inputs"]
+        inputs = tosca_template["topology_template"]["inputs"]
         IM._update_input_default(inputs, "mem_size", memory)
         IM._update_input_default(inputs, "num_gpus", num_gpus)
         IM._update_input_default(inputs, "num_cpus", num_cpus)
         IM._update_input_default(inputs, "disk_size", storage)
 
-        return yaml.dump(tosca_dict)
+        return tosca_template
 
     def _get_compute_nodes(self, tosca_dict: dict) -> dict:
         """Extracts compute nodes from the TOSCA template."""
@@ -184,7 +185,9 @@ class IM:
         return True
 
     @staticmethod
-    def _gen_get_data_node(file_url: str, file_dest: str, compute_name: str) -> dict:
+    def _gen_get_data_node(
+        file_url: str, file_dest: str, compute_name: Mapping[str, Any]
+    ) -> dict:
         get_data = copy.deepcopy(IM.GET_DATA_NODE_TEMPLATE)
         get_data_inputs = get_data["interfaces"]["Standard"]["configure"]["inputs"]
         if file_dest:
@@ -193,15 +196,16 @@ class IM:
         get_data["requirements"][0]["host"] = compute_name
         return get_data
 
-    def _add_files_to_tosca_template(self, tosca_template: str, service: dict) -> str:
+    def _add_files_to_tosca_template(
+        self, tosca_template: dict, service: Mapping[str, Any]
+    ) -> dict:
         """Adds input files to the TOSCA template for staging in."""
         input_files = service.get("input", [])
         if not input_files:
             return tosca_template
 
-        tosca_dict = yaml.safe_load(tosca_template)
-        compute_nodes = self._get_compute_nodes(tosca_dict)
-        node_templates = tosca_dict.get("topology_template", {}).get(
+        compute_nodes = self._get_compute_nodes(tosca_template)
+        node_templates = tosca_template.get("topology_template", {}).get(
             "node_templates", {}
         )
 
@@ -219,9 +223,9 @@ class IM:
                 input_file.get("url"), file_dest, compute_name
             )
 
-        return yaml.dump(tosca_dict)
+        return tosca_template
 
-    def _gen_tosca_template(self, service: dict) -> str:
+    def _gen_tosca_template(self, service: Mapping[str, Any]) -> dict:
         """
         Generates a TOSCA template for the service.
         """
@@ -247,19 +251,23 @@ class IM:
 
         return tosca_template
 
-    def deploy_service(self, service: dict) -> str:
+    def deploy_service(self, service: Mapping[str, Any]) -> str:
+        """Deploys the service using using the TOSCA from the service."""
         tosca_template = self._gen_tosca_template(service)
-        success, inf_id = self.client.create(tosca_template, desc_type="yaml")
+        success, inf_id = self.client.create(
+            yaml.safe_dump(tosca_template), desc_type="yaml"
+        )
         if not success:
             logging.error(f"Failed to deploy service: {inf_id}")
-            raise Exception(f"Failed to deploy service: {inf_id}")
+            raise IMError(f"Failed to deploy service: {inf_id}")
         logging.info(f"Service deployed successfully with ID: {inf_id}")
         self.inf_id = inf_id
-        return inf_id
+        return str(inf_id)
 
     def wait_for_service(self) -> None:
+        """Waits for the service to be in 'configured' state, indicating it's ready."""
         if self.inf_id is None:
-            raise Exception("No service deployed yet.")
+            raise IMError("No service deployed yet.")
         logging.info(f"Waiting for service {self.inf_id} to be ready...")
 
         max_time = settings.im_max_time
@@ -273,7 +281,11 @@ class IM:
             and retries < settings.im_max_retries
             and wait < max_time
         ):
-            success, res = self.client.get_infra_property(self.inf_id, "state")
+            try:
+                success, res = self.client.get_infra_property(self.inf_id, "state")
+            except Exception as e:
+                logging.exception(f"Error getting infrastructure state: {e}")
+                success = False
 
             if success:
                 state = res["state"]
@@ -290,25 +302,36 @@ class IM:
 
         if state == "configured":
             logging.info(f"Service {self.inf_id} is ready.")
-        elif wait >= max_time:
-            raise TimeoutError("Timeout waiting for service to be ready.")
         else:
-            if state == "unconfigured":
+            msg = f"Service did not reach 'configured' state. Current state: {state}."
+            if wait >= max_time:
+                msg += "(Timeout)"
+            logging.error(msg)
+
+            try:
+                # Get deployment log for debugging
                 success, inflog = self.client.get_infra_property(self.inf_id, "contmsg")
                 if success:
                     logging.debug(f"Deployment log: {inflog}")
                 else:
-                    logging.debug("Failed to get deployment log.")
-            raise Exception(
-                f"Service did not reach 'configured' state. Current state: {state}"
-            )
+                    logging.error(f"Failed to get deployment log {inflog}.")
+            except Exception as e:
+                logging.exception(f"Error getting deployment log: {e}")
 
-    def get_service_outputs(self) -> str:
+            try:
+                logging.debug("Destroying service after error.")
+                self.destroy_service()
+            except Exception:
+                logging.exception("Failed to destroy service after error")
+
+            raise IMError(msg)
+
+    def get_service_outputs(self) -> Mapping[str, Any]:
         if self.inf_id is None:
-            raise Exception("No service deployed yet.")
+            raise IMError("No service deployed yet.")
         success, res = self.client.get_infra_property(self.inf_id, "outputs")
         if not success:
-            raise Exception("Failed to get service outputs.")
+            raise IMError("Failed to get service outputs.")
         # Assuming the service URL is the only output
         return res
 
@@ -317,21 +340,11 @@ class IM:
             return
         success, res = self.client.destroy(self.inf_id)
         if not success:
-            raise Exception(f"Failed to destroy service: {res}")
+            raise IMError(f"Failed to destroy service: {res}")
         logging.info(f"Service {self.inf_id} destroyed successfully.")
         self.inf_id = None
 
-    def run_service(self, service: dict) -> str:
-        try:
-            self.deploy_service(service)
-            self.wait_for_service()
-            return self.get_service_outputs()
-        except Exception as e:
-            try:
-                logging.error(f"Error during service deployment: {e}")
-                inflog = self.client.get_infra_property(self.inf_id, "contmsg")
-                logging.debug(f"Deployment log: {inflog}")
-                self.destroy_service()
-            except Exception:
-                logging.exception(f"Failed to destroy service after error")
-        return None
+    def run_service(self, dest: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.deploy_service(dest)
+        self.wait_for_service()
+        return self.get_service_outputs()
