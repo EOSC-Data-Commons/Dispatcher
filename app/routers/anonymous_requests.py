@@ -1,17 +1,16 @@
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
-from fastapi import UploadFile, Depends, Request
-from rocrate.rocrate import ROCrate
-from fastapi.exceptions import HTTPException
-from .utils import parse_zipfile, parse_rocrate
-from celery.result import AsyncResult
-from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
-import logging
+"""
+Request router for anonymous (unauthenticated) VRE requests.
+"""
+
 from typing import Dict
 
-logger = logging.getLogger("uvicorn.error")
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 
-from .utils import oauth2_scheme
+from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
+from celery.result import AsyncResult
+
+from .utils import parse_zipfile, parse_rocrate
 
 router = APIRouter(
     prefix="/anon_requests",

@@ -1,18 +1,25 @@
+"""
+Jupyter VRE implementation for notebook-based environments.
+"""
+
 import io
 import json
+import time
+import zipfile as zf
 from typing import Any, Dict, Optional
-from .base_vre import VRE, vre_factory
+
 import requests
-import logging
+
 from app import exceptions
 from app.constants import (
     JUPYTER_DEFAULT_SERVICE,
     JUPYTER_PROGRAMMING_LANGUAGE,
 )
-import zipfile as zf
-import time
+from app.logging_config import get_logger
 
-logging.basicConfig(level=logging.INFO)
+from .base_vre import VRE, vre_factory
+
+logger = get_logger(__name__)
 
 
 class VREJupyter(VRE):
@@ -67,13 +74,13 @@ class VREJupyter(VRE):
             )
             response.raise_for_status()
             token_data = response.json()
-            print(token_data)
+            logger.debug("Token data: %s", token_data)
             api_token = token_data.get("token")
             if not api_token:
                 raise exceptions.InvalidResponseError("Token not found in response")
             return api_token
         except requests.RequestException as e:
-            logging.error(f"Failed to create API token: {e}")
+            logger.error("Failed to create API token: %s", e)
             raise exceptions.ExternalServiceError(f"Token creation failed: {e}")
 
     def _get_notebook_from_zipfile(self):
@@ -118,7 +125,7 @@ class VREJupyter(VRE):
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
-            logging.error(f"Failed to upload notebook: {e}")
+            logger.error("Failed to upload notebook: %s", e)
             raise exceptions.ServiceError(f"Upload failed: {e}")
 
 

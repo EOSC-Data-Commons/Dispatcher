@@ -13,5 +13,12 @@ class Settings(BaseSettings):
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
 
+    # Logging configuration
+    log_level: str = "INFO"
+    log_format: str = "text"  # 'text' or 'json' for future expansion
+
+    class Config:
+        env_prefix = "APP_"
+
 
 settings = Settings()

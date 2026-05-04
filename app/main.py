@@ -1,4 +1,13 @@
-from app.routers import requests, auth, anonymous_requests
+"""
+FastAPI application entry point for the dispatcher service.
+
+This module initializes the application, configures logging, and sets up
+middleware for request handling and authentication.
+"""
+
+import ssl
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi_oauth2.middleware import OAuth2Middleware
 from fastapi_oauth2.router import router as oauth2_router
@@ -6,10 +15,39 @@ from fastapi_oauth2.config import OAuth2Config
 from fastapi_oauth2.client import OAuth2Client
 from fastapi_oauth2.claims import Claims
 from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
-import ssl
-from app.config import settings
 
-app = FastAPI()
+from app.routers import requests, auth, anonymous_requests
+from app.config import settings
+from app.logging_config import setup_logging
+from app.middleware.request_logging import RequestLoggingMiddleware
+
+# Initialize logging before anything else
+setup_logging(log_level=settings.log_level, log_format=settings.log_format)
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    logger.info("Dispatcher service starting...")
+    logger.info("Log level: %s", settings.log_level)
+    logger.info("EGI Checkin environment: %s", settings.egi_checkin_env)
+    logger.info("Host: %s", settings.host)
+    yield
+    # Shutdown
+    logger.info("Dispatcher service shutting down...")
+
+
+app = FastAPI(title="Dispatcher Service", lifespan=lifespan)
+
+# Add request logging middleware (must be added before OAuth2 middleware)
+app.add_middleware(RequestLoggingMiddleware)
+
+# Include routers
 app.include_router(oauth2_router)
 app.include_router(requests.router)
 app.include_router(auth.router)

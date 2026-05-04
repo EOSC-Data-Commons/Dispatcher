@@ -1,17 +1,24 @@
-from .base_vre import VRE, vre_factory
-import zipfile as zf
+"""
+Binder VRE implementation for notebook-based environments.
+"""
+
 import io
 import logging
 import os
 import subprocess
 import urllib
 import uuid
+import zipfile as zf
+
+import git
+
 from app.config import settings
 from app.constants import BINDER_DEFAULT_SERVICE, BINDER_PROGRAMMING_LANGUAGE
-import git
-import os
+from app.logging_config import get_logger
 
-logger = logging.getLogger("uvicorn.error")
+from .base_vre import VRE, vre_factory
+
+logger = get_logger(__name__)
 
 
 class VREBinder(VRE):

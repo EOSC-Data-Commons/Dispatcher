@@ -1,16 +1,24 @@
-from .base_vre import VRE, vre_factory
-import base64
-import requests
-import logging
-import json
-from app.exceptions import (
-    VREConfigurationError,
-    ExternalServiceError,
-    ExternalDataSourceError,
-)
-from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_PROGRAMMING_LANGUAGE
+"""
+OSCAR VRE implementation for container-based environments.
+"""
 
-logging.basicConfig(level=logging.INFO)
+import base64
+import json
+import logging
+
+import requests
+
+from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_PROGRAMMING_LANGUAGE
+from app.exceptions import (
+    ExternalDataSourceError,
+    ExternalServiceError,
+    VREConfigurationError,
+)
+from app.logging_config import get_logger
+
+from .base_vre import VRE, vre_factory
+
+logger = get_logger(__name__)
 
 
 class VREOSCAR(VRE):
@@ -38,12 +46,12 @@ class VREOSCAR(VRE):
 
             ref_elem = self.crate.dereference(elem.get("@id"))
             if not ref_elem:
-                logging.error("Could not dereference entity %s", elem.get("@id"))
+                logger.error("Could not dereference entity %s", elem.get("@id"))
                 continue
 
             file_url = ref_elem.get("url")
             if not file_url:
-                logging.error("File entity %s has no URL", elem.get("@id"))
+                logger.error("File entity %s has no URL", elem.get("@id"))
                 continue
 
             encoding = elem.get("encodingFormat")
@@ -76,8 +84,8 @@ class VREOSCAR(VRE):
         self.fld_json = fdl_json
         service_name = fdl_json["name"]
 
-        logging.info("Creating OSCAR service %s", service_name)
-        logging.debug("FDL: %s", json.dumps(fdl_json))
+        logger.info("Creating OSCAR service %s", service_name)
+        logger.debug("FDL: %s", json.dumps(fdl_json))
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
@@ -115,7 +123,7 @@ class VREOSCAR(VRE):
         url = f"{oscar_url}/job/{service_name}"
         for f in files:
             try:
-                logging.info(
+                logger.info(
                     "Creating invocation for service %s and file %s",
                     service_name,
                     f.get("url"),
@@ -124,7 +132,7 @@ class VREOSCAR(VRE):
                 response.raise_for_status()
                 file_content = response.text
             except Exception as e:
-                logging.error("Error fetching file %s: %s", f.get("url"), e)
+                logger.error("Error fetching file %s: %s", f.get("url"), e)
                 continue
             response = requests.post(
                 url,
@@ -133,7 +141,7 @@ class VREOSCAR(VRE):
                 timeout=60,
             )
             if response.status_code != 201:
-                logging.error(
+                logger.error(
                     "Error invoking OSCAR service for file %s: %s",
                     f.get("url"),
                     response.text,
@@ -143,7 +151,7 @@ class VREOSCAR(VRE):
         fdl_json = self._get_fdl_from_crate()
         service_name = fdl_json["name"]
 
-        logging.info("Deleting OSCAR service %s", service_name)
+        logger.info("Deleting OSCAR service %s", service_name)
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",

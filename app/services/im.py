@@ -1,12 +1,22 @@
-import logging
-import requests
+"""
+Infrastructure Manager (IM) service for deploying VRE services.
+
+This module handles the deployment and management of infrastructure
+using the Infrastructure Manager API.
+"""
+
 import copy
+import logging
 import time
+
+import requests
 import yaml
 from imclient import IMClient
-from app.config import settings
 
-logging.basicConfig(level=logging.INFO)
+from app.config import settings
+from app.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class IM:
@@ -102,7 +112,7 @@ class IM:
             response.raise_for_status()
             return response.text
         except requests.RequestException:
-            logging.exception(f"Error fetching TOSCA template from {url}")
+            logger.exception("Error fetching TOSCA template from %s", url)
             raise Exception(f"Failed to fetch TOSCA template from: {url}")
 
     @staticmethod
@@ -111,7 +121,7 @@ class IM:
             if inputs.get(key, {}).get("default") is not None:
                 inputs[key]["default"] = value
             else:
-                logging.warning(f"The TOSCA template does not define '{key}' input.")
+                logger.warning("The TOSCA template does not define '%s' input.", key)
 
     @staticmethod
     def _add_inputs_to_tosca_template(tosca_template: str, service: dict) -> str:
@@ -152,10 +162,10 @@ class IM:
     def _validate_input_file(self, input_file: dict) -> bool:
         """Validates if the input is of type File and has a url."""
         if input_file.get("@type") != "File":
-            logging.warning("Input is not of type File, skipping.")
+            logger.warning("Input is not of type File, skipping.")
             return False
         if not input_file.get("url"):
-            logging.warning("Input does not have a url, skipping.")
+            logger.warning("Input does not have a url, skipping.")
             return False
         return True
 
@@ -173,10 +183,10 @@ class IM:
     def _validate_compute_node(self, compute_name: str, compute_nodes: dict) -> bool:
         """Validates if the compute node exists in the TOSCA template."""
         if not compute_name:
-            logging.error("No compute node available.")
+            logger.error("No compute node available.")
             return False
         if compute_name and compute_name not in compute_nodes:
-            logging.error(
+            logger.error(
                 "Compute node %s not found in TOSCA template, skipping file.",
                 compute_name,
             )
@@ -251,16 +261,16 @@ class IM:
         tosca_template = self._gen_tosca_template(service)
         success, inf_id = self.client.create(tosca_template, desc_type="yaml")
         if not success:
-            logging.error(f"Failed to deploy service: {inf_id}")
+            logger.error("Failed to deploy service: %s", inf_id)
             raise Exception(f"Failed to deploy service: {inf_id}")
-        logging.info(f"Service deployed successfully with ID: {inf_id}")
+        logger.info("Service deployed successfully with ID: %s", inf_id)
         self.inf_id = inf_id
         return inf_id
 
     def wait_for_service(self) -> None:
         if self.inf_id is None:
             raise Exception("No service deployed yet.")
-        logging.info(f"Waiting for service {self.inf_id} to be ready...")
+        logger.info("Waiting for service %s to be ready...", self.inf_id)
 
         max_time = settings.im_max_time
         wait = 0
@@ -284,21 +294,21 @@ class IM:
                 retries += 1
 
             if state in pending_states:
-                logging.debug(f"The infrastructure is in state: {state}. Wait ...")
+                logger.debug("The infrastructure is in state: %s. Wait ...", state)
                 time.sleep(settings.im_sleep)
                 wait += settings.im_sleep
 
         if state == "configured":
-            logging.info(f"Service {self.inf_id} is ready.")
+            logger.info("Service %s is ready.", self.inf_id)
         elif wait >= max_time:
             raise TimeoutError("Timeout waiting for service to be ready.")
         else:
             if state == "unconfigured":
                 success, inflog = self.client.get_infra_property(self.inf_id, "contmsg")
                 if success:
-                    logging.debug(f"Deployment log: {inflog}")
+                    logger.debug("Deployment log: %s", inflog)
                 else:
-                    logging.debug("Failed to get deployment log.")
+                    logger.debug("Failed to get deployment log.")
             raise Exception(
                 f"Service did not reach 'configured' state. Current state: {state}"
             )
@@ -318,7 +328,7 @@ class IM:
         success, res = self.client.destroy(self.inf_id)
         if not success:
             raise Exception(f"Failed to destroy service: {res}")
-        logging.info(f"Service {self.inf_id} destroyed successfully.")
+        logger.info("Service %s destroyed successfully.", self.inf_id)
         self.inf_id = None
 
     def run_service(self, service: dict) -> str:
@@ -328,10 +338,10 @@ class IM:
             return self.get_service_outputs()
         except Exception as e:
             try:
-                logging.error(f"Error during service deployment: {e}")
+                logger.error("Error during service deployment: %s", e)
                 inflog = self.client.get_infra_property(self.inf_id, "contmsg")
-                logging.debug(f"Deployment log: {inflog}")
+                logger.debug("Deployment log: %s", inflog)
                 self.destroy_service()
             except Exception:
-                logging.exception(f"Failed to destroy service after error")
+                logger.exception("Failed to destroy service after error")
         return None

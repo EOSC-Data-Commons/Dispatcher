@@ -1,7 +1,13 @@
-from .base_vre import VRE, vre_factory
+"""
+Galaxy VRE implementation for workflow-based environments.
+"""
+
 import requests
-import logging
+
 from app import exceptions
+from app.logging_config import get_logger
+
+from .base_vre import VRE, vre_factory
 from app.constants import (
     GALAXY_DEFAULT_SERVICE,
     GALAXY_PROGRAMMING_LANGUAGE,
@@ -9,7 +15,7 @@ from app.constants import (
     GALAXY_WORKFLOW_TARGET_TYPE,
 )
 
-logging.basicConfig(level=logging.INFO)
+logger = get_logger(__name__)
 
 
 class VREGalaxy(VRE):
@@ -43,7 +49,7 @@ class VREGalaxy(VRE):
         workflow_url = self.crate.mainEntity.get("url")
         if workflow_url is None:
             # checked here, as some other vres might be actual files
-            logging.error(f"{self.__class__.__name__}: Missing url in workflow entity")
+            logger.error("%s: Missing url in workflow entity", self.__class__.__name__)
             raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
@@ -77,14 +83,13 @@ class VREGalaxy(VRE):
 
         api_url = self._get_api_url()
 
-        logging.info(f"{self.__class__.__name__}: calling {api_url} with {data}")
+        logger.info("%s: calling %s with %s", self.__class__.__name__, api_url, data)
 
         try:
-            print(f"Sending request to Galaxy API... {data}")
             response = requests.post(api_url, headers=headers, json=data)
             response.raise_for_status()
         except requests.RequestException as e:
-            logging.error(f"{self.__class__.__name__}: API request failed: {e}")
+            logger.error("%s: API request failed: %s", self.__class__.__name__, e)
             raise exceptions.GalaxyAPIError("Galaxy API call failed") from e
         return response.json()
 
@@ -100,8 +105,8 @@ class VREGalaxy(VRE):
         """Extract the landing ID from the API response."""
         uuid = response_data.get("uuid")
         if uuid is None:
-            logging.error(
-                f"{self.__class__.__name__}: Galaxy API response missing 'uuid' field"
+            logger.error(
+                "%s: Galaxy API response missing 'uuid' field", self.__class__.__name__
             )
             raise exceptions.GalaxyAPIError("Galaxy API response missing 'uuid' field")
         return uuid

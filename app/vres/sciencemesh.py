@@ -1,11 +1,17 @@
-from .base_vre import VRE, vre_factory
-import requests
-import logging
-from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
-from app.config import settings
-from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
+"""
+ScienceMesh VRE implementation for file sharing environments.
+"""
 
-logging.basicConfig(level=logging.INFO)
+import requests
+
+from app.config import settings
+from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
+from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
+from app.logging_config import get_logger
+
+from .base_vre import VRE, vre_factory
+
+logger = get_logger(__name__)
 
 
 class VREScienceMesh(VRE):
@@ -17,16 +23,16 @@ class VREScienceMesh(VRE):
         data = self.create_ocm_share_request()
 
         try:
-            logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
+            logger.info("%s: calling %s", self.__class__.__name__, self.svc_url)
             response = requests.post(
                 f"{self.svc_url}/ocm/shares",
                 headers=headers,
                 json=data,
             )
-            logging.info(f"{self.__class__.__name__}: returned {response.text}")
+            logger.info("%s: returned %s", self.__class__.__name__, response.text)
             response.raise_for_status()
         except requests.RequestException as e:
-            logging.error(f"{self.__class__.__name__}: API request failed: {e}")
+            logger.error("%s: API request failed: %s", self.__class__.__name__, e)
             raise ScienceMeshAPIError("ScienceMesh API call failed") from e
         return response.json()
 

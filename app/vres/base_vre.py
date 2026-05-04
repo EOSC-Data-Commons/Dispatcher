@@ -1,12 +1,19 @@
+"""
+Base VRE (Virtual Research Environment) implementation.
+
+This module provides the abstract base class for all VRE handlers
+and the VRE factory for creating VRE instances.
+"""
+
 import sys
-from app.services.im import IM
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
-from app.exceptions import VREError, VREConfigurationError
-import logging
-import app.constants as constants
 
-logger = logging.getLogger("uvicorn.error")
+import app.constants as constants
+from app.exceptions import VREError, VREConfigurationError
+from app.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class ROCrateValidationError(Exception):
