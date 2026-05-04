@@ -48,4 +48,8 @@ im:
     #type: demo
     #site: "CESNET-MCCG2"
     #VO: vo.eosc-data-commons.eu
+
+logging:
+  level: INFO
+  format: text
     

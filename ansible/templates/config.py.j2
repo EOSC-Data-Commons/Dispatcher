@@ -9,10 +9,16 @@ class Settings(BaseSettings):
     private_key_file: str = "{{ nginx.cert }}/privkey.pem"
     host: str = "{{ inventory_hostname }}"
     git_repos: str = "{{ git.repos }}"
+
     im_endpoint: str = "{{ im.endpoint }}"
     im_cloud_provider: dict = {{ im.cloud_provider }}
     im_max_time: int = {{ im.wait.max_time }}
     im_sleep: int = {{ im.wait.sleep }}
     im_max_retries: int = {{ im.wait.max_retries }}
+
     redis_port: int = {{ redis.port }}
+
+    log_level: str = "{{ logging.level | default('INFO') }}"
+    log_format: str = "{{ logging.format | default('text') }}"
+
 settings = Settings()
