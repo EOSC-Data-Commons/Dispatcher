@@ -74,7 +74,7 @@ class VREJupyter(VRE):
             )
             response.raise_for_status()
             token_data = response.json()
-            logger.debug("Token data: %s", token_data)
+            logger.debug(f"Token data: {token_data}")
             api_token = token_data.get("token")
             if not api_token:
                 raise exceptions.InvalidResponseError("Token not found in response")

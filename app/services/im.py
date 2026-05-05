@@ -187,8 +187,7 @@ class IM:
             return False
         if compute_name and compute_name not in compute_nodes:
             logger.error(
-                "Compute node %s not found in TOSCA template, skipping file.",
-                compute_name,
+                f"Compute node {compute_name} not found in TOSCA template, skipping file."
             )
             return False
         return True
