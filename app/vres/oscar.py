@@ -46,12 +46,12 @@ class VREOSCAR(VRE):
 
             ref_elem = self.crate.dereference(elem.get("@id"))
             if not ref_elem:
-                logger.error("Could not dereference entity %s", elem.get("@id"))
+                logger.error(f"Could not dereference entity {elem.get('@id')}")
                 continue
 
             file_url = ref_elem.get("url")
             if not file_url:
-                logger.error("File entity %s has no URL", elem.get("@id"))
+                logger.error(f"File entity {elem.get('@id')} has no URL")
                 continue
 
             encoding = elem.get("encodingFormat")
@@ -84,8 +84,8 @@ class VREOSCAR(VRE):
         self.fld_json = fdl_json
         service_name = fdl_json["name"]
 
-        logger.info("Creating OSCAR service %s", service_name)
-        logger.debug("FDL: %s", json.dumps(fdl_json))
+        logger.info(f"Creating OSCAR service {service_name}")
+        logger.debug(f"FDL: {json.dumps(fdl_json)}")
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
@@ -124,15 +124,13 @@ class VREOSCAR(VRE):
         for f in files:
             try:
                 logger.info(
-                    "Creating invocation for service %s and file %s",
-                    service_name,
-                    f.get("url"),
+                    f"Creating invocation for service {service_name} and file {f.get('url')}"
                 )
                 response = requests.get(f.get("url"), timeout=60)
                 response.raise_for_status()
                 file_content = response.text
             except Exception as e:
-                logger.error("Error fetching file %s: %s", f.get("url"), e)
+                logger.error(f"Error fetching file {f.get('url')}: {e}")
                 continue
             response = requests.post(
                 url,
@@ -142,16 +140,14 @@ class VREOSCAR(VRE):
             )
             if response.status_code != 201:
                 logger.error(
-                    "Error invoking OSCAR service for file %s: %s",
-                    f.get("url"),
-                    response.text,
+                    f"Error invoking OSCAR service for file {f.get('url')}: {response.text}"
                 )
 
     def delete(self):
         fdl_json = self._get_fdl_from_crate()
         service_name = fdl_json["name"]
 
-        logger.info("Deleting OSCAR service %s", service_name)
+        logger.info(f"Deleting OSCAR service {service_name}")
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",

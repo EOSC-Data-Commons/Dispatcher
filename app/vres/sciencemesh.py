@@ -23,16 +23,16 @@ class VREScienceMesh(VRE):
         data = self.create_ocm_share_request()
 
         try:
-            logger.info("%s: calling %s", self.__class__.__name__, self.svc_url)
+            logger.info(f"{self.__class__.__name__}: calling {self.svc_url}")
             response = requests.post(
                 f"{self.svc_url}/ocm/shares",
                 headers=headers,
                 json=data,
             )
-            logger.info("%s: returned %s", self.__class__.__name__, response.text)
+            logger.info(f"{self.__class__.__name__}: returned {response.text}")
             response.raise_for_status()
         except requests.RequestException as e:
-            logger.error("%s: API request failed: %s", self.__class__.__name__, e)
+            logger.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise ScienceMeshAPIError("ScienceMesh API call failed") from e
         return response.json()
 

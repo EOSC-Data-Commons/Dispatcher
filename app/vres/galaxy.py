@@ -49,7 +49,7 @@ class VREGalaxy(VRE):
         workflow_url = self.crate.mainEntity.get("url")
         if workflow_url is None:
             # checked here, as some other vres might be actual files
-            logger.error("%s: Missing url in workflow entity", self.__class__.__name__)
+            logger.error(f"{self.__class__.__name__}: Missing url in workflow entity")
             raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
@@ -83,13 +83,13 @@ class VREGalaxy(VRE):
 
         api_url = self._get_api_url()
 
-        logger.info("%s: calling %s with %s", self.__class__.__name__, api_url, data)
+        logger.info(f"{self.__class__.__name__}: calling {api_url} with {data}")
 
         try:
             response = requests.post(api_url, headers=headers, json=data)
             response.raise_for_status()
         except requests.RequestException as e:
-            logger.error("%s: API request failed: %s", self.__class__.__name__, e)
+            logger.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise exceptions.GalaxyAPIError("Galaxy API call failed") from e
         return response.json()
 
@@ -106,7 +106,7 @@ class VREGalaxy(VRE):
         uuid = response_data.get("uuid")
         if uuid is None:
             logger.error(
-                "%s: Galaxy API response missing 'uuid' field", self.__class__.__name__
+                f"{self.__class__.__name__}: Galaxy API response missing 'uuid' field"
             )
             raise exceptions.GalaxyAPIError("Galaxy API response missing 'uuid' field")
         return uuid

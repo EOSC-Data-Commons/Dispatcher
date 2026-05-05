@@ -112,7 +112,7 @@ class IM:
             response.raise_for_status()
             return response.text
         except requests.RequestException:
-            logger.exception("Error fetching TOSCA template from %s", url)
+            logger.exception(f"Error fetching TOSCA template from {url}")
             raise Exception(f"Failed to fetch TOSCA template from: {url}")
 
     @staticmethod
@@ -121,7 +121,7 @@ class IM:
             if inputs.get(key, {}).get("default") is not None:
                 inputs[key]["default"] = value
             else:
-                logger.warning("The TOSCA template does not define '%s' input.", key)
+                logger.warning(f"The TOSCA template does not define '{key}' input.")
 
     @staticmethod
     def _add_inputs_to_tosca_template(tosca_template: str, service: dict) -> str:
@@ -261,16 +261,16 @@ class IM:
         tosca_template = self._gen_tosca_template(service)
         success, inf_id = self.client.create(tosca_template, desc_type="yaml")
         if not success:
-            logger.error("Failed to deploy service: %s", inf_id)
+            logger.error(f"Failed to deploy service: {inf_id}")
             raise Exception(f"Failed to deploy service: {inf_id}")
-        logger.info("Service deployed successfully with ID: %s", inf_id)
+        logger.info(f"Service deployed successfully with ID: {inf_id}")
         self.inf_id = inf_id
         return inf_id
 
     def wait_for_service(self) -> None:
         if self.inf_id is None:
             raise Exception("No service deployed yet.")
-        logger.info("Waiting for service %s to be ready...", self.inf_id)
+        logger.info(f"Waiting for service {self.inf_id} to be ready...")
 
         max_time = settings.im_max_time
         wait = 0
@@ -294,19 +294,19 @@ class IM:
                 retries += 1
 
             if state in pending_states:
-                logger.debug("The infrastructure is in state: %s. Wait ...", state)
+                logger.debug(f"The infrastructure is in state: {state}. Wait ...")
                 time.sleep(settings.im_sleep)
                 wait += settings.im_sleep
 
         if state == "configured":
-            logger.info("Service %s is ready.", self.inf_id)
+            logger.info(f"Service {self.inf_id} is ready.")
         elif wait >= max_time:
             raise TimeoutError("Timeout waiting for service to be ready.")
         else:
             if state == "unconfigured":
                 success, inflog = self.client.get_infra_property(self.inf_id, "contmsg")
                 if success:
-                    logger.debug("Deployment log: %s", inflog)
+                    logger.debug(f"Deployment log: {inflog}")
                 else:
                     logger.debug("Failed to get deployment log.")
             raise Exception(
@@ -328,7 +328,7 @@ class IM:
         success, res = self.client.destroy(self.inf_id)
         if not success:
             raise Exception(f"Failed to destroy service: {res}")
-        logger.info("Service %s destroyed successfully.", self.inf_id)
+        logger.info(f"Service {self.inf_id} destroyed successfully.")
         self.inf_id = None
 
     def run_service(self, service: dict) -> str:
@@ -338,9 +338,9 @@ class IM:
             return self.get_service_outputs()
         except Exception as e:
             try:
-                logger.error("Error during service deployment: %s", e)
+                logger.error(f"Error during service deployment: {e}")
                 inflog = self.client.get_infra_property(self.inf_id, "contmsg")
-                logger.debug("Deployment log: %s", inflog)
+                logger.debug(f"Deployment log: {inflog}")
                 self.destroy_service()
             except Exception:
                 logger.exception("Failed to destroy service after error")

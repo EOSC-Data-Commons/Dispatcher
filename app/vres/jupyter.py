@@ -80,7 +80,7 @@ class VREJupyter(VRE):
                 raise exceptions.InvalidResponseError("Token not found in response")
             return api_token
         except requests.RequestException as e:
-            logger.error("Failed to create API token: %s", e)
+            logger.error(f"Failed to create API token: {e}")
             raise exceptions.ExternalServiceError(f"Token creation failed: {e}")
 
     def _get_notebook_from_zipfile(self):
@@ -125,7 +125,7 @@ class VREJupyter(VRE):
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
-            logger.error("Failed to upload notebook: %s", e)
+            logger.error(f"Failed to upload notebook: {e}")
             raise exceptions.ServiceError(f"Upload failed: {e}")
 
 
