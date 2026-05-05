@@ -8,10 +8,13 @@ from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import JSONResponse
 from rocrate.rocrate import ROCrate
 
+from app.logging_config import get_logger
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 from celery.result import AsyncResult
 
 from .utils import oauth2_scheme, parse_zipfile, parse_rocrate
+
+logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/requests",
@@ -43,6 +46,7 @@ def zip_rocrate(
     task = vre_from_zipfile.apply_async(
         args=[parsed_zipfile, request.auth.provider.access_token]
     )
+    logger.info(f"Task created: {task.id}")
     return JSONResponse({"task_id": task.id})
 
 
@@ -53,5 +57,5 @@ def metadata_rocrate(
     request: Request = None,
 ):
     task = vre_from_rocrate.apply_async(args=[data, request.auth.provider.access_token])
-
+    logger.info(f"Task created: {task.id}")
     return JSONResponse({"task_id": task.id})
