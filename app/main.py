@@ -34,9 +34,9 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
     logger.info("Dispatcher service starting...")
-    logger.info("Log level: %s", settings.log_level)
-    logger.info("EGI Checkin environment: %s", settings.egi_checkin_env)
-    logger.info("Host: %s", settings.host)
+    logger.info(f"Log level: {settings.log_level}")
+    logger.info(f"EGI Checkin environment: {settings.egi_checkin_env}")
+    logger.info(f"Host: {settings.host}")
     yield
     # Shutdown
     logger.info("Dispatcher service shutting down...")
