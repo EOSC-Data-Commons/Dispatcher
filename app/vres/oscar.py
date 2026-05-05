@@ -4,7 +4,6 @@ OSCAR VRE implementation for container-based environments.
 
 import base64
 import json
-import logging
 
 import requests
 

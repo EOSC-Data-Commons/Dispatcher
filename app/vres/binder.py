@@ -3,7 +3,6 @@ Binder VRE implementation for notebook-based environments.
 """
 
 import io
-import logging
 import os
 import subprocess
 import urllib
