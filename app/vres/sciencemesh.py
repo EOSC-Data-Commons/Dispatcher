@@ -101,6 +101,7 @@ class VREScienceMesh(VRE):
             "protocol": {
                 "name": "multi",
                 "embedded": {"payload": self.request_package.generate_metadata()},
+                "embedded": {"payload": self.request_package.generate_metadata()},
             },
         }
         return ocm_share_request
