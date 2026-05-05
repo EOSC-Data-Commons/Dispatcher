@@ -26,25 +26,22 @@ class RequestIdFormatter(logging.Formatter):
     Format: timestamp - level - [module:line] [request_id] - message
     """
 
+    def __init__(self, datefmt: str | None = None) -> None:
+        super().__init__(
+            "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] "
+            "[%(request_id)s] - %(message)s",
+            datefmt=datefmt or "%Y-%m-%d %H:%M:%S",
+        )
+
     def format(self, record: logging.LogRecord) -> str:
-        # Get request ID from context if available
-        request_id = ""
+        # Inject request ID from context into the record
+        if not hasattr(record, "request_id"):
+            record.request_id = ""
         if request_id_var is not None:
-            request_id = request_id_var.get()
-
-        # Build the format string based on whether we have a request ID
-        if request_id:
-            log_format = (
-                "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] "
-                f"[{request_id}] - %(message)s"
-            )
-        else:
-            log_format = (
-                "%(asctime)s - %(levelname)s - [%(name)s:%(lineno)d] - %(message)s"
-            )
-
-        formatter = logging.Formatter(log_format, datefmt="%Y-%m-%d %H:%M:%S")
-        return formatter.format(record)
+            rid = request_id_var.get()
+            if rid:
+                record.request_id = rid
+        return super().format(record)
 
 
 def setup_logging(log_level: str = "INFO", log_format: str = "text") -> None:
