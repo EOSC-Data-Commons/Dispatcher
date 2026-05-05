@@ -12,6 +12,7 @@ from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 import app.constants as constants
 from app.exceptions import VREError, VREConfigurationError
 from app.logging_config import get_logger
+from app.services.im import IM
 
 logger = get_logger(__name__)
 
@@ -89,7 +90,7 @@ class VRE(ABC):
         self._update_state(state="PROGRESS", meta={"stage": stage})
 
     @staticmethod
-    def _default_im_factory(token: str | None) -> IMClientProtocol:
+    def _default_im_factory(token: str | None) -> "IMClientProtocol":
         return IM(token)
 
     @abstractmethod
@@ -98,8 +99,8 @@ class VRE(ABC):
 
 
 class VREFactory:
-    instance = None
-    table = {}
+    instance: "VREFactory | None" = None
+    table: dict[str, type] = {}
 
     def __new__(cls, *args, **kwargs):
         if not cls.instance:
