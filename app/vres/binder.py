@@ -13,11 +13,11 @@ import git
 
 from app.config import settings
 from app.constants import BINDER_DEFAULT_SERVICE, BINDER_PROGRAMMING_LANGUAGE
-from app.logging_config import get_logger
+import logging
 
 from .base_vre import VRE, vre_factory
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class VREBinder(VRE):

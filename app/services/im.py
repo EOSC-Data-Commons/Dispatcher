@@ -14,10 +14,11 @@ from typing import Any, Mapping
 from imclient import IMClient
 
 from app.config import settings
-from app.logging_config import get_logger
+import logging
+
 from app.exceptions import IMError
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class IM:

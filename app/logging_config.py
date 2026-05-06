@@ -113,22 +113,6 @@ def setup_logging(log_level: str = "INFO", log_format: str = "text") -> None:
         gunicorn_access.propagate = False
 
 
-def get_logger(name: str) -> logging.Logger:
-    """
-    Get a module-specific logger.
-
-    This should be used instead of logging.getLogger() directly to ensure
-    consistent logger configuration across the application.
-
-    Args:
-        name: Module name (typically __name__)
-
-    Returns:
-        Configured logger instance
-    """
-    return logging.getLogger(name)
-
-
 def set_request_id(request_id: str) -> None:
     """
     Set the request ID for the current context.

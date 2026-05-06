@@ -5,11 +5,11 @@ Scipion VRE implementation for cryo-EM processing environments.
 from fastapi import HTTPException
 
 from app.constants import SCIPION_DEFAULT_SERVICE, SCIPION_PROGRAMMING_LANGUAGE
-from app.logging_config import get_logger
+import logging
 
 from .base_vre import VRE, vre_factory
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class VREScipion(VRE):

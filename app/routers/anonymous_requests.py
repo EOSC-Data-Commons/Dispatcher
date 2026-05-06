@@ -7,13 +7,14 @@ from typing import Dict
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from app.logging_config import get_logger
+import logging
+
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 from celery.result import AsyncResult
 
 from .utils import parse_zipfile, parse_rocrate
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/anon_requests",

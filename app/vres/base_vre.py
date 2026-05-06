@@ -11,10 +11,11 @@ from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 
 import app.constants as constants
 from app.exceptions import VREError, VREConfigurationError
-from app.logging_config import get_logger
+import logging
+
 from app.services.im import IM
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ROCrateValidationError(Exception):

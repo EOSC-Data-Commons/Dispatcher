@@ -8,13 +8,14 @@ from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import JSONResponse
 from rocrate.rocrate import ROCrate
 
-from app.logging_config import get_logger
+import logging
+
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 from celery.result import AsyncResult
 
 from .utils import oauth2_scheme, parse_zipfile, parse_rocrate
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/requests",

@@ -5,7 +5,7 @@ Galaxy VRE implementation for workflow-based environments.
 import requests
 
 from app import exceptions
-from app.logging_config import get_logger
+import logging
 
 from .base_vre import VRE, vre_factory
 from app.constants import (
@@ -15,7 +15,7 @@ from app.constants import (
     GALAXY_WORKFLOW_TARGET_TYPE,
 )
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class VREGalaxy(VRE):
