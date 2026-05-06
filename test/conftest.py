@@ -13,8 +13,10 @@ from fixtures.dummy_crate import (
 )
 from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
+from app.vres.jupyter import VREJupyter
 from app.vres.sciencemesh import VREScienceMesh
 import io
+import json
 import zipfile as zf
 from app.config import settings
 from rocrate.rocrate import ROCrate
@@ -22,6 +24,8 @@ from app.constants import (
     BINDER_PROGRAMMING_LANGUAGE,
     SCIENCEMESH_PROGRAMMING_LANGUAGE,
     GALAXY_PROGRAMMING_LANGUAGE,
+    JUPYTER_DEFAULT_SERVICE,
+    JUPYTER_PROGRAMMING_LANGUAGE,
     OSCAR_PROGRAMMING_LANGUAGE,
 )
 from app.services.im import IM
@@ -225,3 +229,95 @@ def im_service(mock_settings):
     im.client = Mock()
     im.inf_id = "test_inf_id"
     return im
+
+
+@pytest.fixture
+def dummy_jupyter_crate():
+    """DummyCrate with Jupyter programming language identifier."""
+    main = DummyEntity(
+        _type=["File", "SoftwareSourceCode", "ComputationalWorkflow"],
+        name="notebook.ipynb",
+        programmingLanguage={"identifier": JUPYTER_PROGRAMMING_LANGUAGE},
+    )
+    return DummyCrate(main_entity=main)
+
+
+@pytest.fixture
+def jupyter_zip_body():
+    """In-memory zip containing a notebook and ro-crate-metadata.json."""
+    zip_buffer = io.BytesIO()
+    with zf.ZipFile(zip_buffer, "w") as zip_file:
+        zip_file.writestr(
+            "ro-crate-metadata.json",
+            json.dumps({"@context": "https://w3id.org/ro/crate/1.1/context"}),
+        )
+        zip_file.writestr(
+            "notebook.ipynb",
+            json.dumps(
+                {
+                    "cells": [],
+                    "metadata": {},
+                    "nbformat": 4,
+                    "nbformat_minor": 5,
+                }
+            ),
+        )
+    return zip_buffer.getvalue()
+
+
+@pytest.fixture
+def jupyter_zip_body_no_notebook():
+    """In-memory zip with ro-crate-metadata.json but no .ipynb file."""
+    zip_buffer = io.BytesIO()
+    with zf.ZipFile(zip_buffer, "w") as zip_file:
+        zip_file.writestr(
+            "ro-crate-metadata.json",
+            json.dumps({"@context": "https://w3id.org/ro/crate/1.1/context"}),
+        )
+        zip_file.writestr("README.md", "# No notebook here")
+    return zip_buffer.getvalue()
+
+
+@pytest.fixture
+def jupyter_vre(dummy_jupyter_crate, jupyter_zip_body):
+    """VREJupyter instance with test token, zip body, and mock update_state."""
+    vre = VREJupyter(
+        crate=dummy_jupyter_crate,
+        token="test-token",
+        request_id=0,
+        update_state=Mock(),
+        body=jupyter_zip_body,
+    )
+    vre.svc_url = JUPYTER_DEFAULT_SERVICE
+    return vre
+
+
+def register_jupyter_mocks(
+    requests_mock,
+    *,
+    userinfo=None,
+    server_start=None,
+    token_creation=None,
+    upload=None,
+):
+    """Register JupyterHub HTTP mocks for a test.
+
+    Each kwarg is a dict of response params (json, status_code) or None to skip.
+    """
+    if userinfo is not None:
+        requests_mock.get(f"{JUPYTER_DEFAULT_SERVICE}/services/jwt/user", **userinfo)
+    if server_start is not None:
+        requests_mock.post(
+            f"{JUPYTER_DEFAULT_SERVICE}/services/jwt/users/testuser/servers/",
+            **server_start,
+        )
+    if token_creation is not None:
+        requests_mock.post(
+            f"{JUPYTER_DEFAULT_SERVICE}/services/jwt/users/testuser/tokens",
+            **token_creation,
+        )
+    if upload is not None:
+        requests_mock.put(
+            f"{JUPYTER_DEFAULT_SERVICE}/user/testuser/api/contents/notebook.ipynb",
+            **upload,
+        )
