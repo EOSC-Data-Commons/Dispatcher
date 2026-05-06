@@ -40,9 +40,15 @@ class VREGalaxy(VRE):
 
         Returns:
             Dictionary containing workflow submission data for Galaxy API.
+
+        Raises:
+            WorkflowURLError: If workflow URL is missing.
         """
         workflow = self.request_package.get_workflow_info()
         files = self.request_package.get_file_info_list()
+
+        if not workflow.url:
+            raise exceptions.WorkflowURLError("Workflow missing 'url' property")
 
         return {
             "public": GALAXY_PUBLIC_DEFAULT,
