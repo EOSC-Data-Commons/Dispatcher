@@ -17,11 +17,7 @@ setup_logging(log_level=settings.log_level, log_format=settings.log_format)
 logger = logging.getLogger(__name__)
 
 celery = Celery(__name__, include=["app.celery.tasks"])
-celery.conf.update(
-    accept_content=["pickle", "json"],
-    task_serializer="json",
-    result_serializer="json",
-)
+celery.conf.update(accept_content=["pickle", "json"])
 celery.conf.broker_url = os.environ.get(
     "CELERY_BROKER_URL", f"redis://localhost:{settings.redis_port}"
 )
@@ -35,6 +31,6 @@ celery.conf.worker_redirect_stdouts = False
 
 
 @celery.on_after_finalize.connect
-def setup_periodic_tasks(sender, **kwargs):
+def on_worker_ready(sender, **kwargs):
     """Log when Celery worker is initialized."""
     logger.info("Celery worker initialized")

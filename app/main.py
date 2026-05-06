@@ -5,6 +5,7 @@ This module initializes the application, configures logging, and sets up
 middleware for request handling and authentication.
 """
 
+import logging
 import ssl
 from contextlib import asynccontextmanager
 
@@ -23,8 +24,6 @@ from app.middleware.request_logging import RequestLoggingMiddleware
 
 # Initialize logging before anything else
 setup_logging(log_level=settings.log_level, log_format=settings.log_format)
-
-import logging
 
 logger = logging.getLogger(__name__)
 
