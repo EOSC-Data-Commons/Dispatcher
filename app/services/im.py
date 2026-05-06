@@ -282,15 +282,19 @@ class IM:
             and wait < max_time
         ):
             try:
-                success, res = self.client.get_infra_property(self.inf_id, "state")
-            except Exception as e:
-                logging.exception(f"Error getting infrastructure state: {e}")
-                success = False
-
-            if success:
-                state = res["state"]
-            else:
                 state = "unknown"
+                success, res = self.client.get_infra_property(self.inf_id, "state")
+                if success:
+                    state = res["state"]
+                else:
+                    logging.error(
+                        f"Failed to get infrastructure state: {res} ({retries + 1}/{settings.im_max_retries})."
+                    )
+            except Exception as e:
+                logging.exception(
+                    f"Error getting infrastructure state: {e} ({retries + 1}/{settings.im_max_retries})."
+                )
+                success = False
 
             if state == "unknown":
                 retries += 1

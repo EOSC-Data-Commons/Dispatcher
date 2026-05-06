@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 import pytest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from fixtures.dummy_crate import (
     DummyEntity,
     DummyCrate,
@@ -24,6 +24,7 @@ from app.constants import (
     GALAXY_PROGRAMMING_LANGUAGE,
     OSCAR_PROGRAMMING_LANGUAGE,
 )
+from app.services.im import IM
 
 pytest_plugins = ["pytest_asyncio"]
 
@@ -216,3 +217,11 @@ def ocm_share_request(sciencemesh_vre):
 def mock_requests_post():
     with patch("requests.post") as _mock:
         yield _mock
+
+
+@pytest.fixture
+def im_service(mock_settings):
+    im = IM("test_token")
+    im.client = Mock()
+    im.inf_id = "test_inf_id"
+    return im
