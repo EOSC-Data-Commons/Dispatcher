@@ -23,7 +23,11 @@ from app.logging_config import setup_logging
 from app.middleware.request_logging import RequestLoggingMiddleware
 
 # Initialize logging before anything else
-setup_logging(log_level=settings.log_level, log_format=settings.log_format)
+setup_logging(
+    log_level=settings.log_level,
+    log_format=settings.log_format,
+    disable_uvicorn_access=True,
+)
 
 logger = logging.getLogger(__name__)
 

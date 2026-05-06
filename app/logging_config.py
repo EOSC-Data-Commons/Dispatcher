@@ -7,7 +7,7 @@ Docker deployments, outputting structured logs to stdout/stderr.
 
 import logging
 import sys
-from typing import Optional
+from typing import Optional, Union
 
 # Context variable for request ID correlation (used with middleware)
 try:
@@ -44,7 +44,11 @@ class RequestIdFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logging(log_level: str = "INFO", log_format: str = "text") -> None:
+def setup_logging(
+    log_level: str = "INFO",
+    log_format: str = "text",
+    disable_uvicorn_access: bool = True,
+) -> None:
     """
     Configure application-wide logging.
 
@@ -53,7 +57,12 @@ def setup_logging(log_level: str = "INFO", log_format: str = "text") -> None:
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_format: Output format ('text' or 'json' for future expansion)
+        disable_uvicorn_access: If True, disables uvicorn.access logger.
+            Set to False to enable access logs (useful for debugging).
     """
+    # Detect pytest environment
+    is_pytest = "pytest" in sys.modules
+
     # Get the numeric log level
     level = getattr(logging, log_level.upper(), logging.INFO)
 
@@ -81,10 +90,11 @@ def setup_logging(log_level: str = "INFO", log_format: str = "text") -> None:
     stderr_handler.setLevel(logging.ERROR)
     stderr_handler.setFormatter(formatter)
 
-    # Configure root logger
+    # Configure root logger (skip clearing handlers in pytest to preserve capture)
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
-    root_logger.handlers.clear()
+    if not is_pytest:
+        root_logger.handlers.clear()
     root_logger.addHandler(stdout_handler)
     root_logger.addHandler(stderr_handler)
 
@@ -93,9 +103,14 @@ def setup_logging(log_level: str = "INFO", log_format: str = "text") -> None:
     uvicorn_logger.propagate = False
 
     uvicorn_access = logging.getLogger("uvicorn.access")
-    uvicorn_access.handlers = []
-    uvicorn_access.propagate = False
-    uvicorn_access.disabled = True
+    if disable_uvicorn_access:
+        uvicorn_access.handlers = []
+        uvicorn_access.propagate = False
+        uvicorn_access.disabled = True
+    else:
+        uvicorn_access.handlers = [stdout_handler]
+        uvicorn_access.propagate = False
+        uvicorn_access.disabled = False
 
     uvicorn_error = logging.getLogger("uvicorn.error")
     uvicorn_error.handlers = [stdout_handler, stderr_handler]

@@ -12,7 +12,11 @@ from app.config import settings
 from app.logging_config import setup_logging
 
 # Initialize logging for Celery worker
-setup_logging(log_level=settings.log_level, log_format=settings.log_format)
+setup_logging(
+    log_level=settings.log_level,
+    log_format=settings.log_format,
+    disable_uvicorn_access=True,
+)
 
 logger = logging.getLogger(__name__)
 
