@@ -119,7 +119,7 @@ class VREJupyter(VRE):
             return response.json()
         except requests.RequestException as e:
             logging.error(f"Failed to upload notebook: {e}")
-            raise exceptions.ServiceError(f"Upload failed: {e}")
+            raise exceptions.ExternalServiceError(f"Upload failed: {e}")
 
 
 vre_factory.register(JUPYTER_PROGRAMMING_LANGUAGE, VREJupyter)
