@@ -74,13 +74,13 @@ def parse_json_metadata(metadata: str) -> Dict[str, Any]:
         )
 
 
-async def parse_zipfile(zipfile: UploadFile) -> Tuple[Dict[str, Any], bytes]:
+async def parse_zipfile(upload_file: UploadFile) -> Tuple[Dict[str, Any], bytes]:
     """Parse a ZIP file containing a ROCrate.
 
     Extracts the ro-crate-metadata.json file from the ZIP and parses it.
 
     Args:
-        zipfile: FastAPI UploadFile containing the ZIP archive.
+        upload_file: FastAPI UploadFile containing the ZIP archive.
 
     Returns:
         Tuple of (metadata_dict, zip_file_bytes).
@@ -88,7 +88,7 @@ async def parse_zipfile(zipfile: UploadFile) -> Tuple[Dict[str, Any], bytes]:
     Raises:
         HTTPException: If ZIP doesn't contain valid ROCrate metadata.
     """
-    file_content = await zipfile.read()
+    file_content = await upload_file.read()
 
     metadata = None
     with io.BytesIO(file_content) as file_like:
