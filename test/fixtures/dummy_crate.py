@@ -28,63 +28,42 @@ ONE_DATA_FILE = {
 
 class DummyEntity:
     """
-    Minimal entity that mimics the subset of a RO‑Crate Entity used by the VRE code.
+    Minimal entity that mimics the subset of a RO-Crate Entity used by RequestPackage.
+
+    Entities must have @id and @type properties, and all other attributes are stored
+    as additional properties accessible via dict-style access and .properties().
     """
 
-    def __init__(self, _type: str, **attrs: Any):
+    def __init__(self, _id: str = "", _type: str = "", **attrs: Any):
+        self._id = _id
         self.type = _type
         self._attrs = attrs
 
-    # The VRE code calls .properties() on File entities
-    def properties(self) -> Dict[str, Any]:
-        return self._attrs
+    @property
+    def id(self) -> str:
+        return self._id
 
-    # The VRE code also accesses items like a dict (e.g. entity["url"])
-    def __getitem__(self, key: str) -> Any:
-        return self._attrs[key]
-
-    # And sometimes uses .get()
+    # Support @id access pattern
     def get(self, key: str, default: Any = None) -> Any:
+        if key == "@id":
+            return self._id
+        if key == "@type":
+            return self.type
         return self._attrs.get(key, default)
 
+    # Support dict-style access
+    def __getitem__(self, key: str) -> Any:
+        if key == "@id":
+            return self._id
+        if key == "@type":
+            return self.type
+        return self._attrs[key]
 
-class DummyCrate:
-    """
-    In‑memory representation of a RO‑Crate.  Only the attributes accessed
-    by the VRE code are provided.
-    """
-
-    def __init__(
-        self,
-        main_entity: DummyEntity,
-        other_entities: List[DummyEntity] | None = None,
-        root_dataset: Dict[str, Any] | None = None,
-    ):
-        self.mainEntity = main_entity
-        self._entities = other_entities or []
-        # ``root_dataset`` is what ``VRE.setup_service`` looks at.
-        self.root_dataset = root_dataset or {}
-        self._custom_entities: Dict[str, Any] = {}
-        self.name = getattr(main_entity, "name", None) if main_entity else None
-        self.description = (
-            getattr(main_entity, "description", None) if main_entity else None
-        )
-        self.metadata = DummyMetadata()
-
-    def get_entities(self) -> List[DummyEntity]:
-        return self._entities
-
-    def get(self, entity_id: str, default: Any = None) -> Any:
-        """Get a custom entity by ID."""
-        return self._custom_entities.get(entity_id, default)
-
-    def set_custom_entity(self, entity_id: str, entity: Any) -> None:
-        """Set a custom entity for testing."""
-        self._custom_entities[entity_id] = entity
-
-    def delete(self, entity_id: str) -> None:
-        """Delete a custom entity."""
-        self._custom_entities.pop(entity_id, None)
+    # Return full entity as dict for graph serialization
+    def properties(self) -> Dict[str, Any]:
+        result = {"@id": self._id, "@type": self.type}
+        result.update(self._attrs)
+        return result
 
 
 class DummyMetadata:
@@ -93,3 +72,93 @@ class DummyMetadata:
     def generate(self) -> Dict[str, Any]:
         """Return dummy metadata."""
         return {"@context": "test", "@graph": []}
+
+
+class DummyCrate:
+    """
+    In-memory representation of a RO-Crate compatible with RequestPackage.
+
+    Provides:
+    - _graph: List of entity dicts with @id and @type
+    - mainEntity: Reference or direct entity
+    - root_dataset: Root dataset entity
+    - name/description: Crate-level metadata
+    - metadata: Metadata object with generate() method
+
+    Note: To create a valid ROCrate for ROCrateFactory.create_from_dict(),
+    use get_rocrate_dict() which includes @context and proper structure.
+    """
+
+    def __init__(
+        self,
+        main_entity: DummyEntity | None = None,
+        other_entities: List[DummyEntity] | None = None,
+        root_dataset: Dict[str, Any] | None = None,
+        language_entity: DummyEntity | None = None,
+        name: str | None = None,
+        description: str | None = None,
+    ):
+        # Build list of all entities including root dataset and metadata descriptor
+        all_entities: List[DummyEntity] = []
+
+        # Create root dataset entity (required by RO-Crate spec)
+        root_id = "./"
+        root_props = {"@id": root_id, "@type": "Dataset"}
+        if root_dataset:
+            root_props.update(root_dataset)
+
+        # Add mainEntity reference to root if present
+        if main_entity:
+            root_props["mainEntity"] = {"@id": main_entity.id}
+            root_props["hasPart"] = [{"@id": main_entity.id}]
+            self.name = name or main_entity.get("name")
+            self.description = description or main_entity.get("description")
+        else:
+            self.name = name
+            self.description = description
+
+        # Create root entity
+        root_entity = DummyEntity(_id=root_id, _type="Dataset", **root_props)
+        all_entities.append(root_entity)
+
+        # Add ro-crate-metadata.json descriptor (required by RO-Crate spec)
+        metadata_descriptor = DummyEntity(
+            _id="ro-crate-metadata.json",
+            _type="CreativeWork",
+            about={"@id": "./"},
+            conformsTo={"@id": "https://w3id.org/ro/crate/1.1"},
+        )
+        all_entities.append(metadata_descriptor)
+
+        # Add language entity if provided (for programmingLanguage reference)
+        if language_entity:
+            all_entities.append(language_entity)
+
+        # Add main entity
+        if main_entity:
+            all_entities.append(main_entity)
+
+        # Add other entities
+        if other_entities:
+            all_entities.extend(other_entities)
+
+        # Store for later access
+        self._entities = all_entities
+        self.mainEntity = {"@id": main_entity.id} if main_entity else None
+        self.root_dataset = root_props
+        self.metadata = DummyMetadata()
+
+    def get_entities(self) -> List[Dict[str, Any]]:
+        """Return the graph as a list of entity dicts."""
+        return [entity.properties() for entity in self._entities]
+
+    def get_rocrate_dict(self) -> Dict[str, Any]:
+        """
+        Return a complete RO-Crate dictionary suitable for ROCrateFactory.create_from_dict().
+
+        This includes both @context and @graph as required by the rocrate library.
+        """
+        return {
+            "@context": "https://w3id.org/ro/crate/1.1/context",
+            "@graph": [entity.properties() for entity in self._entities],
+        }

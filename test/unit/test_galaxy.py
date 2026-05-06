@@ -3,8 +3,7 @@ import pytest
 import requests_mock
 from app import constants
 from app.exceptions import GalaxyAPIError, WorkflowURLError
-from fixtures.dummy_crate import DummyEntity, DummyCrate, WORKFLOW_URL
-from app.exceptions import WorkflowURLError
+from fixtures.dummy_crate import WORKFLOW_URL
 
 
 # TODO FILE1, FILE2 move somewhere else, split to 2 tests
@@ -54,13 +53,10 @@ def test_post_happy_path(galaxy_vre, requests_mock):
     )
 
 
-def test_missing_workflow_url_causes_exception(galaxy_vre):
-    missing_url = DummyEntity(_type="Dataset")  # no url
-    galaxy_vre.request_package._crate = DummyCrate(main_entity=missing_url)
-    galaxy_vre.request_package.refresh()
-
+def test_missing_workflow_url_causes_exception(galaxy_vre_no_url):
+    """post() should raise WorkflowURLError when workflow has no URL."""
     with pytest.raises(WorkflowURLError):
-        galaxy_vre.post()
+        galaxy_vre_no_url.post()
 
 
 def test_missing_uuid_in_response_causes_exception(galaxy_vre, requests_mock):

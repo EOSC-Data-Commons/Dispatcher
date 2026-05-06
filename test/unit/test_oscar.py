@@ -5,7 +5,8 @@ import json
 import os
 import pytest
 from unittest.mock import MagicMock, patch
-from rocrate.rocrate import ROCrate
+
+from app.domain.rocrate import ROCrateFactory
 from app.vres.oscar import VREOSCAR
 from app.exceptions import VREConfigurationError, ExternalServiceError
 
@@ -22,9 +23,13 @@ def load_json(file_name):
 @patch("app.vres.oscar.requests.delete")
 def test_lifecycle(mock_delete, mock_post, mock_get):
     """Test OSCAR VRE post function"""
-    crate = ROCrate(source=load_json("../oscar/ro-crate-metadata.json"))
+    crate_dir = os.path.join(os.path.dirname(__file__), "..", "oscar")
+    package = ROCrateFactory.create_from_file(crate_dir)
     vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
+        request_package=package,
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
     )
     fdl = load_json("../oscar/cowsay.json")
     script_content = """#!/bin/sh
@@ -57,7 +62,8 @@ fi"""
 
     result = vreoscar.post()
     assert result == "https://oscar.grycap.net/system/services/cowsay"
-    assert mock_post.call_count == 2
+    # 1 service creation + 2 job invocations (workflow entity + textfile)
+    assert mock_post.call_count == 3
 
     assert (
         mock_post.call_args_list[0][0][0] == "https://oscar.grycap.net/system/services"
@@ -69,11 +75,12 @@ fi"""
         "Content-Type": "application/json",
     }
 
-    assert mock_post.call_args_list[1][0][0] == "https://oscar.grycap.net/job/cowsay"
-    assert mock_post.call_args_list[1][1]["data"] == base64.b64encode(
+    # Second invocation (index 2) is for the textfile
+    assert mock_post.call_args_list[2][0][0] == "https://oscar.grycap.net/job/cowsay"
+    assert mock_post.call_args_list[2][1]["data"] == base64.b64encode(
         b"input file content"
     )
-    assert mock_post.call_args_list[1][1]["headers"] == {
+    assert mock_post.call_args_list[2][1]["headers"] == {
         "Authorization": "Bearer dummy_token"
     }
 
@@ -86,71 +93,36 @@ fi"""
     )
 
 
-def test_no_hasparts():
+def test_no_hasparts(oscar_vre_no_hasparts):
     """Test Missing hasPart in OSCAR VRE"""
-    crate = MagicMock()
-    crate.mainEntity = {"hasPart": []}
-    crate.root_dataset = {}
-    vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
-    )
-
     with pytest.raises(VREConfigurationError) as exc:
-        vreoscar._get_fdl_from_crate()
-    assert "Missing hasPart in workflow entity" == str(exc.value)
+        oscar_vre_no_hasparts._get_fdl_from_crate()
+    assert "Missing FDL in workflow entity" == str(exc.value)
 
 
-def test_invalid_entity_type():
+def test_invalid_entity_type(oscar_vre_invalid_type):
     """Test Invalid hasPart type in OSCAR VRE"""
-    crate = MagicMock()
-    crate.mainEntity = {"hasPart": [{"@type": "NotAFile"}]}
-    crate.root_dataset = {}
-    vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
-    )
-
     with pytest.raises(VREConfigurationError) as exc:
-        vreoscar._get_fdl_from_crate()
-    assert "Invalid hasPart type in workflow entity" == str(exc.value)
+        oscar_vre_invalid_type._get_fdl_from_crate()
+    assert "Missing FDL in workflow entity" == str(exc.value)
 
 
-def test_fdl_missing():
+def test_fdl_missing(oscar_vre_no_fdl):
     """Test Missing FDL in OSCAR VRE"""
-    crate = MagicMock()
-    crate.mainEntity = {
-        "hasPart": [{"@type": "File", "@id": "fdl", "encodingFormat": "text/plain"}]
-    }
-    crate.root_dataset = {}
-    crate.dereference.return_value = {"url": "http://some-url"}
-    vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
-    )
-
     with pytest.raises(VREConfigurationError) as exc:
-        vreoscar._get_fdl_from_crate()
+        oscar_vre_no_fdl._get_fdl_from_crate()
     assert "Missing FDL in workflow entity" == str(exc.value)
 
 
 @patch("app.vres.oscar.requests.get")
 @patch("app.vres.oscar.requests.post")
-def test_oscar_creation_error(mock_post, mock_get):
+def test_oscar_creation_error(mock_post, mock_get, oscar_vre_with_fdl):
+    """Test OSCAR service creation error"""
     mock_get.return_value.status_code = 200
     mock_get.return_value.json.return_value = {"name": "test_service"}
     mock_post.return_value.status_code = 400
     mock_post.return_value.text = "Bad Request"
 
-    crate = MagicMock()
-    crate.mainEntity = {
-        "hasPart": [
-            {"@type": "File", "@id": "fdl", "encodingFormat": "application/json"}
-        ]
-    }
-    crate.root_dataset = {}
-    crate.dereference.return_value = {"url": "http://some-url"}
-    vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
-    )
-
     with pytest.raises(ExternalServiceError) as exc:
-        vreoscar.post()
+        oscar_vre_with_fdl.post()
     assert "Error creating OSCAR service: Bad Request" == str(exc.value)

@@ -104,16 +104,33 @@ def get_all_requirements() -> Dict[str, dict]:
     }
 
 
+# Export checker classes for direct import in tests
+from .galaxy import GalaxyChecker
+from .jupyter import JupyterChecker
+from .oscar import OSCARChecker
+from .binder import BinderChecker
+from .sciencemesh import ScienceMeshChecker
+from .scipion import ScipionChecker
+
+__all__ = [
+    "BaseChecker",
+    "GalaxyChecker",
+    "JupyterChecker",
+    "OSCARChecker",
+    "BinderChecker",
+    "ScienceMeshChecker",
+    "ScipionChecker",
+    "register_checker",
+    "get_checker",
+    "get_checker_by_vre_type",
+    "get_all_checkers",
+    "get_all_requirements",
+]
+
+
 # Lazy imports of checker implementations to avoid circular dependencies
 def _load_checkers() -> None:
     """Lazy load all checker implementations and register them."""
-    from .galaxy import GalaxyChecker
-    from .jupyter import JupyterChecker
-    from .oscar import OSCARChecker
-    from .binder import BinderChecker
-    from .sciencemesh import ScienceMeshChecker
-    from .scipion import ScipionChecker
-
     register_checker(GALAXY_PROGRAMMING_LANGUAGE, GalaxyChecker)
     register_checker(JUPYTER_PROGRAMMING_LANGUAGE, JupyterChecker)
     register_checker(BINDER_PROGRAMMING_LANGUAGE, BinderChecker)

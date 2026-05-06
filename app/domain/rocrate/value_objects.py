@@ -54,7 +54,8 @@ class WorkflowInfo:
     """Value object representing workflow metadata.
 
     Attributes:
-        url: The workflow URL (e.g., TRS endpoint).
+        url: The workflow URL (e.g., TRS endpoint). Optional — not all
+            workflows have a URL (e.g., OSCAR uses hasPart references).
         language_identifier: The programming language identifier
             (e.g., "https://galaxyproject.org/").
         language_name: Human-readable language name.
@@ -63,8 +64,8 @@ class WorkflowInfo:
         parts: List of workflow parts from hasPart.
     """
 
-    url: str
-    language_identifier: str
+    url: Optional[str] = None
+    language_identifier: str = ""
     language_name: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None

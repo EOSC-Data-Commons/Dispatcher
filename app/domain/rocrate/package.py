@@ -120,38 +120,30 @@ class RequestPackage:
 
         Raises:
             VREConfigurationError: If mainEntity is missing or invalid.
-            WorkflowURLError: If workflow URL is missing.
         """
         self._ensure_cache()
 
         if not self._main_entity_cache:
             raise VREConfigurationError("Missing mainEntity in ROCrate")
 
-        # Get workflow URL
+        # Get workflow URL (optional — not all workflows have one)
         url = self._main_entity_cache.get("url")
-        if not url:
-            raise WorkflowURLError("Workflow missing 'url' property")
 
         # Get language information
+        # All RO-Crate fixtures use the pattern: programmingLanguage -> {"@id": "..."}
+        # which references a ComputerLanguage entity with identifier: {"@id": "..."}
         lang = self._main_entity_cache.get("programmingLanguage", {})
         lang_id = ""
         lang_name = None
 
-        if isinstance(lang, dict):
-            lang_id = lang.get("identifier", "")
-            lang_name = lang.get("name")
-        else:
-            # Try to resolve reference
-            if hasattr(lang, "get"):
-                lang_id = lang.get("@id", "")
-            lang_obj = self._entities_cache.get(lang_id, {})
+        if isinstance(lang, dict) and "@id" in lang:
+            # Resolve the language reference
+            ref_id = lang["@id"]
+            lang_obj = self._entities_cache.get(ref_id, {})
             if lang_obj:
-                # Try to get identifier from the referenced entity
-                identifier = lang_obj.get("identifier", "")
+                identifier = lang_obj.get("identifier", {})
                 if isinstance(identifier, dict):
                     lang_id = identifier.get("@id", "")
-                elif isinstance(identifier, str):
-                    lang_id = identifier
                 lang_name = lang_obj.get("name")
 
         # Get workflow parts (hasPart)
@@ -273,7 +265,11 @@ class RequestPackage:
 
         # Handle both dict and reference formats
         if isinstance(runs_on, dict):
-            service_data = runs_on
+            # If the dict is just a reference (only @id), resolve it
+            if "@id" in runs_on and "url" not in runs_on:
+                service_data = self._entities_cache.get(runs_on["@id"], {})
+            else:
+                service_data = runs_on
         else:
             service_id = (
                 getattr(runs_on, "get", lambda k, d=None: d)("@id", "")
@@ -423,13 +419,18 @@ class RequestPackage:
     # =========================================================================
 
     def get_workflow_url(self) -> str:
-        """Deprecated: Use get_workflow_info().url instead."""
-        warnings.warn(
-            "get_workflow_url() is deprecated. Use get_workflow_info().url instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.get_workflow_info().url
+        """Get the workflow URL.
+
+        Returns:
+            The workflow URL string.
+
+        Raises:
+            WorkflowURLError: If workflow URL is missing.
+        """
+        url = self.get_workflow_info().url
+        if not url:
+            raise WorkflowURLError("Workflow missing 'url' property")
+        return url
 
     def get_workflow_entity(self) -> Any:
         """Deprecated: Use get_workflow_info() instead."""
