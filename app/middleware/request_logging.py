@@ -10,12 +10,11 @@ This middleware provides:
 import logging
 import time
 import uuid
-from typing import Optional
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
-from app.logging_config import set_request_id, get_request_id
+from app.logging_config import set_request_id
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -26,10 +25,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     response status codes and processing times.
     """
 
-    def __init__(self, app, log_body: bool = False, max_body_length: int = 1000):
+    def __init__(self, app):
         super().__init__(app)
-        self.log_body = log_body
-        self.max_body_length = max_body_length
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -88,7 +85,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
             return response
 
-        except Exception as exc:
+        except Exception:
             # Calculate processing time even on error
             process_time = time.time() - start_time
 
