@@ -7,7 +7,9 @@ from git import Repo
 
 
 def test_post_happy_path(binder_vre):
-    local_git_url = f"https://{settings.host}/git/{binder_vre._request_id}"
+    local_git_url = (
+        f"https://{settings.host}{settings.git_url_prefix}/{binder_vre._request_id}"
+    )
 
     final_url = binder_vre.post()
 
