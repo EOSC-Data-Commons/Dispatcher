@@ -53,7 +53,7 @@ class VREScienceMesh(VRE):
             "resourceId": resid,
             "owner": owner.get("userid"),
             "senderDisplayName": sender.get("name"),
-            "sender": self._generate_ocm_address(sender),
+            "sender": self.generate_ocm_address(sender),
             "resourceType": "embedded",
             "shareType": "user",
             "protocol": {
@@ -63,7 +63,7 @@ class VREScienceMesh(VRE):
         }
         return ocm_share_request
 
-    def _generate_ocm_address(self, sender):
+    def generate_ocm_address(self, sender):
         # Generate an OCM address out of the sender user ID, that is ensure the host matches the dispatcher's public FQDN
         # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@egi.eu@<dispatcher's public FQDN>
         sender_userid = sender.get("userid")
