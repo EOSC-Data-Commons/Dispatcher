@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.INFO)
 
 class IM:
 
+    LOCAL_PATH_DEFAULT = "/opt"
     GET_DATA_NODE_TEMPLATE = {
         "type": "tosca.nodes.SoftwareComponent",
         "interfaces": {
@@ -24,11 +25,27 @@ class IM:
                     ),
                     "inputs": {
                         "data_url": "",
-                        "local_path": "/opt",
+                        "local_path": LOCAL_PATH_DEFAULT,
                         "wait_to_download": True,
                         "max_download_time": 1800,
                         "unarchive_file": False,
                     },
+                }
+            }
+        },
+        "requirements": [{"host": "simple_node"}],
+    }
+
+    COMMAND_NODE_TEMPLATE = {
+        "type": "tosca.nodes.SoftwareComponent",
+        "interfaces": {
+            "Standard": {
+                "configure": {
+                    "implementation": (
+                        "https://raw.githubusercontent.com/grycap/"
+                        "tosca/main/artifacts/ansible_tasks.yml"
+                    ),
+                    "inputs": {"ansible_tasks": "", "ansible_name": "run_command"},
                 }
             }
         },
@@ -196,6 +213,45 @@ class IM:
         get_data["requirements"][0]["host"] = compute_name
         return get_data
 
+    @staticmethod
+    def _gen_run_command_node(command: str, compute_name: Mapping[str, Any]) -> dict:
+        run_command = copy.deepcopy(IM.COMMAND_NODE_TEMPLATE)
+        run_command_inputs = run_command["interfaces"]["Standard"]["configure"][
+            "inputs"
+        ]
+        if command:
+            run_command_inputs["ansible_tasks"] = "- name: Run command\n"
+            run_command_inputs["ansible_tasks"] += "  shell: " + command + "\n"
+            run_command_inputs["ansible_tasks"] += "  args:\n"
+            run_command_inputs["ansible_tasks"] += "    chdir: " + IM.LOCAL_PATH_DEFAULT
+        run_command["requirements"][0]["host"] = compute_name
+        return run_command
+
+    def _add_command_to_tosca_template(
+        self, tosca_template: dict, service: Mapping[str, Any]
+    ) -> dict:
+        """Adds a command node to the TOSCA template if a command is specified in the service."""
+        command = service.get("command")
+        if not command:
+            return tosca_template
+
+        compute_nodes = self._get_compute_nodes(tosca_template)
+        if not compute_nodes:
+            logging.error(
+                "No compute nodes found in TOSCA template, cannot add command."
+            )
+            return tosca_template
+
+        compute_name = list(compute_nodes.keys())[0]  # Use the first compute node
+        node_templates = tosca_template.get("topology_template", {}).get(
+            "node_templates", {}
+        )
+        node_templates["run_command"] = self._gen_run_command_node(
+            command, compute_name
+        )
+
+        return tosca_template
+
     def _add_files_to_tosca_template(
         self, tosca_template: dict, service: Mapping[str, Any]
     ) -> dict:
@@ -248,6 +304,8 @@ class IM:
         tosca_template = self._add_inputs_to_tosca_template(tosca_template, service)
         # Add input files to stage in
         tosca_template = self._add_files_to_tosca_template(tosca_template, service)
+        # Add command to run if specified
+        tosca_template = self._add_command_to_tosca_template(tosca_template, service)
 
         return tosca_template
 
