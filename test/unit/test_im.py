@@ -340,3 +340,40 @@ def test_add_input_files_to_tosca_template(mock_settings):
         == "/data"
     )
     assert get_data_1["requirements"][0]["host"] == "compute1"
+
+
+def test_gen_run_command_node(mock_settings):
+    im = IM("test_token")
+    command = "echo hello"
+    compute_name = "my_node"
+
+    node = im._gen_run_command_node(command, compute_name)
+
+    assert node["type"] == "tosca.nodes.SoftwareComponent"
+    configure_inputs = node["interfaces"]["Standard"]["configure"]["inputs"]
+    assert "ansible_tasks" in configure_inputs
+    assert f"shell: {command}" in configure_inputs["ansible_tasks"]
+    assert f"chdir: {IM.LOCAL_PATH_DEFAULT}" in configure_inputs["ansible_tasks"]
+    assert configure_inputs["ansible_name"] == "run_command"
+    assert node["requirements"][0]["host"] == compute_name
+
+
+def test_add_command_to_tosca_template(mock_settings):
+    test_tosca = {
+        "topology_template": {
+            "inputs": {},
+            "node_templates": {"compute1": {"type": "tosca.nodes.Compute"}},
+        }
+    }
+    service = {"command": "python run.py"}
+
+    im = IM("test_token")
+    updated_tosca = im._add_command_to_tosca_template(test_tosca, service)
+    node_templates = updated_tosca["topology_template"]["node_templates"]
+
+    assert "run_command" in node_templates
+    run_command = node_templates["run_command"]
+    assert run_command["type"] == "tosca.nodes.SoftwareComponent"
+    configure_inputs = run_command["interfaces"]["Standard"]["configure"]["inputs"]
+    assert "shell: python run.py" in configure_inputs["ansible_tasks"]
+    assert run_command["requirements"][0]["host"] == "compute1"
