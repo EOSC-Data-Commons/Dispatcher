@@ -365,7 +365,7 @@ def test_add_command_to_tosca_template(mock_settings):
             "node_templates": {"compute1": {"type": "tosca.nodes.Compute"}},
         }
     }
-    service = {"command": "python run.py"}
+    service = {"softwareRequirements": "python run.py"}
 
     im = IM("test_token")
     updated_tosca = im._add_command_to_tosca_template(test_tosca, service)

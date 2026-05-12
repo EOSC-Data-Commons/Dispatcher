@@ -131,22 +131,31 @@ class IM:
                 logging.warning(f"The TOSCA template does not define '{key}' input.")
 
     @staticmethod
-    def _add_inputs_to_tosca_template(
-        tosca_template: dict, service: Mapping[str, Any]
-    ) -> dict:
-        memory = service.get("memoryRequirements")
-        cpus = service.get("processorRequirements")
-        storage = service.get("storageRequirements")
-        num_cpus = 1  # Default value
-        num_gpus = 0  # Default value
+    def _get_num_cpus_and_gpus(cpus: str | list) -> tuple[int, int]:
+        num_cpus, num_gpus = 1, 0
         if isinstance(cpus, str) and "vCPU" in cpus:
-            num_cpus = int(cpus.replace("vCPU", "").strip())
+            return int(cpus.replace("vCPU", "").strip()), 0
         elif isinstance(cpus, list):
             for cpu in cpus:
                 if "vCPU" in cpu:
                     num_cpus = int(cpu.replace("vCPU", "").strip())
                 if "GPU" in cpu:
                     num_gpus = int(cpu.replace("GPU", "").strip())
+        else:
+            logging.warning(
+                f"Unexpected format for processorRequirements: {cpus}. "
+                "Defaulting to 1 CPU and 0 GPUs."
+            )
+        return num_cpus, num_gpus
+
+    @staticmethod
+    def _add_inputs_to_tosca_template(
+        tosca_template: dict, service: Mapping[str, Any]
+    ) -> dict:
+        memory = service.get("memoryRequirements")
+        cpus = service.get("processorRequirements")
+        storage = service.get("storageRequirements")
+        num_cpus, num_gpus = IM._get_num_cpus_and_gpus(cpus)
 
         inputs = tosca_template["topology_template"]["inputs"]
         IM._update_input_default(inputs, "mem_size", memory)
@@ -230,8 +239,10 @@ class IM:
     def _add_command_to_tosca_template(
         self, tosca_template: dict, service: Mapping[str, Any]
     ) -> dict:
-        """Adds a command node to the TOSCA template if a command is specified in the service."""
-        command = service.get("command")
+        """Adds a command node to the TOSCA template if a command is specified in the service.
+        The command is expected to be in the 'softwareRequirements' field of the service.
+        """
+        command = service.get("softwareRequirements")
         if not command:
             return tosca_template
 

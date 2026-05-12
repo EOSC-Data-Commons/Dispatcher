@@ -38,7 +38,6 @@ class VRE(ABC):
         self._request_id = request_id
         self._im_factory = im_factory or self._default_im_factory
         self.svc_url = self.setup_service().rstrip("/")
-        self.ssh_info = None  # Placeholder for SSH info from IM, if any
         # Store any additional kwargs for subclasses
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -74,9 +73,6 @@ class VRE(ABC):
             self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
             if "url" not in outputs:
                 raise VREConfigurationError("IM output missing 'url' field")
-            if "ssh" in outputs:
-                # Store SSH info to connect to the service, as some VREs may need it later (e.g. Scipion).
-                self.ssh_info = outputs["ssh"]
             return outputs["url"]
 
         # Anything else is an error.

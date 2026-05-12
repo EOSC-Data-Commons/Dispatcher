@@ -64,13 +64,14 @@
         },
         {
             "@id": "#destination",
-            "@type": "Service",
+            "@type": [
+                "Service",
+                "SoftwareApplication"
+            ],
             "serviceType": "InfrastructureManager",
             "name": "Scipion",
             "memoryRequirements": "4 GiB",
-            "processorRequirements": [
-                "2 vCPU"
-            ],
+            "processorRequirements": "2 vCPU",
             "storageRequirements": "200 GiB",
             "hasPart": [
                 {
@@ -85,7 +86,7 @@
                     "@id": "#workflow"
                 }
             ],
-            "command": "scipion_launcher.sh workflow_2D_xmipp.json.template ./EMPIAR-13496"
+            "softwareRequirements": "scipion_launcher.sh workflow_2D_xmipp.json.template ./data"
         },
         {
             "@id": "#scipion.yaml",
