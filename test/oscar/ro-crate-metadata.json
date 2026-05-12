@@ -32,6 +32,12 @@
                 },
                 {
                     "@id": "https://example-files.online-convert.com/document/txt/example.txt"
+                },
+                {
+                    "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
+                },
+                {
+                    "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
                 }
             ]
         },
@@ -62,15 +68,7 @@
             },
             "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
             "version": "1.0.0",
-            "runtimePlatform": "https://oscar.vre.eosc-data-commons.eu",
-            "hasPart": [
-                {
-                    "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
-                },
-                {
-                    "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
-                }
-            ]
+            "runtimePlatform": "https://oscar.vre.eosc-data-commons.eu"
         },
         {
             "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",

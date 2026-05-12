@@ -25,36 +25,21 @@ class VREOSCAR(VRE):
         if self.fld_json:
             return self.fld_json
 
-        workflow_parts = self.crate.mainEntity.get("hasPart", [])
-        if not workflow_parts:
-            raise VREConfigurationError("Missing hasPart in workflow entity")
+        fdl_url = self.crate.mainEntity.get("url")
+        if not fdl_url:
+            raise VREConfigurationError("Missing url in workflow entity")
+        fdl_json = self._fetch_file(fdl_url, True)
 
-        fdl_json = None
         script = None
-
-        for elem in workflow_parts:
-            if not elem.get("@type") == "File":
-                raise VREConfigurationError("Invalid hasPart type in workflow entity")
-
-            ref_elem = self.crate.dereference(elem.get("@id"))
-            if not ref_elem:
-                logging.error("Could not dereference entity %s", elem.get("@id"))
-                continue
-
-            file_url = ref_elem.get("url") or ref_elem.get("@id")
-            if not file_url:
-                logging.error("File entity %s has no URL", elem.get("@id"))
-                continue
-
-            encoding = elem.get("encodingFormat")
-
-            if encoding == "application/json":
-                fdl_json = self._fetch_file(file_url, True)
-            elif encoding == "text/x-shellscript":
-                script = self._fetch_file(file_url)
-
-        if not fdl_json:
-            raise VREConfigurationError("Missing FDL in workflow entity")
+        for entity in self.crate.get_entities():
+            if (
+                entity.type == "File"
+                and entity.get("encodingFormat") == "text/x-shellscript"
+            ):
+                file_url = entity.get("url") or entity.get("@id")
+                if file_url:
+                    script = self._fetch_file(file_url)
+                    break
 
         if script:
             fdl_json["script"] = script
@@ -97,16 +82,18 @@ class VREOSCAR(VRE):
         return service_url
 
     def _get_input_files(self):
-        # Get all files except the workflow and destination
         non_input_files = []
-        # Exclude the destination service (runtimePlatform on mainEntity)
         runtime_platform = self.crate.mainEntity.get("runtimePlatform")
         if isinstance(runtime_platform, dict) and "@id" in runtime_platform:
             non_input_files.append(runtime_platform["@id"])
         non_input_files.append(self.crate.mainEntity.get("@id"))
-        for elem in self.crate.mainEntity.get("hasPart", []):
-            if elem.get("@type") == "File":
-                non_input_files.append(elem.get("@id"))
+        non_input_files.append(self.crate.mainEntity.get("url"))
+        for entity in self.crate.get_entities():
+            if (
+                entity.type == "File"
+                and entity.get("encodingFormat") == "text/x-shellscript"
+            ):
+                non_input_files.append(entity.get("@id"))
         return [
             e
             for e in self.crate.get_entities()

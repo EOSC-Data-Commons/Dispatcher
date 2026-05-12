@@ -35,6 +35,12 @@
                 },
                 {
                     "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/oscar.yaml"
+                },
+                {
+                    "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
+                },
+                {
+                    "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
                 }
             ]
         },
@@ -67,15 +73,7 @@
             "version": "1.0.0",
             "runtimePlatform": {
                 "@id": "#destination"
-            },
-            "hasPart": [
-                {
-                    "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
-                },
-                {
-                    "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
-                }
-            ]
+            }
         },
         {
             "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",

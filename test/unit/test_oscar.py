@@ -88,9 +88,9 @@ fi"""
 
 
 def test_no_hasparts():
-    """Test Missing hasPart in OSCAR VRE"""
+    """Test Missing url in OSCAR VRE"""
     crate = MagicMock()
-    crate.mainEntity = {"hasPart": []}
+    crate.mainEntity = {}
     crate.root_dataset = {}
     vreoscar = VREOSCAR(
         crate=crate, token="dummy_token", request_id=0, update_state=None
@@ -98,13 +98,13 @@ def test_no_hasparts():
 
     with pytest.raises(VREConfigurationError) as exc:
         vreoscar._get_fdl_from_crate()
-    assert "Missing hasPart in workflow entity" == str(exc.value)
+    assert "Missing url in workflow entity" == str(exc.value)
 
 
-def test_invalid_entity_type():
-    """Test Invalid hasPart type in OSCAR VRE"""
+def test_missing_url():
+    """Test Missing url in OSCAR VRE"""
     crate = MagicMock()
-    crate.mainEntity = {"hasPart": [{"@type": "NotAFile"}]}
+    crate.mainEntity = {}
     crate.root_dataset = {}
     vreoscar = VREOSCAR(
         crate=crate, token="dummy_token", request_id=0, update_state=None
@@ -112,24 +112,7 @@ def test_invalid_entity_type():
 
     with pytest.raises(VREConfigurationError) as exc:
         vreoscar._get_fdl_from_crate()
-    assert "Invalid hasPart type in workflow entity" == str(exc.value)
-
-
-def test_fdl_missing():
-    """Test Missing FDL in OSCAR VRE"""
-    crate = MagicMock()
-    crate.mainEntity = {
-        "hasPart": [{"@type": "File", "@id": "fdl", "encodingFormat": "text/plain"}]
-    }
-    crate.root_dataset = {}
-    crate.dereference.return_value = {"url": "http://some-url"}
-    vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
-    )
-
-    with pytest.raises(VREConfigurationError) as exc:
-        vreoscar._get_fdl_from_crate()
-    assert "Missing FDL in workflow entity" == str(exc.value)
+    assert "Missing url in workflow entity" == str(exc.value)
 
 
 @patch("app.vres.oscar.requests.get")
@@ -141,13 +124,9 @@ def test_oscar_creation_error(mock_post, mock_get):
     mock_post.return_value.text = "Bad Request"
 
     crate = MagicMock()
-    crate.mainEntity = {
-        "hasPart": [
-            {"@type": "File", "@id": "fdl", "encodingFormat": "application/json"}
-        ]
-    }
+    crate.mainEntity = {"url": "http://some-url"}
     crate.root_dataset = {}
-    crate.dereference.return_value = {"url": "http://some-url"}
+    crate.get_entities.return_value = []
     vreoscar = VREOSCAR(
         crate=crate, token="dummy_token", request_id=0, update_state=None
     )
