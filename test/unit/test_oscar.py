@@ -5,10 +5,15 @@ import json
 import os
 import pytest
 from unittest.mock import MagicMock, patch
-from app.constants import OSCAR_DEFAULT_SERVICE
+from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_PROGRAMMING_LANGUAGE
 from app.vres.oscar import VREOSCAR
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from fixtures.dummy_crate import DummyEntity, DummyCrate
+from app.domain.rocrate.request_package import (
+    RequestPackage,
+    WorkflowDescriptor,
+    FileReference,
+)
 
 
 def load_json(file_name):
@@ -47,8 +52,37 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         },
     )
     crate = DummyCrate(main_entity=main, other_entities=[script_entity, input_entity])
+    request_package = RequestPackage(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="SoftwareSourceCode",
+            url="https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
+            runtime_platform="https://oscar.vre.eosc-data-commons.eu",
+        ),
+        files=[
+            FileReference(
+                id="https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
+                name="script.sh",
+                encoding_format="text/x-shellscript",
+                url="https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
+            ),
+            FileReference(
+                id="https://example-files.online-convert.com/document/txt/example.txt",
+                name="simpletext_input",
+                encoding_format="text/txt",
+                url="https://example-files.online-convert.com/document/txt/example.txt",
+            ),
+        ],
+        raw_crate={},
+    )
     vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
+        crate=crate,
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
     )
     fdl = load_json("../oscar/cowsay.json")
     script_content = """#!/bin/sh
@@ -111,8 +145,18 @@ def test_no_hasparts():
     """Test Missing url in OSCAR VRE"""
     main = DummyEntity(_type="SoftwareSourceCode")
     crate = DummyCrate(main_entity=main)
+    request_package = RequestPackage(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
+        raw_crate={},
+    )
     vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
+        crate=crate,
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
     )
 
     with pytest.raises(VREConfigurationError) as exc:
@@ -124,8 +168,18 @@ def test_missing_url():
     """Test Missing url in OSCAR VRE"""
     main = DummyEntity(_type="SoftwareSourceCode")
     crate = DummyCrate(main_entity=main)
+    request_package = RequestPackage(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
+        raw_crate={},
+    )
     vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
+        crate=crate,
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
     )
 
     with pytest.raises(VREConfigurationError) as exc:
@@ -146,8 +200,20 @@ def test_oscar_creation_error(mock_post, mock_get):
         **{"@id": "#workflow", "url": "http://some-url"},
     )
     crate = DummyCrate(main_entity=main)
+    request_package = RequestPackage(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow", type="SoftwareSourceCode", url="http://some-url"
+        ),
+        raw_crate={},
+    )
     vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
+        crate=crate,
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
     )
 
     with pytest.raises(ExternalServiceError) as exc:

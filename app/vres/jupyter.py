@@ -75,13 +75,13 @@ class VREJupyter(VRE):
             raise exceptions.ExternalServiceError(f"Token creation failed: {e}")
 
     def _get_notebook_from_crate(self):
-        for entity in self.crate.get_entities():
-            if entity.type == "File" and entity.id.endswith(".ipynb"):
-                content = entity.get("content")
+        for fref in self.request_package.files:
+            if fref.id.endswith(".ipynb"):
+                content = fref.properties.get("content")
                 if content is not None:
                     if isinstance(content, bytes):
                         content = json.loads(content.decode())
-                    return entity.get("name") or entity.id, content
+                    return fref.name, content
         raise exceptions.VREConfigurationError("No .ipynb notebook found in crate")
 
     def _wait_for_server_creation(self):

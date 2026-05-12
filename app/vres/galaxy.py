@@ -35,38 +35,36 @@ class VREGalaxy(VRE):
         }
 
     def _get_workflow_files(self):
-        """Extract file entities from the crate."""
-        return [e for e in self.crate.get_entities() if e.type == "File"]
+        """Extract file references from the request package."""
+        return self.request_package.files
 
     def _get_workflow_url(self):
-        """Extract workflow URL from the crate."""
-        workflow_url = self.crate.main_entity.get("url")
+        """Extract workflow URL from the request package."""
+        workflow_url = self.request_package.workflow_url
         if workflow_url is None:
             logging.error(f"{self.__class__.__name__}: Missing url in workflow entity")
             raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
     def _modify_for_api_data_input(self, files):
-        """Convert file entities to API-compatible format."""
+        """Convert file references to API-compatible format."""
         result = {}
         for f in files:
-            properties = f.properties
-
             file_meta = {
                 "class": "File",
-                "filetype": properties["encodingFormat"].split("/")[-1],
+                "filetype": (
+                    f.encoding_format.split("/")[-1] if f.encoding_format else "unknown"
+                ),
             }
 
-            if "onedata:fileId" in properties:
-                oz_domain = properties["onedata:onezoneDomain"]
-                file_id = properties["onedata:fileId"]
+            if f.onedata_file_id:
                 file_meta["location"] = (
-                    f"https://{oz_domain}/api/v3/onezone/shares/data/{file_id}/content"
+                    f"https://{f.onedata_domain}/api/v3/onezone/shares/data/{f.onedata_file_id}/content"
                 )
             else:
-                file_meta["location"] = f.id
+                file_meta["location"] = f.url or f.id
 
-            result[properties["name"]] = file_meta
+            result[f.name] = file_meta
 
         return result
 

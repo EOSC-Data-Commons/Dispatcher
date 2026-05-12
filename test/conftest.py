@@ -25,8 +25,48 @@ from app.constants import (
     OSCAR_PROGRAMMING_LANGUAGE,
 )
 from app.services.im import IM
+from app.domain.rocrate.request_package import (
+    RequestPackage,
+    WorkflowDescriptor,
+    FileReference,
+    ServiceTarget,
+)
 
 pytest_plugins = ["pytest_asyncio"]
+
+
+def _build_request_package(crate: DummyCrate, lang_id: str) -> RequestPackage:
+    """Build a RequestPackage from a DummyCrate for tests."""
+    main = crate.main_entity
+    workflow = WorkflowDescriptor(
+        id=main.id,
+        type=main.type,
+        url=main.get("url"),
+        programming_language_id=lang_id,
+        runtime_platform=main.get("runtimePlatform"),
+        properties=main.properties,
+    )
+    files = []
+    for e in crate.get_entities():
+        if e.type == "File":
+            files.append(
+                FileReference(
+                    id=e.id,
+                    name=e.get("name", e.id),
+                    encoding_format=e.get("encodingFormat"),
+                    url=e.get("url") or e.id,
+                    onedata_domain=e.get("onedata:onezoneDomain"),
+                    onedata_file_id=e.get("onedata:fileId"),
+                    properties=e.properties,
+                )
+            )
+    return RequestPackage(
+        vre_type=lang_id,
+        programming_language=lang_id,
+        workflow=workflow,
+        files=files,
+        raw_crate={},
+    )
 
 
 @pytest.fixture
@@ -127,6 +167,9 @@ def galaxy_vre(dummy_galaxy_crate):
         token="test-token",
         request_id=0,
         update_state=None,
+        request_package=_build_request_package(
+            dummy_galaxy_crate, GALAXY_PROGRAMMING_LANGUAGE
+        ),
     )
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
@@ -139,6 +182,9 @@ def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
         token="test-token",
         request_id=0,
         update_state=None,
+        request_package=_build_request_package(
+            dummy_galaxy_crate_onedata, GALAXY_PROGRAMMING_LANGUAGE
+        ),
     )
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
@@ -172,6 +218,9 @@ def binder_vre(dummy_binder_crate):
         request_id=0,
         update_state=None,
         body=create_test_zip_body(),
+        request_package=_build_request_package(
+            dummy_binder_crate, BINDER_PROGRAMMING_LANGUAGE
+        ),
     )
     vre.svc_url = "https://mybinder.org"
     return vre

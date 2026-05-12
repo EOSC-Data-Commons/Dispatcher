@@ -52,15 +52,10 @@ class VREBinder(VRE):
         return f"{gitrepos}/{request_id}"
 
     def _write_source_files(self, repo):
-        logger.debug(f"{__class__.__name__}: writing source files from crate")
-        for entity in self.crate.get_entities():
-            if entity.type != "File":
-                continue
-            file_id = entity.id
-            if file_id.startswith("http://") or file_id.startswith("https://"):
-                continue
-            filename = entity.get("name") or file_id
-            content = entity.get("content")
+        logger.debug(f"{__class__.__name__}: writing source files from request package")
+        for fref in self.request_package.local_files:
+            filename = fref.name
+            content = fref.properties.get("content")
             if content is not None:
                 with open(f"{repo}/{filename}", "wb") as f:
                     f.write(content if isinstance(content, bytes) else content.encode())
