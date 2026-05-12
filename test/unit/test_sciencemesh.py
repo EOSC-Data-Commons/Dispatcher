@@ -1,3 +1,4 @@
+import uuid
 import pytest
 from rocrate.rocrate import ROCrate
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
@@ -80,4 +81,10 @@ def test_post_sends_correct_ocm_share_request(
     )
     sciencemesh_vre.post()
 
-    assert requests_mock.request_history[0].json() == ocm_share_request
+    actual = requests_mock.request_history[0].json()
+
+    for key in ("providerId", "resourceId"):
+        uuid.UUID(actual.pop(key))
+        ocm_share_request.pop(key, None)
+
+    assert actual == ocm_share_request
