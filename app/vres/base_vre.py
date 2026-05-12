@@ -55,7 +55,9 @@ class VRE(ABC):
         """Read runtimePlatform from mainEntity (Bioschemas standard).
         Falls back to runsOn on root_dataset for backward compatibility.
         """
-        main = self.crate.mainEntity
+        main = getattr(self.crate, "main_entity", None) or getattr(
+            self.crate, "mainEntity", None
+        )
         if main is not None:
             runtime_platform = main.get("runtimePlatform")
             if runtime_platform is not None:

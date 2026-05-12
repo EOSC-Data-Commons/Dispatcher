@@ -5,10 +5,10 @@ import json
 import os
 import pytest
 from unittest.mock import MagicMock, patch
-from rocrate.rocrate import ROCrate
 from app.constants import OSCAR_DEFAULT_SERVICE
 from app.vres.oscar import VREOSCAR
 from app.exceptions import VREConfigurationError, ExternalServiceError
+from fixtures.dummy_crate import DummyEntity, DummyCrate
 
 
 def load_json(file_name):
@@ -23,7 +23,30 @@ def load_json(file_name):
 @patch("app.vres.oscar.requests.delete")
 def test_lifecycle(mock_delete, mock_post, mock_get):
     """Test OSCAR VRE post function"""
-    crate = ROCrate(source=load_json("../oscar/ro-crate-metadata.json"))
+    main = DummyEntity(
+        _type="SoftwareSourceCode",
+        **{
+            "@id": "#workflow",
+            "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
+            "runtimePlatform": "https://oscar.vre.eosc-data-commons.eu",
+        },
+    )
+    script_entity = DummyEntity(
+        _type="File",
+        **{
+            "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
+            "encodingFormat": "text/x-shellscript",
+        },
+    )
+    input_entity = DummyEntity(
+        _type="File",
+        **{
+            "@id": "https://example-files.online-convert.com/document/txt/example.txt",
+            "name": "simpletext_input",
+            "encodingFormat": "text/txt",
+        },
+    )
+    crate = DummyCrate(main_entity=main, other_entities=[script_entity, input_entity])
     vreoscar = VREOSCAR(
         crate=crate, token="dummy_token", request_id=0, update_state=None
     )
@@ -36,7 +59,6 @@ else
     cat "$INPUT_FILE_PATH" | /usr/games/cowsay
 fi"""
 
-    # Mock requests.get for FDL and script
     def get_side_effect(url, **kwargs):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -52,8 +74,6 @@ fi"""
         return mock_resp
 
     mock_get.side_effect = get_side_effect
-
-    # Mock requests.post for service creation and invocation
     mock_post.return_value.status_code = 201
 
     result = vreoscar.post()
@@ -89,9 +109,8 @@ fi"""
 
 def test_no_hasparts():
     """Test Missing url in OSCAR VRE"""
-    crate = MagicMock()
-    crate.mainEntity = {}
-    crate.root_dataset = {}
+    main = DummyEntity(_type="SoftwareSourceCode")
+    crate = DummyCrate(main_entity=main)
     vreoscar = VREOSCAR(
         crate=crate, token="dummy_token", request_id=0, update_state=None
     )
@@ -103,9 +122,8 @@ def test_no_hasparts():
 
 def test_missing_url():
     """Test Missing url in OSCAR VRE"""
-    crate = MagicMock()
-    crate.mainEntity = {}
-    crate.root_dataset = {}
+    main = DummyEntity(_type="SoftwareSourceCode")
+    crate = DummyCrate(main_entity=main)
     vreoscar = VREOSCAR(
         crate=crate, token="dummy_token", request_id=0, update_state=None
     )
@@ -123,10 +141,11 @@ def test_oscar_creation_error(mock_post, mock_get):
     mock_post.return_value.status_code = 400
     mock_post.return_value.text = "Bad Request"
 
-    crate = MagicMock()
-    crate.mainEntity = {"url": "http://some-url"}
-    crate.root_dataset = {}
-    crate.get_entities.return_value = []
+    main = DummyEntity(
+        _type="SoftwareSourceCode",
+        **{"@id": "#workflow", "url": "http://some-url"},
+    )
+    crate = DummyCrate(main_entity=main)
     vreoscar = VREOSCAR(
         crate=crate, token="dummy_token", request_id=0, update_state=None
     )

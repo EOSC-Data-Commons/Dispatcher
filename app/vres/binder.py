@@ -1,15 +1,11 @@
 from .base_vre import VRE, vre_factory
-import zipfile as zf
 import io
 import logging
 import os
-import subprocess
 import urllib
-import uuid
 from app.config import settings
 from app.constants import BINDER_DEFAULT_SERVICE, BINDER_PROGRAMMING_LANGUAGE
 import git
-import os
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -56,16 +52,18 @@ class VREBinder(VRE):
         return f"{gitrepos}/{request_id}"
 
     def _write_source_files(self, repo):
-        logger.debug(f"{__class__.__name__}: unzipping ROCrate")
-        with io.BytesIO(self.body) as bytes_io:
-            with zf.ZipFile(bytes_io) as zfile:
-                for filename in zfile.namelist():
-                    logger.debug("  " + filename)
-                    if filename != "ro-crate-metadata.json":
-                        with zfile.open(filename) as z, open(
-                            f"{repo}/{filename}", "wb"
-                        ) as f:
-                            f.write(z.read())
+        logger.debug(f"{__class__.__name__}: writing source files from crate")
+        for entity in self.crate.get_entities():
+            if entity.type != "File":
+                continue
+            file_id = entity.id
+            if file_id.startswith("http://") or file_id.startswith("https://"):
+                continue
+            filename = entity.get("name") or file_id
+            content = entity.get("content")
+            if content is not None:
+                with open(f"{repo}/{filename}", "wb") as f:
+                    f.write(content if isinstance(content, bytes) else content.encode())
 
 
 vre_factory.register(BINDER_PROGRAMMING_LANGUAGE, VREBinder)

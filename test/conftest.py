@@ -69,7 +69,19 @@ def dummy_binder_crate():
             "identifier": BINDER_PROGRAMMING_LANGUAGE,
         },
     )
-    return DummyCrate(main_entity=main)
+    readme = DummyEntity(
+        _type="File",
+        **{"@id": "README.md", "name": "README.md", "content": b"# Test"},
+    )
+    input_file = DummyEntity(
+        _type="File",
+        **{"@id": "input.txt", "name": "input.txt", "content": b"test data"},
+    )
+    script = DummyEntity(
+        _type="File",
+        **{"@id": "script.py", "name": "script.py", "content": b"print('hello')"},
+    )
+    return DummyCrate(main_entity=main, other_entities=[readme, input_file, script])
 
 
 @pytest.fixture

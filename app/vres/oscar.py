@@ -25,7 +25,7 @@ class VREOSCAR(VRE):
         if self.fld_json:
             return self.fld_json
 
-        fdl_url = self.crate.mainEntity.get("url")
+        fdl_url = self.crate.main_entity.get("url")
         if not fdl_url:
             raise VREConfigurationError("Missing url in workflow entity")
         fdl_json = self._fetch_file(fdl_url, True)
@@ -36,7 +36,7 @@ class VREOSCAR(VRE):
                 entity.type == "File"
                 and entity.get("encodingFormat") == "text/x-shellscript"
             ):
-                file_url = entity.get("url") or entity.get("@id")
+                file_url = entity.get("url") or entity.id
                 if file_url:
                     script = self._fetch_file(file_url)
                     break
@@ -83,28 +83,28 @@ class VREOSCAR(VRE):
 
     def _get_input_files(self):
         non_input_files = []
-        runtime_platform = self.crate.mainEntity.get("runtimePlatform")
+        runtime_platform = self.crate.main_entity.get("runtimePlatform")
         if isinstance(runtime_platform, dict) and "@id" in runtime_platform:
             non_input_files.append(runtime_platform["@id"])
-        non_input_files.append(self.crate.mainEntity.get("@id"))
-        non_input_files.append(self.crate.mainEntity.get("url"))
+        non_input_files.append(self.crate.main_entity.id)
+        non_input_files.append(self.crate.main_entity.get("url"))
         for entity in self.crate.get_entities():
             if (
                 entity.type == "File"
                 and entity.get("encodingFormat") == "text/x-shellscript"
             ):
-                non_input_files.append(entity.get("@id"))
+                non_input_files.append(entity.id)
         return [
             e
             for e in self.crate.get_entities()
-            if e.type == "File" and e.get("@id") not in non_input_files
+            if e.type == "File" and e.id not in non_input_files
         ]
 
     def _invoke_service(self, oscar_url, service_name, files):
         headers = {"Authorization": f"Bearer {self.token}"}
         url = f"{oscar_url}/job/{service_name}"
         for f in files:
-            file_url = f.get("url") or f.get("@id")
+            file_url = f.get("url") or f.id
             try:
                 logging.info(
                     "Creating invocation for service %s and file %s",
