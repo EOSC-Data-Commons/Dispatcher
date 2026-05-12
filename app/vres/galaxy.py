@@ -40,9 +40,8 @@ class VREGalaxy(VRE):
 
     def _get_workflow_url(self):
         """Extract workflow URL from the crate."""
-        workflow_url = self.crate.mainEntity.get("url")
+        workflow_url = self.crate.main_entity.get("url")
         if workflow_url is None:
-            # checked here, as some other vres might be actual files
             logging.error(f"{self.__class__.__name__}: Missing url in workflow entity")
             raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
@@ -51,7 +50,7 @@ class VREGalaxy(VRE):
         """Convert file entities to API-compatible format."""
         result = {}
         for f in files:
-            properties = f.properties()
+            properties = f.properties
 
             file_meta = {
                 "class": "File",
@@ -65,7 +64,7 @@ class VREGalaxy(VRE):
                     f"https://{oz_domain}/api/v3/onezone/shares/data/{file_id}/content"
                 )
             else:
-                file_meta["location"] = f.get("@id")
+                file_meta["location"] = f.id
 
             result[properties["name"]] = file_meta
 

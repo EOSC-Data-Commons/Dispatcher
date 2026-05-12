@@ -45,7 +45,6 @@ class VREScienceMesh(VRE):
 
         sender_userid = self._generate_userid(sender)
 
-        # Create OCM share request JSON structure
         ocm_share_request = {
             "shareWith": receiver.get("userid"),
             "name": self.crate.name,
@@ -65,8 +64,6 @@ class VREScienceMesh(VRE):
         return ocm_share_request
 
     def _generate_userid(self, sender):
-        # The sender user ID needs to be altered to match the dispatcher's public FQDN
-        # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@<dispatcher public FQDN>
         sender_userid = sender.get("userid")
         if sender_userid and "@" in sender_userid:
             sender_userid = sender_userid.split("@")[0] + "@" + settings.host

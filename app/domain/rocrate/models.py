@@ -13,6 +13,16 @@ class Entity:
         return self.properties.get(key, default)
 
 
+class _MetadataProxy:
+    """Proxy that wraps the raw crate dict and exposes ``generate()``."""
+
+    def __init__(self, raw: dict[str, Any]):
+        self._raw = raw
+
+    def generate(self) -> dict[str, Any]:
+        return self._raw
+
+
 @dataclass
 class ParsedCrate:
     root_id: str
@@ -38,5 +48,22 @@ class ParsedCrate:
         eid = getattr(main_ref, "id", None) or main_ref.get("@id", "")
         return self.entities.get(eid)
 
+    @property
+    def name(self) -> str | None:
+        root = self.root_dataset
+        return root.get("name") if root else None
+
+    @property
+    def description(self) -> str | None:
+        root = self.root_dataset
+        return root.get("description") if root else None
+
+    @property
+    def metadata(self) -> _MetadataProxy:
+        return _MetadataProxy(self.raw)
+
     def get(self, entity_id: str) -> Entity | None:
         return self.entities.get(entity_id)
+
+    def get_entities(self) -> list[Entity]:
+        return list(self.entities.values())

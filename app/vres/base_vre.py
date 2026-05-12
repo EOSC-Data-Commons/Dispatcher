@@ -137,7 +137,8 @@ class VREFactory:
         if request_package is not None:
             elang = request_package.programming_language
         else:
-            elang = crate.mainEntity.get("programmingLanguage").get("identifier")
+            main = getattr(crate, "main_entity", None) or crate.mainEntity
+            elang = main.get("programmingLanguage").get("identifier")
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
         logger.debug(f"crate {crate}")
