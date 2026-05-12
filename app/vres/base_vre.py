@@ -46,13 +46,29 @@ class VRE(ABC):
     def get_default_service(self) -> str:
         pass
 
-    def setup_service(self):
-        dest = getattr(self.crate, "root_dataset", {}).get("runsOn")
+    def setup_service(self) -> str:
+        dest = self._get_runtime_platform()
         return self._resolve_runs_on(dest)
 
-    def _resolve_runs_on(self, dest: Mapping[str, Any] | None) -> str:
+    def _get_runtime_platform(self) -> Mapping[str, Any] | None:
+        """Read runtimePlatform from mainEntity (Bioschemas standard).
+        Falls back to runsOn on root_dataset for backward compatibility.
+        """
+        main = self.crate.mainEntity
+        if main is not None:
+            runtime_platform = main.get("runtimePlatform")
+            if runtime_platform is not None:
+                return runtime_platform
+        # Backward compatibility: old crates use runsOn on root_dataset
+        return getattr(self.crate, "root_dataset", {}).get("runsOn")
+
+    def _resolve_runs_on(self, dest: Mapping[str, Any] | str | None) -> str:
         if dest is None:
             return self.get_default_service()
+
+        # Plain string: direct URL (e.g. runtimePlatform: "https://usegalaxy.eu/")
+        if isinstance(dest, str):
+            return dest
 
         # No explicit service type – the dict is expected to contain a direct URL.
         if dest.get("serviceType") is None:

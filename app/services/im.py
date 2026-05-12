@@ -155,8 +155,8 @@ class IM:
         if input_file.get("@type") != "File":
             logging.warning("Input is not of type File, skipping.")
             return False
-        if not input_file.get("url"):
-            logging.warning("Input does not have a url, skipping.")
+        if not input_file.get("@id"):
+            logging.warning("Input does not have a @id, skipping.")
             return False
         return True
 
@@ -220,7 +220,7 @@ class IM:
                 continue
 
             node_templates[f"get_data_{i}"] = self._gen_get_data_node(
-                input_file.get("url"), file_dest, compute_name
+                input_file.get("@id"), file_dest, compute_name
             )
 
         return tosca_template
@@ -237,7 +237,7 @@ class IM:
         has_part = service.get("hasPart", [])
         if has_part and has_part[0].get("encodingFormat") == "text/yaml":
             # Assuming the first part is the TOSCA template
-            tosca_template_url = has_part[0].get("url")
+            tosca_template_url = has_part[0].get("@id")
 
         if not tosca_template_url:
             raise Exception("TOSCA template URL not found in service entity.")

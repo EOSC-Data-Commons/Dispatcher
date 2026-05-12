@@ -2,31 +2,6 @@
     "@context": "https://w3id.org/ro/crate/1.1/context",
     "@graph": [
         {
-            "@id": "./",
-            "@type": "Dataset",
-            "datePublished": "2025-05-06T14:35:47+00:00",
-            "mainEntity": {
-                "@id": "#workflow"
-            },
-            "runsOn": {
-                "@id": "#destination"
-            },
-            "hasPart": [
-                {
-                    "@id": "#workflow"
-                },
-                {
-                    "@id": "#image-to-process"
-                },
-                {
-                    "@id": "#stopwords"
-                },
-                {
-                    "@id": "#destination"
-                }
-            ]
-        },
-        {
             "@id": "ro-crate-metadata.json",
             "@type": "CreativeWork",
             "about": {
@@ -37,43 +12,130 @@
             }
         },
         {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": "OCR for a journal from DaSCH - PoC workflow",
+            "description": "A workflow to show how material from DaSch can be processed in Galaxy.",
+            "datePublished": "2025-05-06T14:35:47+00:00",
+            "license": {
+                "@id": "https://creativecommons.org/licenses/by/4.0/legalcode"
+            },
+            "creator": {
+                "@id": "#author-schneider"
+            },
+            "mainEntity": {
+                "@id": "#workflow"
+            },
+            "hasPart": [
+                {
+                    "@id": "#workflow"
+                },
+                {
+                    "@id": "https://example.com/input-image.tiff"
+                },
+                {
+                    "@id": "https://example.com/stopwords.txt"
+                }
+            ]
+        },
+        {
             "@id": "#workflow",
             "@type": [
                 "File",
                 "SoftwareSourceCode",
                 "ComputationalWorkflow"
             ],
+            "conformsTo": {
+                "@id": "https://bioschemas.org/profiles/ComputationalWorkflow/0.5-DRAFT-2020_07_21/"
+            },
             "name": "OCR for a journal from DaSCH - PoC workflow",
-            "programmingLanguage": {
-                "@id": "https://w3id.org/workflowhub/workflow-ro-crate#galaxy"
-            },
-            "url": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Fbwalkowi%2Fgalaxy-workflow-ocr-test%2Fmain/versions/main/PLAIN_GALAXY/descriptor//galaxy-workflow-ocr-test-DaSCH.ga",
             "description": "A workflow to show how material from DaSch can be processed in Galaxy. The example used is a optical character recognition of a German newspaper from DaSch which will be made machine-readable, cleaned, stripped of punctuation and visualised in a Wordcloud.",
-            "license": {
-                "@id": "https://creativecommons.org/licenses/by/4.0/legalcode"
+            "programmingLanguage": {
+                "@id": "#galaxy-lang"
             },
-            "author": [
+            "creator": [
                 {
                     "@id": "#author-schneider"
                 },
                 {
                     "@id": "#author-nussbaum"
                 }
+            ],
+            "dateCreated": "2025-05-06",
+            "license": {
+                "@id": "https://creativecommons.org/licenses/by/4.0/legalcode"
+            },
+            "sdPublisher": {
+                "@id": "#workflow-hub"
+            },
+            "url": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Fbwalkowi%2Fgalaxy-workflow-ocr-test%2Fmain/versions/main/PLAIN_GALAXY/descriptor//galaxy-workflow-ocr-test-DaSCH.ga",
+            "version": "1.0.0",
+            "runtimePlatform": "https://usegalaxy.eu/",
+            "input": [
+                {
+                    "@id": "#input-image"
+                },
+                {
+                    "@id": "#input-stopwords"
+                }
+            ],
+            "output": [
+                {
+                    "@id": "#output-wordcloud"
+                }
             ]
         },
         {
-            "@id": "https://w3id.org/workflowhub/workflow-ro-crate#galaxy",
-            "@type": "ComputerLanguage",
-            "identifier": {
-                "@id": "https://galaxyproject.org/"
+            "@id": "#input-image",
+            "@type": "FormalParameter",
+            "conformsTo": {
+                "@id": "https://bioschemas.org/profiles/FormalParameter/0.1-DRAFT-2020_07_21/"
             },
-            "name": "Galaxy",
-            "url": {
-                "@id": "https://galaxyproject.org/"
+            "name": "Input Image",
+            "additionalType": {
+                "@id": "http://edamontology.org/data_2968"
+            },
+            "encodingFormat": {
+                "@id": "http://edamontology.org/format_3591"
             }
         },
         {
-            "@id": "#image-to-process",
+            "@id": "#input-stopwords",
+            "@type": "FormalParameter",
+            "conformsTo": {
+                "@id": "https://bioschemas.org/profiles/FormalParameter/0.1-DRAFT-2020_07_21/"
+            },
+            "name": "Upload Stopwords",
+            "additionalType": {
+                "@id": "http://edamontology.org/data_3671"
+            },
+            "encodingFormat": {
+                "@id": "http://edamontology.org/format_2330"
+            }
+        },
+        {
+            "@id": "#output-wordcloud",
+            "@type": "FormalParameter",
+            "conformsTo": {
+                "@id": "https://bioschemas.org/profiles/FormalParameter/0.1-DRAFT-2020_07_21/"
+            },
+            "name": "wordcloud",
+            "additionalType": {
+                "@id": "http://edamontology.org/data_2968"
+            },
+            "encodingFormat": {
+                "@id": "http://edamontology.org/format_3603"
+            }
+        },
+        {
+            "@id": "#galaxy-lang",
+            "@type": "ComputerLanguage",
+            "identifier": "https://galaxyproject.org/",
+            "name": "Galaxy",
+            "url": "https://galaxyproject.org/"
+        },
+        {
+            "@id": "https://example.com/input-image.tiff",
             "@type": "File",
             "name": "Input Image",
             "encodingFormat": "image/tiff",
@@ -83,7 +145,7 @@
             "onedata:publicAccess": true
         },
         {
-            "@id": "#stopwords",
+            "@id": "https://example.com/stopwords.txt",
             "@type": "File",
             "name": "Upload Stopwords",
             "encodingFormat": "text/txt",
@@ -91,11 +153,6 @@
             "onedata:spaceId": "6e6b22d6f32b63db34fcfac53e52e233chd8ba",
             "onedata:fileId": "00000000007E21F3736861726547756964233937316538386630666539393765336430353065386566363536363130376632636830386464233665366232326436663332623633646233346663666163353365353265323333636864386261233437656434633633333638393264396361626239316435636430623161663436636830343438",
             "onedata:publicAccess": true
-        },
-        {
-            "@id": "#destination",
-            "@type": "Service",
-            "url": "https://usegalaxy.eu/"
         },
         {
             "@id": "#author-schneider",
@@ -110,6 +167,43 @@
             "givenName": "Johaness",
             "familyName": "Nussbaum",
             "name": "Johaness Nussbaum"
+        },
+        {
+            "@id": "#workflow-hub",
+            "@type": "Organization",
+            "name": "Example Workflow Hub",
+            "url": "http://example.com/workflows/"
+        },
+        {
+            "@id": "https://creativecommons.org/licenses/by/4.0/legalcode",
+            "@type": "CreativeWork",
+            "name": "Creative Commons Attribution 4.0 International",
+            "alternateName": "CC-BY-4.0"
+        },
+        {
+            "@id": "http://edamontology.org/data_2968",
+            "@type": "Thing",
+            "name": "Image"
+        },
+        {
+            "@id": "http://edamontology.org/data_3671",
+            "@type": "Thing",
+            "name": "Text"
+        },
+        {
+            "@id": "http://edamontology.org/format_3591",
+            "@type": "Thing",
+            "name": "TIFF format"
+        },
+        {
+            "@id": "http://edamontology.org/format_2330",
+            "@type": "Thing",
+            "name": "Plain text format"
+        },
+        {
+            "@id": "http://edamontology.org/format_3603",
+            "@type": "Thing",
+            "name": "PNG format"
         }
     ]
 }

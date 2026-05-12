@@ -41,7 +41,7 @@ class VREOSCAR(VRE):
                 logging.error("Could not dereference entity %s", elem.get("@id"))
                 continue
 
-            file_url = ref_elem.get("url")
+            file_url = ref_elem.get("url") or ref_elem.get("@id")
             if not file_url:
                 logging.error("File entity %s has no URL", elem.get("@id"))
                 continue
@@ -99,7 +99,10 @@ class VREOSCAR(VRE):
     def _get_input_files(self):
         # Get all files except the workflow and destination
         non_input_files = []
-        non_input_files.append(self.crate.root_dataset.get("runsOn").get("@id"))
+        # Exclude the destination service (runtimePlatform on mainEntity)
+        runtime_platform = self.crate.mainEntity.get("runtimePlatform")
+        if isinstance(runtime_platform, dict) and "@id" in runtime_platform:
+            non_input_files.append(runtime_platform["@id"])
         non_input_files.append(self.crate.mainEntity.get("@id"))
         for elem in self.crate.mainEntity.get("hasPart", []):
             if elem.get("@type") == "File":
@@ -114,17 +117,18 @@ class VREOSCAR(VRE):
         headers = {"Authorization": f"Bearer {self.token}"}
         url = f"{oscar_url}/job/{service_name}"
         for f in files:
+            file_url = f.get("url") or f.get("@id")
             try:
                 logging.info(
                     "Creating invocation for service %s and file %s",
                     service_name,
-                    f.get("url"),
+                    file_url,
                 )
-                response = requests.get(f.get("url"), timeout=60)
+                response = requests.get(file_url, timeout=60)
                 response.raise_for_status()
                 file_content = response.text
             except Exception as e:
-                logging.error("Error fetching file %s: %s", f.get("url"), e)
+                logging.error("Error fetching file %s: %s", file_url, e)
                 continue
             response = requests.post(
                 url,
@@ -135,7 +139,7 @@ class VREOSCAR(VRE):
             if response.status_code != 201:
                 logging.error(
                     "Error invoking OSCAR service for file %s: %s",
-                    f.get("url"),
+                    file_url,
                     response.text,
                 )
 

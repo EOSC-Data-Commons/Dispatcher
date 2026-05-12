@@ -7,12 +7,12 @@ WORKFLOW_URL = "https://workflow.example.org/myworkflow.ga"
 FILE_1 = {
     "name": "sample1.fastq",
     "encodingFormat": "application/fastq",
-    "url": "https://data.example.org/sample1.fastq",
+    "@id": "https://data.example.org/sample1.fastq",
 }
 FILE_2 = {
     "name": "sample2.fastq",
     "encodingFormat": "application/fastq",
-    "url": "https://data.example.org/sample2.fastq",
+    "@id": "https://data.example.org/sample2.fastq",
 }
 
 

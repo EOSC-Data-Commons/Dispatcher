@@ -65,7 +65,7 @@ class VREGalaxy(VRE):
                     f"https://{oz_domain}/api/v3/onezone/shares/data/{file_id}/content"
                 )
             else:
-                file_meta["location"] = f["url"]
+                file_meta["location"] = f.get("@id")
 
             result[properties["name"]] = file_meta
 

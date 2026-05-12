@@ -1,24 +1,6 @@
 {
-    "@context": [
-        "https://w3id.org/ro/crate/1.1/context",
-        { "runsOn": "https://w3id.org/ro/terms/test#runsOn" }
-    ],
+    "@context": "https://w3id.org/ro/crate/1.1/context",
     "@graph": [
-        {
-            "@id": "./",
-            "@type": "Dataset",
-            "name": "OSCAR Example Workflow",
-            "description": "This is an example of a workflow using the OSCAR framework.",
-            "license": "GNU General Public License v3.0",
-            "datePublished": "2025-05-06T14:35:47+00:00",
-            "mainEntity" : { "@id": "#workflow" },
-            "runsOn" : { "@id": "#destination" },
-            "hasPart": [
-                { "@id": "#workflow" },
-                { "@id": "#textfile" },
-                { "@id": "#destination" }
-            ]
-        },
         {
             "@id": "ro-crate-metadata.json",
             "@type": "CreativeWork",
@@ -30,55 +12,107 @@
             }
         },
         {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": "OSCAR Example Workflow",
+            "description": "This is an example of a workflow using the OSCAR framework.",
+            "datePublished": "2025-05-06T14:35:47+00:00",
+            "license": {
+                "@id": "https://spdx.org/licenses/GPL-3.0"
+            },
+            "creator": {
+                "@id": "#author-dispatcher"
+            },
+            "mainEntity": {
+                "@id": "#workflow"
+            },
+            "hasPart": [
+                {
+                    "@id": "#workflow"
+                },
+                {
+                    "@id": "https://example-files.online-convert.com/document/txt/example.txt"
+                }
+            ]
+        },
+        {
             "@id": "#workflow",
             "@type": [
                 "File",
                 "SoftwareSourceCode",
                 "ComputationalWorkflow"
             ],
-            "name": "Cowsay OSCAR FDL",
-            "programmingLanguage": {
-                "@id": "https://w3id.org/workflowhub/workflow-ro-crate#oscar"
+            "conformsTo": {
+                "@id": "https://bioschemas.org/profiles/ComputationalWorkflow/0.5-DRAFT-2020_07_21/"
             },
+            "name": "Cowsay OSCAR FDL",
+            "description": "A simple OSCAR service using the cowsay example.",
+            "programmingLanguage": {
+                "@id": "#oscar-lang"
+            },
+            "creator": {
+                "@id": "#author-dispatcher"
+            },
+            "dateCreated": "2025-05-06",
+            "license": {
+                "@id": "https://spdx.org/licenses/GPL-3.0"
+            },
+            "sdPublisher": {
+                "@id": "#workflow-hub"
+            },
+            "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
+            "version": "1.0.0",
+            "runtimePlatform": "https://oscar.vre.eosc-data-commons.eu",
             "hasPart": [
-                { "@id": "#fdl" },
-                { "@id": "#script" }
+                {
+                    "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
+                },
+                {
+                    "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
+                }
             ]
         },
         {
-            "@id": "#fdl",
+            "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
             "@type": "File",
-            "encodingFormat": "application/json",
-            "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
+            "name": "cowsay.json",
+            "encodingFormat": "application/json"
         },
         {
-            "@id": "#script",
+            "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
             "@type": "File",
-            "encodingFormat": "text/x-shellscript",
-            "url": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
+            "name": "script.sh",
+            "encodingFormat": "text/x-shellscript"
         },
         {
-            "@id": "https://w3id.org/workflowhub/workflow-ro-crate#oscar",
+            "@id": "#oscar-lang",
             "@type": "ComputerLanguage",
-            "identifier": {
-                "@id": "https://oscar.grycap.net/"
-            },
+            "identifier": "https://oscar.grycap.net/",
             "name": "OSCAR",
-            "url": {
-                "@id": "https://oscar.grycap.net/"
-            }
+            "url": "https://oscar.grycap.net/"
         },
         {
-            "@id": "#textfile",
+            "@id": "https://example-files.online-convert.com/document/txt/example.txt",
             "@type": "File",
             "name": "simpletext_input",
-            "url": "https://example-files.online-convert.com/document/txt/example.txt",
             "encodingFormat": "text/txt"
         },
         {
-            "@id": "#destination",
-            "@type" : "Service",
-            "url": "https://oscar.vre.eosc-data-commons.eu"
+            "@id": "#author-dispatcher",
+            "@type": "Person",
+            "name": "Dispatcher System"
+        },
+        {
+            "@id": "#workflow-hub",
+            "@type": "Organization",
+            "name": "Example Workflow Hub",
+            "url": "http://example.com/workflows/"
+        },
+        {
+            "@id": "https://spdx.org/licenses/GPL-3.0",
+            "@type": "CreativeWork",
+            "name": "GNU General Public License v3.0",
+            "alternateName": "GPL-3.0"
         }
     ]
 }

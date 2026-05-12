@@ -87,7 +87,7 @@ def test_deploy_service(mock_get_tosca, mock_add_inputs, mock_settings):
     im = IM("test_token")
     im.client = mock_im_client
 
-    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+    service = {"hasPart": [{"encodingFormat": "text/yaml", "@id": "http://test.url"}]}
 
     inf_id = im.deploy_service(service)
 
@@ -107,7 +107,7 @@ def test_deploy_service_error_raises_imerror(
     im = IM("test_token")
     im.client = mock_im_client
 
-    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+    service = {"hasPart": [{"encodingFormat": "text/yaml", "@id": "http://test.url"}]}
 
     with pytest.raises(IMError, match="Failed to deploy service: create error"):
         im.deploy_service(service)
@@ -243,7 +243,7 @@ def test_get_tosca_template(mock_get, mock_settings):
 )
 def test_run_service(mock_add_inputs, mock_get_tosca, mock_settings):
     im = IM("test_token")
-    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+    service = {"hasPart": [{"encodingFormat": "text/yaml", "@id": "http://test.url"}]}
 
     mock_im_client = Mock()
     mock_im_client.create.return_value = (True, "test_inf_id")
@@ -269,7 +269,7 @@ def test_run_service_error_cleans_up_and_raises(
     mock_settings.im_sleep = 0
 
     im = IM("test_token")
-    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+    service = {"hasPart": [{"encodingFormat": "text/yaml", "@id": "http://test.url"}]}
 
     mock_im_client = Mock()
     mock_im_client.create.return_value = (True, "test_inf_id")
@@ -299,12 +299,12 @@ def test_add_input_files_to_tosca_template(mock_settings):
         "input": [
             {
                 "@type": "File",
-                "url": "http://example.com/data1.txt",
+                "@id": "http://example.com/data1.txt",
                 "contentLocation": "compute1:/data",
             },
             {
                 "@type": "File",
-                "url": "http://example.com/data2.txt",
+                "@id": "http://example.com/data2.txt",
                 "contentLocation": "/data",
             },
         ]
