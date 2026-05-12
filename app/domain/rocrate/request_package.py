@@ -130,6 +130,15 @@ class RequestPackage:
             **data,
         )
 
+    @staticmethod
+    def _resolve_ref(crate: ParsedCrate, ref: object) -> object:
+        if isinstance(ref, dict) and "@id" in ref:
+            resolved = crate.get(ref["@id"])
+            if resolved is not None:
+                return resolved
+            return ref
+        return ref
+
     @classmethod
     def from_parsed_crate(cls, crate: ParsedCrate) -> RequestPackage:
         root = crate.root_dataset
@@ -137,18 +146,20 @@ class RequestPackage:
         if main is None:
             raise ValueError("Cannot build RequestPackage without mainEntity")
 
-        lang_obj = main.get("programmingLanguage", {})
-        lang_id = lang_obj.get("identifier") if isinstance(lang_obj, dict) else None
+        lang_ref = main.get("programmingLanguage", {})
+        lang_obj = cls._resolve_ref(crate, lang_ref)
+        lang_id = lang_obj.get("identifier") if lang_obj is not None else None
 
-        runtime_platform = main.get("runtimePlatform")
+        runtime_platform_raw = main.get("runtimePlatform")
+        runtime_platform = cls._resolve_ref(crate, runtime_platform_raw)
         service_target = None
         if isinstance(runtime_platform, str):
             service_target = ServiceTarget(url=runtime_platform, raw=runtime_platform)
-        elif isinstance(runtime_platform, dict):
+        elif runtime_platform is not None:
             service_target = ServiceTarget(
                 service_type=runtime_platform.get("serviceType"),
                 url=runtime_platform.get("url"),
-                raw=runtime_platform,
+                raw=runtime_platform_raw,
             )
 
         workflow = WorkflowDescriptor(

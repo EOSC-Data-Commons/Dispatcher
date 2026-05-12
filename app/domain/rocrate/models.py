@@ -29,11 +29,14 @@ class ParsedCrate:
         if root is None:
             return None
         main_ref = root.get("mainEntity")
+        if main_ref is None:
+            return None
         if isinstance(main_ref, dict):
             return self.entities.get(main_ref.get("@id", ""))
         if isinstance(main_ref, str):
             return self.entities.get(main_ref)
-        return None
+        eid = getattr(main_ref, "id", None) or main_ref.get("@id", "")
+        return self.entities.get(eid)
 
     def get(self, entity_id: str) -> Entity | None:
         return self.entities.get(entity_id)
