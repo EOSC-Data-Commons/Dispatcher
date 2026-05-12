@@ -57,8 +57,6 @@ def test_post_happy_path(galaxy_vre, requests_mock):
 def test_missing_workflow_url_causes_exception(galaxy_vre):
     from app.domain.rocrate.request_package import RequestPackage, WorkflowDescriptor
 
-    missing_url = DummyEntity(_type="Dataset")  # no url
-    galaxy_vre.crate = DummyCrate(main_entity=missing_url)
     galaxy_vre.request_package = RequestPackage(
         vre_type="galaxy",
         programming_language="galaxy",

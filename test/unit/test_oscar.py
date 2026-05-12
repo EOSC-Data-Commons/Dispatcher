@@ -78,7 +78,6 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         raw_crate={},
     )
     vreoscar = VREOSCAR(
-        crate=crate,
         token="dummy_token",
         request_id=0,
         update_state=None,
@@ -152,7 +151,6 @@ def test_no_hasparts():
         raw_crate={},
     )
     vreoscar = VREOSCAR(
-        crate=crate,
         token="dummy_token",
         request_id=0,
         update_state=None,
@@ -175,7 +173,6 @@ def test_missing_url():
         raw_crate={},
     )
     vreoscar = VREOSCAR(
-        crate=crate,
         token="dummy_token",
         request_id=0,
         update_state=None,
@@ -209,7 +206,6 @@ def test_oscar_creation_error(mock_post, mock_get):
         raw_crate={},
     )
     vreoscar = VREOSCAR(
-        crate=crate,
         token="dummy_token",
         request_id=0,
         update_state=None,

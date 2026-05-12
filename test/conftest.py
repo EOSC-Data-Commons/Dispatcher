@@ -163,7 +163,6 @@ def dummy_sciencemesh_crate():
 @pytest.fixture
 def galaxy_vre(dummy_galaxy_crate):
     vre = VREGalaxy(
-        crate=dummy_galaxy_crate,
         token="test-token",
         request_id=0,
         update_state=None,
@@ -178,7 +177,6 @@ def galaxy_vre(dummy_galaxy_crate):
 @pytest.fixture
 def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
     vre = VREGalaxy(
-        crate=dummy_galaxy_crate_onedata,
         token="test-token",
         request_id=0,
         update_state=None,
@@ -213,7 +211,6 @@ def create_test_zip_body():
 @pytest.fixture
 def binder_vre(dummy_binder_crate):
     vre = VREBinder(
-        crate=dummy_binder_crate,
         token="test-token",
         request_id=0,
         update_state=None,
@@ -235,11 +232,16 @@ def sciencemesh_rocrate():
 
 @pytest.fixture
 def sciencemesh_vre(sciencemesh_rocrate):
+    from app.domain.rocrate.parser import ROCrateParser
+    from app.domain.rocrate.builder import RequestPackageBuilder
+
+    parsed = ROCrateParser.parse(sciencemesh_rocrate.metadata.generate())
+    package = RequestPackageBuilder.build(parsed)
     vre = VREScienceMesh(
-        crate=sciencemesh_rocrate,
         token="test-token",
         request_id=0,
         update_state=None,
+        request_package=package,
     )
     vre.svc_url = "https://sciencemesh.example.org"
     return vre
@@ -247,9 +249,11 @@ def sciencemesh_vre(sciencemesh_rocrate):
 
 @pytest.fixture
 def ocm_share_request(sciencemesh_vre):
-    receiver = sciencemesh_vre.crate.get("#receiver")
-    owner = sciencemesh_vre.crate.get("#owner")
-    sender = sciencemesh_vre.crate.get("#sender")
+    pkg = sciencemesh_vre.request_package
+    receiver = pkg.get_entity("#receiver")
+    owner = pkg.get_entity("#owner")
+    sender = pkg.get_entity("#sender")
+    root = pkg.get_entity("./")
 
     sender_userid = sender.get("userid")
     if sender_userid and "@" in sender_userid:
@@ -257,8 +261,8 @@ def ocm_share_request(sciencemesh_vre):
 
     ocm_share_request = {
         "shareWith": receiver.get("userid"),
-        "name": sciencemesh_vre.crate.name,
-        "description": sciencemesh_vre.crate.description,
+        "name": root.get("name", "") if root else "",
+        "description": root.get("description", "") if root else "",
         "providerId": "n/a",
         "resourceId": "n/a",
         "owner": owner.get("userid"),
@@ -268,7 +272,7 @@ def ocm_share_request(sciencemesh_vre):
         "shareType": "user",
         "protocol": {
             "name": "multi",
-            "embedded": {"payload": sciencemesh_vre.crate.metadata.generate()},
+            "embedded": {"payload": pkg.raw_crate},
         },
     }
     return ocm_share_request

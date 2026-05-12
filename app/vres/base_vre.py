@@ -23,7 +23,6 @@ class IMClientProtocol(Protocol):
 class VRE(ABC):
     def __init__(
         self,
-        crate: Any,
         token: str,
         request_id: int,
         update_state: Callable,
@@ -32,7 +31,6 @@ class VRE(ABC):
         request_package: Any | None = None,
         **kwargs,
     ) -> None:
-        self.crate = crate
         self.request_package = request_package
         self.body = body
         self.token = token
@@ -52,18 +50,12 @@ class VRE(ABC):
         return self._resolve_runs_on(dest)
 
     def _get_runtime_platform(self) -> Mapping[str, Any] | None:
-        """Read runtimePlatform from mainEntity (Bioschemas standard).
-        Falls back to runsOn on root_dataset for backward compatibility.
-        """
-        main = getattr(self.crate, "main_entity", None) or getattr(
-            self.crate, "mainEntity", None
-        )
-        if main is not None:
-            runtime_platform = main.get("runtimePlatform")
-            if runtime_platform is not None:
-                return runtime_platform
-        # Backward compatibility: old crates use runsOn on root_dataset
-        return getattr(self.crate, "root_dataset", {}).get("runsOn")
+        """Read runtimePlatform from the request package workflow descriptor."""
+        if self.request_package is not None:
+            rp = self.request_package.workflow.runtime_platform
+            if rp is not None:
+                return rp
+        return None
 
     def _resolve_runs_on(self, dest: Mapping[str, Any] | str | None) -> str:
         if dest is None:
@@ -128,7 +120,6 @@ class VREFactory:
 
     def __call__(
         self,
-        crate: Any,
         token: str,
         request_id: int,
         update_state: Callable,
@@ -136,18 +127,14 @@ class VREFactory:
         request_package: Any | None = None,
         **kwargs,
     ):
-        if request_package is not None:
-            elang = request_package.programming_language
-        else:
-            main = getattr(crate, "main_entity", None) or crate.mainEntity
-            elang = main.get("programmingLanguage").get("identifier")
+        if request_package is None:
+            raise ValueError("request_package is required")
+        elang = request_package.programming_language
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
-        logger.debug(f"crate {crate}")
         logger.debug(f"elang {elang}")
         logger.debug(self.table[elang])
         return self.table[elang](
-            crate=crate,
             token=token,
             request_id=request_id,
             update_state=update_state,
