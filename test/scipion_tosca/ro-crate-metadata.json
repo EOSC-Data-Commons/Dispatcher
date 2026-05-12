@@ -86,7 +86,7 @@
                     "@id": "#workflow"
                 }
             ],
-            "softwareRequirements": "scipion_launcher.sh workflow_2D_xmipp.json.template ./data"
+            "softwareRequirements": "scipion_launcher.sh workflow_2D_xmipp.json.template ./13496"
         },
         {
             "@id": "#scipion.yaml",
@@ -99,7 +99,7 @@
             "@id": "#empiar_dataset",
             "@type": "File",
             "name": "EMPIAR-DataSet",
-            "url": "rsync://ftp.ebi.ac.uk/empiar/world_availability/13496/"
+            "url": "rsync://ftp.ebi.ac.uk/empiar/world_availability/13496"
         }
     ]
 }
