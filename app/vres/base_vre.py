@@ -29,16 +29,17 @@ class VRE(ABC):
         update_state: Callable,
         body: Any | None = None,
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
+        request_package: Any | None = None,
         **kwargs,
     ) -> None:
         self.crate = crate
+        self.request_package = request_package
         self.body = body
         self.token = token
         self._update_state = update_state
         self._request_id = request_id
         self._im_factory = im_factory or self._default_im_factory
         self.svc_url = self.setup_service().rstrip("/")
-        # Store any additional kwargs for subclasses
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -130,9 +131,13 @@ class VREFactory:
         request_id: int,
         update_state: Callable,
         body: Any | None = None,
+        request_package: Any | None = None,
         **kwargs,
     ):
-        elang = crate.mainEntity.get("programmingLanguage").get("identifier")
+        if request_package is not None:
+            elang = request_package.programming_language
+        else:
+            elang = crate.mainEntity.get("programmingLanguage").get("identifier")
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
         logger.debug(f"crate {crate}")
@@ -144,6 +149,7 @@ class VREFactory:
             request_id=request_id,
             update_state=update_state,
             body=body,
+            request_package=request_package,
             **kwargs,
         )
 
