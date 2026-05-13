@@ -6,7 +6,7 @@ from app.exceptions import VREError, VREConfigurationError
 import logging
 import app.constants as constants
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger()
 
 
 class ROCrateValidationError(Exception):
@@ -54,6 +54,9 @@ class VRE(ABC):
         if self.request_package is not None:
             rp = self.request_package.workflow.runtime_platform
             if rp is not None:
+                # If it's an Entity (from ParsedCrate), return its properties dict
+                if hasattr(rp, "properties"):
+                    return rp.properties
                 return rp
         return None
 
@@ -71,6 +74,7 @@ class VRE(ABC):
 
         # Infrastructure Manager case – delegate to the injected client.
         if dest.get("serviceType") == "InfrastructureManager":
+            logger.error(f"IM dest {dest}")
             im_client = self._im_factory(self.token)  # type: ignore[arg-type]
             if not isinstance(im_client, IMClientProtocol):
                 raise TypeError(
