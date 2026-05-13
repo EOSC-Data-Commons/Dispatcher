@@ -4,6 +4,7 @@ import pytest
 from app.domain.rocrate.parser import ROCrateParser
 from app.domain.rocrate.builder import RequestPackageBuilder
 from app.domain.rocrate.request_package import RequestPackage
+from app.domain.rocrate.models import RuntimePlatform
 from app.domain.rocrate.validator import ValidationPipeline
 from app.exceptions import VREConfigurationError
 
@@ -229,8 +230,8 @@ class TestRequestPackageHelpers:
         parsed = ROCrateParser.parse(source)
         package = RequestPackageBuilder.build(parsed)
         rp = package.workflow.runtime_platform
-        assert rp is not None
-        assert rp.get("installUrl") == (
+        assert isinstance(rp, RuntimePlatform)
+        assert rp.install_url == (
             "https://raw.githubusercontent.com/grycap/tosca/"
             "refs/heads/eosc_dc/templates/galaxy.yaml"
         )
