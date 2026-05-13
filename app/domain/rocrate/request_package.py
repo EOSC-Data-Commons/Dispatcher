@@ -26,13 +26,6 @@ class FileReference:
 
 
 @dataclass
-class ServiceTarget:
-    service_type: str | None = None
-    url: str | None = None
-    raw: dict[str, Any] | str = field(default_factory=dict, repr=False)
-
-
-@dataclass
 class WorkflowDescriptor:
     id: str
     type: str
@@ -48,7 +41,6 @@ class RequestPackage:
     programming_language: str
     workflow: WorkflowDescriptor
     files: list[FileReference] = field(default_factory=list)
-    service_target: ServiceTarget | None = None
     workflow_inputs: list[FormalParameter] = field(default_factory=list)
     workflow_outputs: list[FormalParameter] = field(default_factory=list)
     raw_crate: dict[str, Any] = field(default_factory=dict, repr=False)
@@ -111,9 +103,6 @@ class RequestPackage:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RequestPackage:
         workflow = WorkflowDescriptor(**data.pop("workflow"))
-        service_target = data.pop("service_target", None)
-        if service_target:
-            service_target = ServiceTarget(**service_target)
         files = [FileReference(**f) for f in data.pop("files", [])]
         workflow_inputs = [
             FormalParameter(**p) for p in data.pop("workflow_inputs", [])
@@ -123,7 +112,6 @@ class RequestPackage:
         ]
         return cls(
             workflow=workflow,
-            service_target=service_target,
             files=files,
             workflow_inputs=workflow_inputs,
             workflow_outputs=workflow_outputs,
@@ -152,15 +140,6 @@ class RequestPackage:
 
         runtime_platform_raw = main.get("runtimePlatform")
         runtime_platform = cls._resolve_ref(crate, runtime_platform_raw)
-        service_target = None
-        if isinstance(runtime_platform, str):
-            service_target = ServiceTarget(url=runtime_platform, raw=runtime_platform)
-        elif runtime_platform is not None:
-            service_target = ServiceTarget(
-                service_type=runtime_platform.get("serviceType"),
-                url=runtime_platform.get("url"),
-                raw=runtime_platform_raw,
-            )
 
         workflow = WorkflowDescriptor(
             id=main.id,
@@ -182,7 +161,6 @@ class RequestPackage:
             programming_language=lang_id or "unknown",
             workflow=workflow,
             files=files,
-            service_target=service_target,
             workflow_inputs=workflow_inputs,
             workflow_outputs=workflow_outputs,
             raw_crate=crate.raw,

@@ -215,16 +215,22 @@ class TestRequestPackageHelpers:
         assert len(package.workflow_outputs) == 1
         assert package.workflow_outputs[0].name == "reversed_text"
 
-    def test_service_target_plain_url(self):
+    def test_runtime_platform_plain_url(self):
         source = load_json("../galaxy/ro-crate-metadata.json")
         parsed = ROCrateParser.parse(source)
         package = RequestPackageBuilder.build(parsed)
-        assert package.service_target is not None
-        assert package.service_target.url == "https://usegalaxy.eu/"
+        rp = package.workflow.runtime_platform
+        assert rp is not None
+        assert isinstance(rp, str)
+        assert rp == "https://usegalaxy.eu/"
 
-    def test_service_target_im_dict(self):
+    def test_runtime_platform_im_dict(self):
         source = load_json("../galaxy_tosca/ro-crate-metadata.json")
         parsed = ROCrateParser.parse(source)
         package = RequestPackageBuilder.build(parsed)
-        assert package.service_target is not None
-        assert package.service_target.service_type == "InfrastructureManager"
+        rp = package.workflow.runtime_platform
+        assert rp is not None
+        assert rp.get("installUrl") == (
+            "https://raw.githubusercontent.com/grycap/tosca/"
+            "refs/heads/eosc_dc/templates/galaxy.yaml"
+        )

@@ -122,20 +122,15 @@
         },
         {
             "@id": "#destination",
-            "@type": "Service",
-            "serviceType": "InfrastructureManager",
-            "name": "Galaxy",
+            "@type": "RuntimePlatform",
+            "name": "Infrastructure Manager",
             "memoryRequirements": "4 GiB",
             "processorRequirements": [
                 "2 vCPU",
                 "1 GPU"
             ],
             "storageRequirements": "200 GiB",
-            "hasPart": [
-                {
-                    "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/galaxy.yaml"
-                }
-            ]
+            "installUrl": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/galaxy.yaml"
         },
         {
             "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/galaxy.yaml",

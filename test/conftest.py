@@ -29,7 +29,6 @@ from app.domain.rocrate.request_package import (
     RequestPackage,
     WorkflowDescriptor,
     FileReference,
-    ServiceTarget,
 )
 
 pytest_plugins = ["pytest_asyncio"]

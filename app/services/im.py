@@ -229,11 +229,7 @@ class IM:
         """
         Generates a TOSCA template for the service.
         """
-        tosca_template_url = None
-        has_part = service.get("hasPart", [])
-        if has_part and has_part[0].get("encodingFormat") == "text/yaml":
-            # Assuming the first part is the TOSCA template
-            tosca_template_url = has_part[0].get("@id")
+        tosca_template_url = service.get("installUrl")
 
         if not tosca_template_url:
             raise Exception("TOSCA template URL not found in service entity.")

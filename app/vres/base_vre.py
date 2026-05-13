@@ -56,26 +56,9 @@ class VRE(ABC):
             if rp is not None:
                 # If it's an Entity (from ParsedCrate), return its properties dict
                 if hasattr(rp, "properties"):
-                    dest = dict(rp.properties)
-                    # Resolve hasPart @id references to full entities
-                    dest["hasPart"] = self._resolve_has_part(dest.get("hasPart", []))
-                    return dest
+                    return dict(rp.properties)
                 return rp
         return None
-
-    def _resolve_has_part(self, has_part: list) -> list:
-        """Resolve @id references in hasPart to full entity dicts."""
-        resolved = []
-        for ref in has_part:
-            if isinstance(ref, dict) and "@id" in ref and len(ref) == 1:
-                entity = self.request_package.get_entity(ref["@id"])
-                if entity is not None:
-                    resolved.append(entity)
-                else:
-                    resolved.append(ref)
-            else:
-                resolved.append(ref)
-        return resolved
 
     def _resolve_runs_on(self, dest: Mapping[str, Any] | str | None) -> str:
         if dest is None:
@@ -85,12 +68,8 @@ class VRE(ABC):
         if isinstance(dest, str):
             return dest
 
-        # No explicit service type – the dict is expected to contain a direct URL.
-        if dest.get("serviceType") is None:
-            return dest.get("url", self.get_default_service())
-
-        # Infrastructure Manager case – delegate to the injected client.
-        if dest.get("serviceType") == "InfrastructureManager":
+        # RuntimePlatform with installUrl – delegate to Infrastructure Manager.
+        if dest.get("installUrl") is not None:
             logger.error(f"IM dest {dest}")
             im_client = self._im_factory(self.token)  # type: ignore[arg-type]
             if not isinstance(im_client, IMClientProtocol):
@@ -104,6 +83,10 @@ class VRE(ABC):
                 raise VREConfigurationError("Failed to deploy service via IM")
             self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
             return outputs.get("url", self.get_default_service())
+
+        # No explicit service type – the dict is expected to contain a direct URL.
+        if dest.get("serviceType") is None:
+            return dest.get("url", self.get_default_service())
 
         # Anything else is an error.
         raise VREConfigurationError(
