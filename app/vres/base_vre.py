@@ -47,7 +47,7 @@ class VRE(ABC):
 
     def setup_service(self) -> str:
         dest = self._get_runtime_platform()
-        return self._resolve_runs_on(dest)
+        return self._resolve_service_url(dest)
 
     def _get_runtime_platform(self) -> Mapping[str, Any] | None:
         """Read runtimePlatform from the request package workflow descriptor."""
@@ -60,7 +60,7 @@ class VRE(ABC):
                 return rp
         return None
 
-    def _resolve_runs_on(self, dest: Mapping[str, Any] | str | None) -> str:
+    def _resolve_service_url(self, dest: Mapping[str, Any] | str | None) -> str:
         if dest is None:
             return self.get_default_service()
 
@@ -71,34 +71,26 @@ class VRE(ABC):
         # RuntimePlatform with installUrl – delegate to Infrastructure Manager.
         if dest.get("installUrl") is not None:
             logger.error(f"IM dest {dest}")
-            im_client = self._im_factory(self.token)  # type: ignore[arg-type]
+            im_client = self._im_factory(self.token, self.update_task_status)  # type: ignore[arg-type]
             if not isinstance(im_client, IMClientProtocol):
                 raise TypeError(
                     "Injected IM factory must return an object implementing IMClientProtocol"
                 )
-            self.update_task_status(constants.IM_SEQUENCE_STARTED)
             outputs = im_client.run_service(dest)
-            self.update_task_status(constants.IM_SEQUENCE_FINISHED)
             if outputs is None:
                 raise VREConfigurationError("Failed to deploy service via IM")
-            self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
             return outputs.get("url", self.get_default_service())
 
-        # No explicit service type – the dict is expected to contain a direct URL.
-        if dest.get("serviceType") is None:
-            return dest.get("url", self.get_default_service())
-
-        # Anything else is an error.
-        raise VREConfigurationError(
-            f"Invalid service type in runsOn: {dest.get('serviceType')!r}"
-        )
+        raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
 
     def update_task_status(self, stage):
         self._update_state(state="PROGRESS", meta={"stage": stage})
 
     @staticmethod
-    def _default_im_factory(token: str | None) -> IMClientProtocol:
-        return IM(token)
+    def _default_im_factory(
+        token: str | None, update_task_status: Callable[[str], None]
+    ) -> IMClientProtocol:
+        return IM(token, update_task_status)
 
     @abstractmethod
     def post(self):

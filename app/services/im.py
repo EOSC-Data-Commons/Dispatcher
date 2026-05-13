@@ -3,10 +3,11 @@ import requests
 import copy
 import time
 import yaml
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 from imclient import IMClient
 from app.config import settings
 from app.exceptions import IMError
+import app.constants as constants
 
 logging.basicConfig(level=logging.INFO)
 
@@ -35,7 +36,11 @@ class IM:
         "requirements": [{"host": "simple_node"}],
     }
 
-    def __init__(self, access_token: str | None):
+    def __init__(
+        self,
+        access_token: str | None,
+        update_task_status: Callable[[str], None] | None = None,
+    ):
         if not access_token:
             raise IMError("Access token not provided for IM.")
         auth = self._build_auth_config(access_token)
@@ -44,6 +49,7 @@ class IM:
 
         self.client = IMClient.init_client(im_endpoint, auth)
         self.inf_id = None
+        self._update_task_status = update_task_status or (lambda _stage: None)
 
     def _build_auth_config(self, access_token: str) -> list:
         """Build authentication configuration based on deployment type."""
@@ -341,6 +347,10 @@ class IM:
         self.inf_id = None
 
     def run_service(self, dest: Mapping[str, Any]) -> Mapping[str, Any]:
+        self._update_task_status(constants.IM_SEQUENCE_STARTED)
         self.deploy_service(dest)
         self.wait_for_service()
-        return self.get_service_outputs()
+        self._update_task_status(constants.IM_SEQUENCE_FINISHED)
+        outputs = self.get_service_outputs()
+        self._update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
+        return outputs
