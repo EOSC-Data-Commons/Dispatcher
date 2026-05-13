@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Any
-from .models import ParsedCrate
+from .models import ParsedCrate, RuntimePlatform
 
 
 @dataclass
@@ -31,7 +31,7 @@ class WorkflowDescriptor:
     type: str
     url: str | None = None
     programming_language_id: str | None = None
-    runtime_platform: str | dict[str, Any] | None = None
+    runtime_platform: str | RuntimePlatform | None = None
     properties: dict[str, Any] = field(default_factory=dict, repr=False)
 
 
@@ -139,7 +139,17 @@ class RequestPackage:
         lang_id = lang_obj.get("identifier") if lang_obj is not None else None
 
         runtime_platform_raw = main.get("runtimePlatform")
-        runtime_platform = cls._resolve_ref(crate, runtime_platform_raw)
+        runtime_platform_resolved = cls._resolve_ref(crate, runtime_platform_raw)
+        runtime_platform: str | RuntimePlatform | None = None
+        if isinstance(runtime_platform_resolved, str):
+            runtime_platform = runtime_platform_resolved
+        elif runtime_platform_resolved is not None:
+            rp_props = (
+                dict(runtime_platform_resolved.properties)
+                if hasattr(runtime_platform_resolved, "properties")
+                else runtime_platform_resolved
+            )
+            runtime_platform = RuntimePlatform.from_dict(rp_props)
 
         workflow = WorkflowDescriptor(
             id=main.id,

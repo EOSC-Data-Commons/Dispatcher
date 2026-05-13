@@ -1,6 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -67,3 +70,74 @@ class ParsedCrate:
 
     def get_entities(self) -> list[Entity]:
         return list(self.entities.values())
+
+
+@dataclass
+class IMInputFile:
+    """Typed descriptor for a file to stage into the deployed service."""
+
+    url: str
+    destination: str | None = None
+    compute_node: str | None = None
+
+
+@dataclass
+class RuntimePlatform:
+    """Domain representation of a RO-Crate RuntimePlatform entity."""
+
+    name: str
+    install_url: str | None = None
+    memory: str | None = None
+    num_cpus: int = 1
+    num_gpus: int = 0
+    storage: str | None = None
+    input_files: list[IMInputFile] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, dest: dict[str, Any]) -> RuntimePlatform:
+        """Build RuntimePlatform from a RO-Crate RuntimePlatform dict."""
+        cpus = dest.get("processorRequirements")
+        num_cpus = 1
+        num_gpus = 0
+        if isinstance(cpus, str) and "vCPU" in cpus:
+            num_cpus = int(cpus.replace("vCPU", "").strip())
+        elif isinstance(cpus, list):
+            for cpu in cpus:
+                if "vCPU" in cpu:
+                    num_cpus = int(cpu.replace("vCPU", "").strip())
+                if "GPU" in cpu:
+                    num_gpus = int(cpu.replace("GPU", "").strip())
+
+        input_files = []
+        for raw_file in dest.get("input", []):
+            if raw_file.get("@type") != "File":
+                logger.warning("Input is not of type File, skipping.")
+                continue
+            file_url = raw_file.get("@id")
+            if not file_url:
+                logger.warning("Input does not have a @id, skipping.")
+                continue
+            content_location = raw_file.get("contentLocation")
+            compute_node = None
+            destination = content_location
+            if content_location and ":" in content_location:
+                parts = content_location.split(":", 1)
+                compute_node = parts[0]
+                destination = parts[1]
+            input_files.append(
+                IMInputFile(
+                    url=file_url,
+                    destination=destination,
+                    compute_node=compute_node,
+                )
+            )
+
+        return cls(
+            name=dest.get("name", "Infrastructure Manager"),
+            install_url=dest.get("installUrl"),
+            memory=dest.get("memoryRequirements"),
+            num_cpus=num_cpus,
+            num_gpus=num_gpus,
+            storage=dest.get("storageRequirements"),
+            input_files=input_files,
+        )

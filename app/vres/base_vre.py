@@ -1,5 +1,6 @@
 import sys
 from app.services.im import IM
+from app.domain.rocrate.models import RuntimePlatform
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 from app.exceptions import VREError, VREConfigurationError
@@ -17,7 +18,7 @@ class ROCrateValidationError(Exception):
 class IMClientProtocol(Protocol):
     """Minimal contract of the external IM client used by VRE.setup_service."""
 
-    def run_service(self, dest: Mapping[str, Any]) -> Mapping[str, Any] | None: ...
+    def run_service(self, rp: RuntimePlatform) -> Mapping[str, Any] | None: ...
 
 
 class VRE(ABC):
@@ -46,21 +47,16 @@ class VRE(ABC):
         pass
 
     def setup_service(self) -> str:
-        dest = self._get_runtime_platform()
-        return self._resolve_service_url(dest)
+        rp = self._get_runtime_platform()
+        return self._resolve_service_url(rp)
 
-    def _get_runtime_platform(self) -> Mapping[str, Any] | None:
+    def _get_runtime_platform(self) -> str | RuntimePlatform | None:
         """Read runtimePlatform from the request package workflow descriptor."""
         if self.request_package is not None:
-            rp = self.request_package.workflow.runtime_platform
-            if rp is not None:
-                # If it's an Entity (from ParsedCrate), return its properties dict
-                if hasattr(rp, "properties"):
-                    return dict(rp.properties)
-                return rp
+            return self.request_package.workflow.runtime_platform
         return None
 
-    def _resolve_service_url(self, dest: Mapping[str, Any] | str | None) -> str:
+    def _resolve_service_url(self, dest: str | RuntimePlatform | None) -> str:
         if dest is None:
             return self.get_default_service()
 
@@ -69,7 +65,7 @@ class VRE(ABC):
             return dest
 
         # RuntimePlatform with installUrl – delegate to Infrastructure Manager.
-        if dest.get("installUrl") is not None:
+        if dest.install_url is not None:
             logger.error(f"IM dest {dest}")
             im_client = self._im_factory(self.token, self.update_task_status)  # type: ignore[arg-type]
             if not isinstance(im_client, IMClientProtocol):

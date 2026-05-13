@@ -7,6 +7,7 @@ from typing import Any, Callable, Mapping
 from imclient import IMClient
 from app.config import settings
 from app.exceptions import IMError
+from app.domain.rocrate.models import IMInputFile, RuntimePlatform
 import app.constants as constants
 
 logging.basicConfig(level=logging.INFO)
@@ -121,27 +122,13 @@ class IM:
 
     @staticmethod
     def _add_inputs_to_tosca_template(
-        tosca_template: dict, service: Mapping[str, Any]
+        tosca_template: dict, rp: RuntimePlatform
     ) -> dict:
-        memory = service.get("memoryRequirements")
-        cpus = service.get("processorRequirements")
-        storage = service.get("storageRequirements")
-        num_cpus = 1  # Default value
-        num_gpus = 0  # Default value
-        if isinstance(cpus, str) and "vCPU" in cpus:
-            num_cpus = int(cpus.replace("vCPU", "").strip())
-        elif isinstance(cpus, list):
-            for cpu in cpus:
-                if "vCPU" in cpu:
-                    num_cpus = int(cpu.replace("vCPU", "").strip())
-                if "GPU" in cpu:
-                    num_gpus = int(cpu.replace("GPU", "").strip())
-
         inputs = tosca_template["topology_template"]["inputs"]
-        IM._update_input_default(inputs, "mem_size", memory)
-        IM._update_input_default(inputs, "num_gpus", num_gpus)
-        IM._update_input_default(inputs, "num_cpus", num_cpus)
-        IM._update_input_default(inputs, "disk_size", storage)
+        IM._update_input_default(inputs, "mem_size", rp.memory)
+        IM._update_input_default(inputs, "num_gpus", rp.num_gpus)
+        IM._update_input_default(inputs, "num_cpus", rp.num_cpus)
+        IM._update_input_default(inputs, "disk_size", rp.storage)
 
         return tosca_template
 
@@ -156,43 +143,9 @@ class IM:
                 compute_nodes[node_name] = node
         return compute_nodes
 
-    def _validate_input_file(self, input_file: dict) -> bool:
-        """Validates if the input is of type File and has a url."""
-        if input_file.get("@type") != "File":
-            logging.warning("Input is not of type File, skipping.")
-            return False
-        if not input_file.get("@id"):
-            logging.warning("Input does not have a @id, skipping.")
-            return False
-        return True
-
-    def _parse_compute_and_dest(self, input_file: dict, compute_nodes: dict) -> tuple:
-        """Parses contentLocation to extract compute node name and destination path."""
-        content_location = input_file.get("contentLocation")
-        compute_name = None
-        if content_location and ":" in content_location:
-            parts = content_location.split(":")
-            return parts[0], parts[1]
-        if compute_nodes:
-            compute_name = list(compute_nodes.keys())[0]
-        return compute_name, content_location
-
-    def _validate_compute_node(self, compute_name: str, compute_nodes: dict) -> bool:
-        """Validates if the compute node exists in the TOSCA template."""
-        if not compute_name:
-            logging.error("No compute node available.")
-            return False
-        if compute_name and compute_name not in compute_nodes:
-            logging.error(
-                "Compute node %s not found in TOSCA template, skipping file.",
-                compute_name,
-            )
-            return False
-        return True
-
     @staticmethod
     def _gen_get_data_node(
-        file_url: str, file_dest: str, compute_name: Mapping[str, Any]
+        file_url: str, file_dest: str | None, compute_name: str
     ) -> dict:
         get_data = copy.deepcopy(IM.GET_DATA_NODE_TEMPLATE)
         get_data_inputs = get_data["interfaces"]["Standard"]["configure"]["inputs"]
@@ -203,11 +156,10 @@ class IM:
         return get_data
 
     def _add_files_to_tosca_template(
-        self, tosca_template: dict, service: Mapping[str, Any]
+        self, tosca_template: dict, rp: RuntimePlatform
     ) -> dict:
         """Adds input files to the TOSCA template for staging in."""
-        input_files = service.get("input", [])
-        if not input_files:
+        if not rp.input_files:
             return tosca_template
 
         compute_nodes = self._get_compute_nodes(tosca_template)
@@ -215,43 +167,44 @@ class IM:
             "node_templates", {}
         )
 
-        for i, input_file in enumerate(input_files):
-            if not self._validate_input_file(input_file):
+        for i, input_file in enumerate(rp.input_files):
+            compute_name = input_file.compute_node
+            if not compute_name and compute_nodes:
+                compute_name = list(compute_nodes.keys())[0]
+            if not compute_name:
+                logging.error("No compute node available for input file, skipping.")
                 continue
-
-            compute_name, file_dest = self._parse_compute_and_dest(
-                input_file, compute_nodes
-            )
-            if not self._validate_compute_node(compute_name, compute_nodes):
+            if compute_name not in compute_nodes:
+                logging.error(
+                    "Compute node %s not found in TOSCA template, skipping file.",
+                    compute_name,
+                )
                 continue
 
             node_templates[f"get_data_{i}"] = self._gen_get_data_node(
-                input_file.get("@id"), file_dest, compute_name
+                input_file.url, input_file.destination, compute_name
             )
 
         return tosca_template
 
-    def _gen_tosca_template(self, service: Mapping[str, Any]) -> dict:
+    def _gen_tosca_template(self, rp: RuntimePlatform) -> dict:
         """
         Generates a TOSCA template for the service.
         """
-        tosca_template_url = service.get("installUrl")
-
-        if not tosca_template_url:
-            raise Exception("TOSCA template URL not found in service entity.")
-
+        if rp.install_url is None:
+            raise IMError("RuntimePlatform has no installUrl")
         # Fetch the TOSCA template from the URL
-        tosca_template = self._get_tosca_template(tosca_template_url)
+        tosca_template = self._get_tosca_template(rp.install_url)
         # Add inputs to the TOSCA template
-        tosca_template = self._add_inputs_to_tosca_template(tosca_template, service)
+        tosca_template = self._add_inputs_to_tosca_template(tosca_template, rp)
         # Add input files to stage in
-        tosca_template = self._add_files_to_tosca_template(tosca_template, service)
+        tosca_template = self._add_files_to_tosca_template(tosca_template, rp)
 
         return tosca_template
 
-    def deploy_service(self, service: Mapping[str, Any]) -> str:
+    def deploy_service(self, rp: RuntimePlatform) -> str:
         """Deploys the service using using the TOSCA from the service."""
-        tosca_template = self._gen_tosca_template(service)
+        tosca_template = self._gen_tosca_template(rp)
         success, inf_id = self.client.create(
             yaml.safe_dump(tosca_template), desc_type="yaml"
         )
@@ -346,9 +299,9 @@ class IM:
         logging.info(f"Service {self.inf_id} destroyed successfully.")
         self.inf_id = None
 
-    def run_service(self, dest: Mapping[str, Any]) -> Mapping[str, Any]:
+    def run_service(self, rp: RuntimePlatform) -> Mapping[str, Any]:
         self._update_task_status(constants.IM_SEQUENCE_STARTED)
-        self.deploy_service(dest)
+        self.deploy_service(rp)
         self.wait_for_service()
         self._update_task_status(constants.IM_SEQUENCE_FINISHED)
         outputs = self.get_service_outputs()
