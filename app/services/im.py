@@ -229,10 +229,6 @@ class IM:
         """
         Generates a TOSCA template for the service.
         """
-        # get the TOSCA template from the service entity
-        # get the memory and CPU requirements
-        # edit the inputs of the TOSCA template
-        # (we must use allways the same names for the inputs for cpu and memory, etc.)
         tosca_template_url = None
         has_part = service.get("hasPart", [])
         if has_part and has_part[0].get("encodingFormat") == "text/yaml":

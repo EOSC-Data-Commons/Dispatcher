@@ -56,9 +56,26 @@ class VRE(ABC):
             if rp is not None:
                 # If it's an Entity (from ParsedCrate), return its properties dict
                 if hasattr(rp, "properties"):
-                    return rp.properties
+                    dest = dict(rp.properties)
+                    # Resolve hasPart @id references to full entities
+                    dest["hasPart"] = self._resolve_has_part(dest.get("hasPart", []))
+                    return dest
                 return rp
         return None
+
+    def _resolve_has_part(self, has_part: list) -> list:
+        """Resolve @id references in hasPart to full entity dicts."""
+        resolved = []
+        for ref in has_part:
+            if isinstance(ref, dict) and "@id" in ref and len(ref) == 1:
+                entity = self.request_package.get_entity(ref["@id"])
+                if entity is not None:
+                    resolved.append(entity)
+                else:
+                    resolved.append(ref)
+            else:
+                resolved.append(ref)
+        return resolved
 
     def _resolve_runs_on(self, dest: Mapping[str, Any] | str | None) -> str:
         if dest is None:
