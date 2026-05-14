@@ -13,14 +13,12 @@ import copy
 )
 def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
     rocrate_dict = copy.deepcopy(parsed_zipfile[0])
-    zip_file = parsed_zipfile[1]
     parsed_crate = ROCrateParser.parse(rocrate_dict)
     package = RequestPackageBuilder.build(parsed_crate)
     vre_handler = vre_factory(
         token=token,
         request_id=self.request.id,
         update_state=self.update_state,
-        body=zip_file,
         request_package=package,
     )
     return {"url": vre_handler.post()}

@@ -27,13 +27,11 @@ class VRE(ABC):
         token: str,
         request_id: int,
         update_state: Callable,
-        body: Any | None = None,
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
         request_package: Any | None = None,
         **kwargs,
     ) -> None:
         self.request_package = request_package
-        self.body = body
         self.token = token
         self._update_state = update_state
         self._request_id = request_id
@@ -115,7 +113,6 @@ class VREFactory:
         token: str,
         request_id: int,
         update_state: Callable,
-        body: Any | None = None,
         request_package: Any | None = None,
         **kwargs,
     ):
@@ -130,7 +127,6 @@ class VREFactory:
             token=token,
             request_id=request_id,
             update_state=update_state,
-            body=body,
             request_package=request_package,
             **kwargs,
         )

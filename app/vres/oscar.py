@@ -14,8 +14,8 @@ logging.basicConfig(level=logging.INFO)
 
 
 class VREOSCAR(VRE):
-    def __init__(self, body=None, token=None, **kwargs):
-        super().__init__(body=body, token=token, **kwargs)
+    def __init__(self, token=None, **kwargs):
+        super().__init__(token=token, **kwargs)
         self.fld_json = None
 
     def get_default_service(self):
