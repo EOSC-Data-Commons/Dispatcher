@@ -1,6 +1,8 @@
 {
     "vre_type": "binder",
+    "workflow_url": null,
     "files": [
       {"name": "notebook.ipynb", "url": null, "encoding_format": null}
-    ]
+    ],
+    "runtime_platform": "https://replay.notebooks.egi.eu/v2"
   }
