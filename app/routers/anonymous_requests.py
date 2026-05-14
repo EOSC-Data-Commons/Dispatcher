@@ -67,6 +67,6 @@ def minimal_vre(
         content = f.file.read()
         file_bytes_map[f.filename or "unknown"] = content
     task = vre_from_minimal.apply_async(
-        args=[parsed_data.model_dump(), file_bytes_map, ""]
+        args=[parsed_data.model_dump(mode="json"), file_bytes_map, ""]
     )
     return JSONResponse({"task_id": task.id})
