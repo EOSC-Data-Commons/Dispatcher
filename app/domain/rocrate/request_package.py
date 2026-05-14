@@ -231,3 +231,54 @@ class RequestPackage:
                 )
             )
         return params
+
+    @classmethod
+    def from_minimal(
+        cls,
+        vre_type: str,
+        programming_language: str,
+        workflow_url: str | None,
+        files_data: list[dict[str, Any]],
+        file_bytes_map: dict[str, bytes],
+        runtime_platform: str | None = None,
+    ) -> RequestPackage:
+        """Build a RequestPackage from minimal VRE start payload."""
+        workflow = WorkflowDescriptor(
+            id="#workflow",
+            type="ComputationalWorkflow",
+            url=workflow_url,
+            programming_language_id=programming_language,
+            runtime_platform=runtime_platform,
+            properties={},
+        )
+
+        files: list[FileReference] = []
+        for f in files_data:
+            file_url = str(f["url"]) if f.get("url") else None
+            file_id = file_url or f["name"]
+            props: dict[str, Any] = {}
+
+            if f["name"] in file_bytes_map:
+                props["content"] = file_bytes_map[f["name"]]
+                if file_url is None:
+                    file_id = f["name"]
+
+            files.append(
+                FileReference(
+                    id=file_id,
+                    name=f["name"],
+                    encoding_format=f.get("encoding_format"),
+                    url=file_url,
+                    onedata_domain=f.get("onedata_domain"),
+                    onedata_file_id=f.get("onedata_file_id"),
+                    properties=props,
+                )
+            )
+
+        return cls(
+            vre_type=programming_language,
+            programming_language=programming_language,
+            workflow=workflow,
+            files=files,
+            raw_crate={},
+        )

@@ -1,12 +1,14 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from fastapi import UploadFile, Depends, Request
+from fastapi import UploadFile, Depends, Request, Form, File
 from rocrate.rocrate import ROCrate
 from fastapi.exceptions import HTTPException
 from .utils import parse_zipfile, parse_rocrate
+from .utils.minimal_vre import MinimalVRERequest
 from celery.result import AsyncResult
-from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
+from app.celery.tasks import vre_from_zipfile, vre_from_rocrate, vre_from_minimal
 import logging
+import json
 from typing import Dict
 
 logger = logging.getLogger("uvicorn.error")
@@ -50,4 +52,21 @@ def metadata_rocrate(
 ):
     task = vre_from_rocrate.apply_async(args=[data, ""])
 
+    return JSONResponse({"task_id": task.id})
+
+
+@router.post("/minimal_vre/")
+def minimal_vre(
+    data: str = Form(..., description="JSON string of MinimalVRERequest"),
+    uploaded_files: list[UploadFile] = File(default_factory=list),
+    request: Request = None,
+):
+    parsed_data = MinimalVRERequest(**json.loads(data))
+    file_bytes_map = {}
+    for f in uploaded_files:
+        content = f.file.read()
+        file_bytes_map[f.filename or "unknown"] = content
+    task = vre_from_minimal.apply_async(
+        args=[parsed_data.model_dump(), file_bytes_map, ""]
+    )
     return JSONResponse({"task_id": task.id})
