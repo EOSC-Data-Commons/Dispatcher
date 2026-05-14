@@ -57,7 +57,6 @@
             "sdPublisher": {
                 "@id": "#workflow-hub"
             },
-            "url": "https://example.com/notebook.ipynb",
             "version": "1.0.0",
             "runtimePlatform": "https://notebooks-dev.egi.zcu.cz"
         },

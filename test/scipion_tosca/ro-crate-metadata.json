@@ -24,11 +24,11 @@
                 "@id": "#author-dispatcher"
             },
             "mainEntity": {
-                "@id": "#workflow"
+                "@id": "https://workflowhub.eu/workflows/69/git/1/raw/Relion_3_tutorial-betagal.json"
             },
             "hasPart": [
                 {
-                    "@id": "#workflow"
+                    "@id": "https://workflowhub.eu/workflows/69/git/1/raw/Relion_3_tutorial-betagal.json"
                 },
                 {
                     "@id": "https://example-files.online-convert.com/document/txt/example.txt"
@@ -39,7 +39,7 @@
             ]
         },
         {
-            "@id": "#workflow",
+            "@id": "https://workflowhub.eu/workflows/69/git/1/raw/Relion_3_tutorial-betagal.json",
             "@type": [
                 "File",
                 "SoftwareSourceCode",
@@ -63,7 +63,6 @@
             "sdPublisher": {
                 "@id": "#workflow-hub"
             },
-            "url": "https://workflowhub.eu/workflows/69/git/1/raw/Relion_3_tutorial-betagal.json",
             "version": "1.0.0",
             "runtimePlatform": {
                 "@id": "#destination"

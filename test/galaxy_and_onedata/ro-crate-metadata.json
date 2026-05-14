@@ -24,11 +24,11 @@
                 "@id": "#author-schneider"
             },
             "mainEntity": {
-                "@id": "#workflow"
+                "@id": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Fbwalkowi%2Fgalaxy-workflow-ocr-test%2Fmain/versions/main/PLAIN_GALAXY/descriptor//galaxy-workflow-ocr-test-DaSCH.ga"
             },
             "hasPart": [
                 {
-                    "@id": "#workflow"
+                    "@id": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Fbwalkowi%2Fgalaxy-workflow-ocr-test%2Fmain/versions/main/PLAIN_GALAXY/descriptor//galaxy-workflow-ocr-test-DaSCH.ga"
                 },
                 {
                     "@id": "https://example.com/input-image.tiff"
@@ -39,7 +39,7 @@
             ]
         },
         {
-            "@id": "#workflow",
+            "@id": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Fbwalkowi%2Fgalaxy-workflow-ocr-test%2Fmain/versions/main/PLAIN_GALAXY/descriptor//galaxy-workflow-ocr-test-DaSCH.ga",
             "@type": [
                 "File",
                 "SoftwareSourceCode",
@@ -68,7 +68,6 @@
             "sdPublisher": {
                 "@id": "#workflow-hub"
             },
-            "url": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Fbwalkowi%2Fgalaxy-workflow-ocr-test%2Fmain/versions/main/PLAIN_GALAXY/descriptor//galaxy-workflow-ocr-test-DaSCH.ga",
             "version": "1.0.0",
             "runtimePlatform": "https://usegalaxy.eu/",
             "input": [

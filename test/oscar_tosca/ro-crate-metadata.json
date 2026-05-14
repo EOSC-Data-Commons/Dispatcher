@@ -24,11 +24,11 @@
                 "@id": "#author-dispatcher"
             },
             "mainEntity": {
-                "@id": "#workflow"
+                "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
             },
             "hasPart": [
                 {
-                    "@id": "#workflow"
+                    "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
                 },
                 {
                     "@id": "https://example-files.online-convert.com/document/txt/example.txt"
@@ -37,15 +37,12 @@
                     "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/oscar.yaml"
                 },
                 {
-                    "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
-                },
-                {
                     "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
                 }
             ]
         },
         {
-            "@id": "#workflow",
+            "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
             "@type": [
                 "File",
                 "SoftwareSourceCode",
@@ -69,17 +66,10 @@
             "sdPublisher": {
                 "@id": "#workflow-hub"
             },
-            "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
             "version": "1.0.0",
             "runtimePlatform": {
                 "@id": "#destination"
             }
-        },
-        {
-            "@id": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
-            "@type": "File",
-            "name": "cowsay.json",
-            "encodingFormat": "application/json"
         },
         {
             "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",

@@ -151,10 +151,13 @@ class RequestPackage:
             )
             runtime_platform = RuntimePlatform.from_dict(rp_props)
 
+        workflow_url = (
+            main.id if main.id.startswith(("http://", "https://")) else main.get("url")
+        )
         workflow = WorkflowDescriptor(
             id=main.id,
             type=main.type if isinstance(main.type, str) else main.type[0],
-            url=main.get("url"),
+            url=workflow_url,
             programming_language_id=lang_id,
             runtime_platform=runtime_platform,
             properties=main.properties,

@@ -21,7 +21,7 @@ class TestROCrateParser:
         parsed = ROCrateParser.parse(source)
         assert parsed.root_id == "./"
         assert parsed.main_entity is not None
-        assert parsed.main_entity.id == "#workflow"
+        assert parsed.main_entity.id.startswith("https://dockstore.org/")
         lang_ref = parsed.main_entity.get("programmingLanguage")
         assert isinstance(lang_ref, dict)
         assert lang_ref.get("@id") == "#galaxy-lang"
@@ -33,7 +33,7 @@ class TestROCrateParser:
         source = load_json("../oscar/ro-crate-metadata.json")
         parsed = ROCrateParser.parse(source)
         assert parsed.main_entity is not None
-        assert parsed.main_entity.get("url") is not None
+        assert parsed.main_entity.id.startswith("https://raw.githubusercontent.com/")
 
     def test_parse_resolves_references(self):
         source = load_json("../galaxy/ro-crate-metadata.json")
@@ -127,7 +127,7 @@ class TestRequestPackageBuilder:
         assert package.vre_type == "https://oscar.grycap.net/"
         assert package.fdl_url is not None
         assert len(package.script_files) == 1
-        assert len(package.oscar_input_files) == 2
+        assert len(package.oscar_input_files) == 1
 
     def test_build_galaxy_tosca_package(self):
         source = load_json("../galaxy_tosca/ro-crate-metadata.json")

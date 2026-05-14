@@ -24,11 +24,11 @@
                 "@id": "#author-dispatcher"
             },
             "mainEntity": {
-                "@id": "#workflow"
+                "@id": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/PLAIN_GALAXY/descriptor//Galaxy-Workflow-reverse_file_galaxy_workflow.ga"
             },
             "hasPart": [
                 {
-                    "@id": "#workflow"
+                    "@id": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/PLAIN_GALAXY/descriptor//Galaxy-Workflow-reverse_file_galaxy_workflow.ga"
                 },
                 {
                     "@id": "https://example-files.online-convert.com/document/txt/example.txt"
@@ -36,7 +36,7 @@
             ]
         },
         {
-            "@id": "#workflow",
+            "@id": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/PLAIN_GALAXY/descriptor//Galaxy-Workflow-reverse_file_galaxy_workflow.ga",
             "@type": [
                 "File",
                 "SoftwareSourceCode",
@@ -60,7 +60,6 @@
             "sdPublisher": {
                 "@id": "#workflow-hub"
             },
-            "url": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Flaitanawe%2Fismb2024%2Fgalaxy_example/versions/main/PLAIN_GALAXY/descriptor//Galaxy-Workflow-reverse_file_galaxy_workflow.ga",
             "version": "1.0.0",
             "runtimePlatform": "https://usegalaxy.eu/",
             "input": [
