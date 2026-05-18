@@ -11,10 +11,11 @@ import copy
     name="vre_from_zipfile",
     bind=True,
 )
-def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
+def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, dict[str, bytes]], token):
     rocrate_dict = copy.deepcopy(parsed_zipfile[0])
+    file_bytes_map = parsed_zipfile[1]
     parsed_crate = ROCrateParser.parse(rocrate_dict)
-    package = RequestPackageBuilder.build(parsed_crate)
+    package = RequestPackageBuilder.build(parsed_crate, file_bytes_map)
     vre_handler = vre_factory(
         token=token,
         request_id=self.request.id,
