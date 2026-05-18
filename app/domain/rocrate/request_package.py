@@ -81,6 +81,7 @@ class RequestPackage:
     @property
     def oscar_input_files(self) -> list[FileReference]:
         excluded = {f.id for f in self.script_files}
+        excluded.add(self.workflow.id)
         return [f for f in self.files if f.id not in excluded]
 
     @property
