@@ -39,7 +39,7 @@ def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
 @router.post("/zip_rocrate/")
 def zip_rocrate(
     token: str = Depends(oauth2_scheme),
-    parsed_zipfile: (Dict, bytes) = Depends(parse_zipfile),
+    parsed_zipfile: tuple[Dict, dict[str, bytes]] = Depends(parse_zipfile),
     request: Request = None,
 ):
     task = vre_from_zipfile.apply_async(

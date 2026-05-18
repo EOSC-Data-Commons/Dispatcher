@@ -8,9 +8,18 @@ import app.constants as constants
 
 class RequestPackageBuilder:
     @classmethod
-    def build(cls, crate: ParsedCrate) -> RequestPackage:
+    def build(
+        cls,
+        crate: ParsedCrate,
+        file_bytes_map: dict[str, bytes] | None = None,
+    ) -> RequestPackage:
         ValidationPipeline.validate_basic(crate)
-        return RequestPackage.from_parsed_crate(crate)
+        package = RequestPackage.from_parsed_crate(crate)
+        if file_bytes_map:
+            for fref in package.files:
+                if fref.id in file_bytes_map:
+                    fref.properties["content"] = file_bytes_map[fref.id]
+        return package
 
     @classmethod
     def build_from_minimal(

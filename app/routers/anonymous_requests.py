@@ -38,7 +38,7 @@ def status(task_id: str = ""):
 
 @router.post("/zip_rocrate/")
 def zip_rocrate(
-    parsed_zipfile: (Dict, bytes) = Depends(parse_zipfile),
+    parsed_zipfile: tuple[Dict, dict[str, bytes]] = Depends(parse_zipfile),
     request: Request = None,
 ):
     task = vre_from_zipfile.apply_async(args=[parsed_zipfile, ""])
