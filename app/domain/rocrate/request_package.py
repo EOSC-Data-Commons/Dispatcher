@@ -186,8 +186,6 @@ class RequestPackage:
         files: list[FileReference] = []
         for ref in has_part:
             eid = ref if isinstance(ref, str) else ref.get("@id")
-            if not eid or eid == main_id:
-                continue
             entity = crate.get(eid)
             if entity is None:
                 continue

@@ -7,7 +7,7 @@ from app.config import settings
 from app.constants import BINDER_DEFAULT_SERVICE, BINDER_PROGRAMMING_LANGUAGE
 import git
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger()
 
 
 class VREBinder(VRE):
@@ -54,7 +54,7 @@ class VREBinder(VRE):
     def _write_source_files(self, repo):
         logger.debug(f"{__class__.__name__}: writing source files from request package")
         for fref in self.request_package.local_files:
-            filename = fref.name
+            filename = fref.id
             content = fref.properties.get("content")
             if content is not None:
                 with open(f"{repo}/{filename}", "wb") as f:

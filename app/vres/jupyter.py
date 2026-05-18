@@ -81,7 +81,7 @@ class VREJupyter(VRE):
                 if content is not None:
                     if isinstance(content, bytes):
                         content = json.loads(content.decode())
-                    return fref.name, content
+                    return fref.id, content
         raise exceptions.VREConfigurationError("No .ipynb notebook found in crate")
 
     def _wait_for_server_creation(self):
