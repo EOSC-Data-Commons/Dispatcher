@@ -1,0 +1,17 @@
+{
+    "vre_type": "binder",
+    "workflow_url": null,
+    "files": [
+        {
+            "name": "multi-domain-search.ipynb",
+            "url": null,
+            "encoding_format": null
+        },
+        {
+            "name": "requirements.txt",
+            "url": null,
+            "encoding_format": null
+        }
+    ],
+    "runtime_platform": "https://replay.notebooks.egi.eu/v2"
+}

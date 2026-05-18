@@ -1,0 +1,12 @@
+{
+    "vre_type": "jupyter",
+    "workflow_url": null,
+    "files": [
+        {
+            "name": "notebook.ipynb",
+            "url": null,
+            "encoding_format": null
+        }
+    ],
+    "runtime_platform": "https://notebooks-dev.egi.zcu.cz"
+}
