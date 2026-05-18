@@ -35,9 +35,6 @@
                 },
                 {
                     "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/galaxy.yaml"
-                },
-                {
-                    "@id": "https://example-files.online-convert.com/document/txt/example.txt"
                 }
             ]
         },
