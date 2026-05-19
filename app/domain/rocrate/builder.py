@@ -82,6 +82,8 @@ class RocrateBuilder:
         for f in files_data:
             file_url = str(f["url"]) if f.get("url") else None
             file_id = file_url or f["name"]
+            if file_id == workflow_id:
+                continue
             root_has_part.append({"@id": file_id})
 
         graph.append(
@@ -124,6 +126,8 @@ class RocrateBuilder:
         for f in files_data:
             file_url = str(f["url"]) if f.get("url") else None
             file_id = file_url or f["name"]
+            if file_id == workflow_id:
+                continue
             file_entity: dict[str, Any] = {
                 "@id": file_id,
                 "@type": "File",
