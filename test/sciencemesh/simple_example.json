@@ -1,6 +1,6 @@
 {
     "vre_type": "sciencemesh",
-    "workflow_url": "https://raw.githubusercontent.com/dpiparo/swanExamples/refs/heads/master/notebooks/CMSDimuon_py.ipynb",
+    "workflow": "https://raw.githubusercontent.com/dpiparo/swanExamples/refs/heads/master/notebooks/CMSDimuon_py.ipynb",
     "files": [
         {
             "name": "MuRun2010B.csv",

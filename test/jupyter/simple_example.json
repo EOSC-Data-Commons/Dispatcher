@@ -1,6 +1,6 @@
 {
     "vre_type": "jupyter",
-    "workflow_url": null,
+    "workflow": "notebook.ipynb",
     "files": [
         {
             "name": "notebook.ipynb",

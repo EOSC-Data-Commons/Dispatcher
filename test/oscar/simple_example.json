@@ -1,6 +1,6 @@
 {
     "vre_type": "oscar",
-    "workflow_url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
+    "workflow": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
     "files": [
         {
             "name": "script.sh",

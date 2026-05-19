@@ -31,7 +31,7 @@ class RequestPackageBuilder:
     ) -> RequestPackage:
         vre_type = data["vre_type"]
         programming_language = constants.VRE_TYPE_TO_PROGRAMMING_LANGUAGE[vre_type]
-        workflow_url = str(data["workflow_url"]) if data.get("workflow_url") else None
+        workflow = data.get("workflow")
         runtime_platform = (
             str(data["runtime_platform"]) if data.get("runtime_platform") else None
         )
@@ -39,7 +39,7 @@ class RequestPackageBuilder:
         return RequestPackage.from_minimal(
             vre_type=vre_type,
             programming_language=programming_language,
-            workflow_url=workflow_url,
+            workflow_url=workflow,
             files_data=data.get("files", []),
             file_bytes_map=file_bytes_map,
             runtime_platform=runtime_platform,

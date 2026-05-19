@@ -1,6 +1,6 @@
 {
     "vre_type": "binder",
-    "workflow_url": null,
+    "workflow": "multi-domain-search.ipynb",
     "files": [
         {
             "name": "multi-domain-search.ipynb",
