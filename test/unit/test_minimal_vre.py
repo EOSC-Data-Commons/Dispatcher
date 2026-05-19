@@ -31,30 +31,57 @@ class TestMinimalVRERequest:
         )
         assert req.vre_type == "oscar"
 
-    def test_valid_scipion_request_no_workflow(self):
-        req = MinimalVRERequest(vre_type="scipion")
+    def test_valid_scipion_request_with_workflow(self):
+        req = MinimalVRERequest(
+            vre_type="scipion",
+            workflow="workflow.json",
+            files=[MinimalFileInput(name="workflow.json")],
+        )
         assert req.vre_type == "scipion"
-        assert req.workflow is None
+        assert req.workflow == "workflow.json"
 
-    def test_valid_binder_request_no_workflow(self):
-        req = MinimalVRERequest(vre_type="binder")
+    def test_valid_binder_request_with_workflow(self):
+        req = MinimalVRERequest(
+            vre_type="binder",
+            workflow="notebook.ipynb",
+            files=[MinimalFileInput(name="notebook.ipynb")],
+        )
         assert req.vre_type == "binder"
-        assert req.workflow is None
+        assert req.workflow == "notebook.ipynb"
 
-    def test_valid_jupyter_request_no_workflow(self):
-        req = MinimalVRERequest(vre_type="jupyter")
+    def test_valid_jupyter_request_with_workflow(self):
+        req = MinimalVRERequest(
+            vre_type="jupyter",
+            workflow="notebook.ipynb",
+            files=[MinimalFileInput(name="notebook.ipynb")],
+        )
         assert req.vre_type == "jupyter"
-        assert req.workflow is None
+        assert req.workflow == "notebook.ipynb"
 
     def test_galaxy_missing_workflow_raises(self):
         with pytest.raises(ValidationError) as exc:
             MinimalVRERequest(vre_type="galaxy")
-        assert "workflow is required for vre_type 'galaxy'" in str(exc.value)
+        assert "workflow is required" in str(exc.value)
 
     def test_oscar_missing_workflow_raises(self):
         with pytest.raises(ValidationError) as exc:
             MinimalVRERequest(vre_type="oscar")
-        assert "workflow is required for vre_type 'oscar'" in str(exc.value)
+        assert "workflow is required" in str(exc.value)
+
+    def test_scipion_missing_workflow_raises(self):
+        with pytest.raises(ValidationError) as exc:
+            MinimalVRERequest(vre_type="scipion")
+        assert "workflow is required" in str(exc.value)
+
+    def test_binder_missing_workflow_raises(self):
+        with pytest.raises(ValidationError) as exc:
+            MinimalVRERequest(vre_type="binder")
+        assert "workflow is required" in str(exc.value)
+
+    def test_jupyter_missing_workflow_raises(self):
+        with pytest.raises(ValidationError) as exc:
+            MinimalVRERequest(vre_type="jupyter")
+        assert "workflow is required" in str(exc.value)
 
     def test_unknown_vre_type_raises(self):
         with pytest.raises(ValidationError):

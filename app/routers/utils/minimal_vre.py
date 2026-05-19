@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field, HttpUrl, model_validator
-from typing import Literal, List
+from typing import List
+
+from app.constants import VRE_TYPES
 
 
 class MinimalFileInput(BaseModel):
@@ -11,13 +13,7 @@ class MinimalFileInput(BaseModel):
 
 
 class MinimalVRERequest(BaseModel):
-    vre_type: Literal[
-        "galaxy",
-        "oscar",
-        "scipion",
-        "binder",
-        "jupyter",
-    ] = Field(..., description="VRE type identifier")
+    vre_type: str = Field(..., description="VRE type identifier")
     workflow: str | None = Field(
         None,
         description="URL or filename of the workflow descriptor (required for Galaxy and OSCAR)",
@@ -28,9 +24,17 @@ class MinimalVRERequest(BaseModel):
     )
 
     @model_validator(mode="after")
+    def validate_vre_type(self):
+        if self.vre_type not in VRE_TYPES:
+            raise ValueError(
+                f"vre_type must be one of {VRE_TYPES}, got '{self.vre_type}'"
+            )
+        return self
+
+    @model_validator(mode="after")
     def validate_workflow_required(self):
-        if self.vre_type in ("galaxy", "oscar") and self.workflow is None:
-            raise ValueError(f"workflow is required for vre_type '{self.vre_type}'")
+        if self.workflow is None:
+            raise ValueError("workflow is required")
         return self
 
     @model_validator(mode="after")
