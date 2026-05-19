@@ -31,7 +31,7 @@ class VREBinder(VRE):
 
     def _get_binder_url(self, request_id):
         url = self.svc_url.rstrip("/")
-        local_git_url = f"https://{settings.host}/git/{request_id}"
+        local_git_url = f"https://{settings.host}{settings.git_url_prefix}/{request_id}"
         logger.debug(local_git_url)
         return f"{url}/git/{urllib.parse.quote_plus(local_git_url)}/HEAD"
 
