@@ -1,0 +1,19 @@
+{
+    "vre_type": "galaxy",
+    "workflow_url": "https://dockstore.org/api/ga4gh/trs/v2/tools/%23workflow%2Fgithub.com%2Fbwalkowi%2Fgalaxy-workflow-ocr-test%2Fmain/versions/main/PLAIN_GALAXY/descriptor//galaxy-workflow-ocr-test-DaSCH.ga",
+    "files": [
+        {
+            "name": "input-image.tiff",
+            "onedata_domain": "datahub.example.com",
+            "onedata_file_id": "abc123-def456-ghi789",
+            "encoding_format": "image/tiff"
+        },
+        {
+            "name": "stopwords.txt",
+            "onedata_domain": "datahub.example.com",
+            "onedata_file_id": "xyz987-uvw654-rst321",
+            "encoding_format": "text/txt"
+        }
+    ],
+    "runtime_platform": "https://usegalaxy.eu/"
+}
