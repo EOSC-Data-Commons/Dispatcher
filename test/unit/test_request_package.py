@@ -117,8 +117,8 @@ class TestRequestPackageBuilder:
         package = RequestPackageBuilder.build(parsed)
         assert package.vre_type == "https://galaxyproject.org/"
         assert package.workflow_url is not None
-        assert len(package.files) == 1
-        assert package.files[0].encoding_format == "text/txt"
+        assert len(package.files) == 2
+        assert package.files[1].encoding_format == "text/txt"
 
     def test_build_oscar_package(self):
         source = load_json("../oscar/ro-crate-metadata.json")
@@ -148,7 +148,7 @@ class TestRequestPackageBuilder:
         parsed = ROCrateParser.parse(source)
         package = RequestPackageBuilder.build(parsed)
         assert package.vre_type == "https://jupyter.org/binder/"
-        assert len(package.local_files) == 0
+        assert len(package.local_files) == 1
         assert len(package.remote_files) == 0
 
     def test_build_jupyter_package(self):
@@ -156,7 +156,7 @@ class TestRequestPackageBuilder:
         parsed = ROCrateParser.parse(source)
         package = RequestPackageBuilder.build(parsed)
         assert package.vre_type == "https://jupyter.org"
-        assert len(package.files) == 0
+        assert len(package.files) == 1
 
     def test_build_sciencemesh_package(self):
         source = load_json("../sciencemesh/ro-crate-metadata.json")
@@ -187,7 +187,7 @@ class TestRequestPackageHelpers:
         parsed = ROCrateParser.parse(source)
         package = RequestPackageBuilder.build(parsed)
         assert len(package.local_files) == 0
-        assert len(package.remote_files) == 1
+        assert len(package.remote_files) == 2
 
     def test_files_by_encoding(self):
         source = load_json("../oscar/ro-crate-metadata.json")
