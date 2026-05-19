@@ -7,6 +7,7 @@ from .utils import parse_zipfile, parse_rocrate
 from .utils.minimal_vre import MinimalVRERequest
 from celery.result import AsyncResult
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate, vre_from_minimal
+from app.domain.rocrate.builder import RocrateBuilder
 import logging
 import json
 from typing import Dict
@@ -79,3 +80,15 @@ def minimal_vre(
         ]
     )
     return JSONResponse({"task_id": task.id})
+
+
+@router.post("/minimal_to_rocrate/")
+def minimal_to_rocrate(
+    token: str = Depends(oauth2_scheme),
+    data: str = Form(..., description="JSON string of MinimalVRERequest"),
+):
+    parsed_data = MinimalVRERequest(**json.loads(data))
+    rocrate_json = RocrateBuilder.build_from_minimal(
+        parsed_data.model_dump(mode="json")
+    )
+    return JSONResponse(rocrate_json)
