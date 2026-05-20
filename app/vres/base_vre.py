@@ -38,6 +38,7 @@ class VRE(ABC):
         self._request_id = request_id
         self._im_factory = im_factory or self._default_im_factory
         self.svc_url = self.setup_service().rstrip("/")
+        self.ssh = None
         # Store any additional kwargs for subclasses
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -71,7 +72,11 @@ class VRE(ABC):
             if outputs is None:
                 raise VREConfigurationError("Failed to deploy service via IM")
             self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
-            return outputs.get("url", self.get_default_service())
+            if "url" not in outputs:
+                raise VREConfigurationError("IM output missing 'url' field")
+            if "ssh" in outputs:
+                self.ssh = outputs["ssh"]
+            return outputs["url"]
 
         # Anything else is an error.
         raise VREConfigurationError(
