@@ -140,8 +140,8 @@ fi"""
     )
 
 
-def test_no_hasparts():
-    """Test Missing url in OSCAR VRE"""
+def test_fdl_in_rocrate():
+    """Test Missing url of FDL file in OSCAR VRE"""
     main = DummyEntity(_type="SoftwareSourceCode")
     crate = DummyCrate(main_entity=main)
     request_package = RequestPackage(
@@ -159,29 +159,7 @@ def test_no_hasparts():
 
     with pytest.raises(VREConfigurationError) as exc:
         vreoscar._get_fdl_from_crate()
-    assert "Missing url in workflow entity" == str(exc.value)
-
-
-def test_missing_url():
-    """Test Missing url in OSCAR VRE"""
-    main = DummyEntity(_type="SoftwareSourceCode")
-    crate = DummyCrate(main_entity=main)
-    request_package = RequestPackage(
-        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
-        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
-        workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
-        raw_crate={},
-    )
-    vreoscar = VREOSCAR(
-        token="dummy_token",
-        request_id=0,
-        update_state=None,
-        request_package=request_package,
-    )
-
-    with pytest.raises(VREConfigurationError) as exc:
-        vreoscar._get_fdl_from_crate()
-    assert "Missing url in workflow entity" == str(exc.value)
+    assert "Missing FDL URL in workflow entity" == str(exc.value)
 
 
 @patch("app.vres.oscar.requests.get")

@@ -27,7 +27,7 @@ class VREOSCAR(VRE):
 
         fdl_url = self.request_package.workflow_url
         if not fdl_url:
-            raise VREConfigurationError("Missing url in workflow entity")
+            raise VREConfigurationError("Missing FDL URL in workflow entity")
         fdl_json = self._fetch_file(fdl_url, True)
 
         script = None
