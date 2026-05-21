@@ -37,8 +37,8 @@ class VRE(ABC):
         self._update_state = update_state
         self._request_id = request_id
         self._im_factory = im_factory or self._default_im_factory
-        self.svc_url = self.setup_service().rstrip("/")
         self.ssh = None
+        self.svc_url = self.setup_service().rstrip("/")
         # Store any additional kwargs for subclasses
         for key, value in kwargs.items():
             setattr(self, key, value)

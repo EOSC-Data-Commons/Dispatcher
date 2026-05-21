@@ -36,14 +36,12 @@ class VREScipion(VRE):
             data_url = self._get_data_set_url()
             logging.info(f"Donwload data from {data_url}")
             data_folder = data_url.split("/")[-1]
-            get_data_command = f"rsync -avP {data_url} /opt/{data_folder}"
+            get_data_command = f"rsync -avP {data_url} {data_folder}"
             out = self._execute_long_ssh_command(self.ssh, ssh_client, get_data_command)
             logging.debug(f"Data download output: {out}")
 
             workflow_file = workflow_url.split("/")[-1]
-            run_workflow_command = (
-                f"{SCIPION_COMMAND} {workflow_file} /opt/{data_folder}"
-            )
+            run_workflow_command = f"{SCIPION_COMMAND} {workflow_file} {data_folder}"
             logging.info(f"Run workflow with command: {run_workflow_command}")
             out = self._execute_long_ssh_command(
                 self.ssh, ssh_client, run_workflow_command
@@ -142,15 +140,12 @@ class VREScipion(VRE):
 
     def _get_data_set_url(self):
         """Extract data set URL from the crate."""
-        files = [e for e in self.crate.get_entities() if e.type == "File"]
-        if not files:
-            logging.error(f"{self.__class__.__name__}: No file entities found in crate")
-            raise VREConfigurationError("No file entities found in crate")
-        elif len(files) > 1:
-            logging.warning(
-                f"{self.__class__.__name__}: Multiple file entities found, using the first one"
-            )
-        return files[0].properties().get("url")
+        # Get all files except the workflow and destination
+        for elem in self.crate.root_dataset.get("hasPart", []):
+            if elem.get("@type") == "File":
+                return elem.get("url")
+
+        return None
 
     def _get_workflow_url(self):
         """Extract workflow URL from the crate."""
@@ -166,15 +161,18 @@ class VREScipion(VRE):
         ssh_client = paramiko.SSHClient()
         ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        key_str = ssh_info.get("key")
+        key_str = ssh_info.get("node_creds", {}).get("value", {}).get("token")
         pkey = self._get_private_key(key_str)
+        if not pkey:
+            raise VREConfigurationError("Missing SSH private key in 'ssh' information")
+        hostname = ssh_info.get("node_ip").get("value")
+        if not hostname:
+            raise VREConfigurationError("Missing SSH hostname in 'ssh' information")
+        username = ssh_info.get("node_creds", {}).get("value", {}).get("user")
+        if not username:
+            raise VREConfigurationError("Missing SSH username in 'ssh' information")
 
-        ssh_client.connect(
-            hostname=ssh_info["host"],
-            port=ssh_info.get("port", 22),
-            username=ssh_info["username"],
-            pkey=pkey,
-        )
+        ssh_client.connect(hostname=hostname, username=username, pkey=pkey)
         return ssh_client
 
     def _get_private_key(self, key_str):

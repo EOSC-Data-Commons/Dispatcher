@@ -1,40 +1,46 @@
+import json
+import os
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+from rocrate.rocrate import ROCrate
 
-from app.constants import SCIPION_COMMAND, SCIPION_PROGRAMMING_LANGUAGE
+from app.constants import SCIPION_COMMAND
 from app.exceptions import VREConfigurationError
 from app.vres.scipion import VREScipion
-from fixtures.dummy_crate import DummyCrate, DummyEntity, WORKFLOW_URL
+
+EXPECTED_DATASET_URL = "rsync://ftp.ebi.ac.uk/empiar/world_availability/13496"
+
+
+def load_json(file_name):
+    """Load a json file from the test directory"""
+    abs_file_path = os.path.join(os.path.dirname(__file__), file_name)
+    with open(abs_file_path, encoding="utf-8") as f:
+        return json.load(f)
 
 
 @pytest.fixture
 def scipion_vre():
-    workflow = DummyEntity(
-        _type="Dataset",
-        url=WORKFLOW_URL,
-        programmingLanguage={"identifier": SCIPION_PROGRAMMING_LANGUAGE},
-    )
-    data_file = DummyEntity(
-        _type="File",
-        name="dataset.mrc",
-        encodingFormat="application/octet-stream",
-        url="https://data.example.org/dataset.mrc",
-    )
-    crate = DummyCrate(
-        main_entity=workflow, other_entities=[data_file], root_dataset={}
-    )
+    crate = ROCrate(source=load_json("../scipion_tosca/ro-crate-metadata.json"))
+
+    class DummyIMClient:
+        def run_service(self, _dest):
+            return {"url": "https://scipion.example.org"}
 
     vre = VREScipion(
         crate=crate,
         token="test-token",
         request_id=0,
-        update_state=None,
+        update_state=lambda **_kwargs: None,
+        im_factory=lambda _token: DummyIMClient(),
     )
     vre.ssh = {
-        "host": "worker.example.org",
-        "port": 22,
-        "username": "scipion",
-        "key": "dummy-key",
+        "node_ip": {"value": "worker.example.org"},
+        "node_creds": {
+            "value": {
+                "user": "scipion",
+                "token": "dummy-key",
+            }
+        },
     }
     return vre
 
@@ -101,14 +107,52 @@ def test_post_happy_path(scipion_vre):
     assert scipion_vre._execute_ssh_command.call_count == 1
     assert scipion_vre._execute_long_ssh_command.call_count == 2
 
+    workflow_url = scipion_vre._get_workflow_url()
     wget_command = scipion_vre._execute_ssh_command.call_args[0][1]
-    assert wget_command == f"wget {WORKFLOW_URL}"
+    assert wget_command == f"wget {workflow_url}"
 
     first_long_command = scipion_vre._execute_long_ssh_command.call_args_list[0][0][2]
     second_long_command = scipion_vre._execute_long_ssh_command.call_args_list[1][0][2]
+    assert first_long_command == f"rsync -avP {EXPECTED_DATASET_URL} 13496"
     assert (
-        first_long_command
-        == "rsync -avP https://data.example.org/dataset.mrc /opt/dataset.mrc"
+        second_long_command
+        == f"{SCIPION_COMMAND} workflow_2D_xmipp.json.template 13496"
     )
-    assert second_long_command == f"{SCIPION_COMMAND} myworkflow.ga /opt/dataset.mrc"
     ssh_client.close.assert_called_once()
+
+
+def test_get_data_set_url_prefers_haspart_file():
+    crate = ROCrate(source=load_json("../scipion_tosca/ro-crate-metadata.json"))
+
+    class DummyIMClient:
+        def run_service(self, _dest):
+            return {"url": "https://scipion.example.org"}
+
+    vre = VREScipion(
+        crate=crate,
+        token="test-token",
+        request_id=0,
+        update_state=lambda **_kwargs: None,
+        im_factory=lambda _token: DummyIMClient(),
+    )
+
+    assert vre._get_data_set_url() == EXPECTED_DATASET_URL
+
+
+@patch("app.vres.scipion.paramiko.SSHClient")
+def test_get_ssh_client_uses_nested_ssh_schema(mock_ssh_client_cls, scipion_vre):
+    ssh_client = MagicMock()
+    mock_ssh_client_cls.return_value = ssh_client
+
+    fake_pkey = object()
+    scipion_vre._get_private_key = MagicMock(return_value=fake_pkey)
+
+    client = scipion_vre._get_ssh_client(scipion_vre.ssh)
+
+    assert client is ssh_client
+    scipion_vre._get_private_key.assert_called_once_with("dummy-key")
+    ssh_client.connect.assert_called_once_with(
+        hostname="worker.example.org",
+        username="scipion",
+        pkey=fake_pkey,
+    )

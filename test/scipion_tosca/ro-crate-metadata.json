@@ -24,7 +24,7 @@
                     "@id": "#workflow"
                 },
                 {
-                    "@id": "#textfile"
+                    "@id": "#empiar_dataset"
                 },
                 {
                     "@id": "#destination"
@@ -78,10 +78,7 @@
             "serviceType": "InfrastructureManager",
             "name": "Scipion",
             "memoryRequirements": "4 GiB",
-            "processorRequirements": [
-                "2 vCPU",
-                "1 GPU"
-            ],
+            "processorRequirements": "2 vCPU",
             "storageRequirements": "200 GiB",
             "hasPart": [
                 {
