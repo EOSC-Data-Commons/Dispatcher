@@ -140,17 +140,17 @@ def test_get_data_set_url_prefers_haspart_file():
 
 
 @patch("app.vres.scipion.paramiko.SSHClient")
-def test_get_ssh_client_uses_nested_ssh_schema(mock_ssh_client_cls, scipion_vre):
+def test_get_ssh_client(mock_ssh_client_cls, scipion_vre):
     ssh_client = MagicMock()
     mock_ssh_client_cls.return_value = ssh_client
 
     fake_pkey = object()
-    scipion_vre._get_private_key = MagicMock(return_value=fake_pkey)
+    VREScipion._get_private_key = MagicMock(return_value=fake_pkey)
 
     client = scipion_vre._get_ssh_client(scipion_vre.ssh)
 
     assert client is ssh_client
-    scipion_vre._get_private_key.assert_called_once_with("dummy-key")
+    VREScipion._get_private_key.assert_called_once_with("dummy-key")
     ssh_client.connect.assert_called_once_with(
         hostname="worker.example.org",
         username="scipion",

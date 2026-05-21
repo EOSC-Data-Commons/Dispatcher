@@ -26,28 +26,32 @@ class VREScipion(VRE):
 
         ssh_client = None
         try:
+            # Step 1: Connect to the remote service via SSH
+            logging.debug(f"Connecting to remote service via SSH")
             ssh_client = self._get_ssh_client(self.ssh)
+
+            # Step 2: Download the workflow
             workflow_url = self._get_workflow_url()
-            logging.info(f"Donwload workflow from {workflow_url}")
+            logging.info(f"Downloading workflow from {workflow_url}")
             get_workflow_command = f"wget {workflow_url}"
             stdout = self._execute_ssh_command(ssh_client, get_workflow_command)
             logging.debug(f"Workflow download output: {stdout}")
 
+            # Step 3: Download the data set
             self.update_task_status("Downloading data")
             data_url = self._get_data_set_url()
-            logging.info(f"Donwload data from {data_url}")
+            logging.info(f"Downloading data from {data_url}")
             data_folder = data_url.split("/")[-1]
             get_data_command = f"rsync -avP {data_url} {data_folder}"
             out = self._execute_long_ssh_command(self.ssh, ssh_client, get_data_command)
             logging.debug(f"Data download output: {out}")
 
+            # Step 4: Run the workflow with the data
             self.update_task_status("Executing workflow")
             workflow_file = workflow_url.split("/")[-1]
-            run_workflow_command = f"{SCIPION_COMMAND} {workflow_file} {data_folder}"
-            logging.info(f"Run workflow with command: {run_workflow_command}")
-            out = self._execute_long_ssh_command(
-                self.ssh, ssh_client, run_workflow_command
-            )
+            run_command = f"{SCIPION_COMMAND} {workflow_file} {data_folder}"
+            logging.info(f"Run workflow with command: {run_command}")
+            out = self._execute_long_ssh_command(self.ssh, ssh_client, run_command)
             self.update_task_status("Workflow execution completed")
             logging.debug(f"Workflow execution output: {out}")
         except Exception as e:
@@ -59,7 +63,8 @@ class VREScipion(VRE):
 
         return self.svc_url
 
-    def _execute_ssh_command(self, ssh_client, command):
+    @staticmethod
+    def _execute_ssh_command(ssh_client, command):
         """Execute a command over SSH and return its output, raising an error if it fails."""
         _, stdout, stderr = ssh_client.exec_command(command)
         return_code = stdout.channel.recv_exit_status()
@@ -143,12 +148,13 @@ class VREScipion(VRE):
 
     def _get_data_set_url(self):
         """Extract data set URL from the crate."""
-        # Get all files except the workflow and destination
         for elem in self.crate.root_dataset.get("hasPart", []):
             if elem.get("@type") == "File":
-                return elem.get("url")
-
-        return None
+                if elem.get("url"):
+                    return elem.get("url")
+        raise VREConfigurationError(
+            "No data file with URL found in crate's root dataset"
+        )
 
     def _get_workflow_url(self):
         """Extract workflow URL from the crate."""
@@ -159,13 +165,14 @@ class VREScipion(VRE):
             raise WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
-    def _get_ssh_client(self, ssh_info):
+    @staticmethod
+    def _get_ssh_client(ssh_info):
         """Create and return an paramiko SSH client based on the provided SSH info."""
         ssh_client = paramiko.SSHClient()
         ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         key_str = ssh_info.get("node_creds", {}).get("value", {}).get("token")
-        pkey = self._get_private_key(key_str)
+        pkey = VREScipion._get_private_key(key_str)
         if not pkey:
             raise VREConfigurationError("Missing SSH private key in 'ssh' information")
         hostname = ssh_info.get("node_ip").get("value")
@@ -178,7 +185,8 @@ class VREScipion(VRE):
         ssh_client.connect(hostname=hostname, username=username, pkey=pkey)
         return ssh_client
 
-    def _get_private_key(self, key_str):
+    @staticmethod
+    def _get_private_key(key_str):
         """Try to parse the private key string with different key types."""
         for kype in [paramiko.RSAKey, paramiko.ECDSAKey, paramiko.Ed25519Key]:
             try:
