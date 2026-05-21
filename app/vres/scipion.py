@@ -172,9 +172,9 @@ class VREScipion(VRE):
         ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         key_str = ssh_info.get("node_creds", {}).get("value", {}).get("token")
-        pkey = VREScipion._get_private_key(key_str)
-        if not pkey:
+        if not key_str:
             raise VREConfigurationError("Missing SSH private key in 'ssh' information")
+        pkey = VREScipion._get_private_key(key_str)
         hostname = ssh_info.get("node_ip").get("value")
         if not hostname:
             raise VREConfigurationError("Missing SSH hostname in 'ssh' information")
