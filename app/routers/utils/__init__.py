@@ -1,3 +1,3 @@
 from .auth import oauth2_scheme
 from .vre import parse_zipfile, parse_rocrate
-from .minimal_vre import MinimalVRERequest
+from .minimal_vre import parse_minimal_vre_form

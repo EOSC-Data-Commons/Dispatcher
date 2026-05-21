@@ -1,3 +1,6 @@
+import json
+
+from fastapi import Form
 from pydantic import BaseModel, Field, HttpUrl, model_validator
 from typing import List
 
@@ -5,6 +8,8 @@ from app.constants import VRE_TYPES
 
 
 class MinimalFileInput(BaseModel):
+    """Represents a file input for a minimal VRE request."""
+
     name: str
     url: HttpUrl | None = None
     encoding_format: str | None = None
@@ -13,6 +18,15 @@ class MinimalFileInput(BaseModel):
 
 
 class MinimalVRERequest(BaseModel):
+    """Represents a minimal VRE request payload.
+
+    This model validates:
+    - vre_type: Must be one of the supported VRE types
+    - workflow: Required for Galaxy and OSCAR (URL or filename)
+    - files: Optional list of file inputs
+    - runtime_platform: Optional override for target service URL
+    """
+
     vre_type: str = Field(..., description="VRE type identifier")
     workflow: str | None = Field(
         None,
@@ -48,3 +62,14 @@ class MinimalVRERequest(BaseModel):
                     f"workflow '{self.workflow}' is a filename but was not found in files"
                 )
         return self
+
+
+def parse_minimal_vre_form(
+    parsed_data: str = Form(..., description="JSON string of MinimalVRERequest")
+) -> MinimalVRERequest:
+    """Parse and validate MinimalVRERequest from a multipart form field."""
+    data = json.loads(parsed_data)
+    return MinimalVRERequest.model_validate(data)
+
+
+__all__ = ["parse_minimal_vre_form", "MinimalVRERequest", "MinimalFileInput"]
