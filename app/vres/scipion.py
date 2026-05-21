@@ -33,6 +33,7 @@ class VREScipion(VRE):
             stdout = self._execute_ssh_command(ssh_client, get_workflow_command)
             logging.debug(f"Workflow download output: {stdout}")
 
+            self.update_task_status("Downloading data")
             data_url = self._get_data_set_url()
             logging.info(f"Donwload data from {data_url}")
             data_folder = data_url.split("/")[-1]
@@ -40,12 +41,14 @@ class VREScipion(VRE):
             out = self._execute_long_ssh_command(self.ssh, ssh_client, get_data_command)
             logging.debug(f"Data download output: {out}")
 
+            self.update_task_status("Executing workflow")
             workflow_file = workflow_url.split("/")[-1]
             run_workflow_command = f"{SCIPION_COMMAND} {workflow_file} {data_folder}"
             logging.info(f"Run workflow with command: {run_workflow_command}")
             out = self._execute_long_ssh_command(
                 self.ssh, ssh_client, run_workflow_command
             )
+            self.update_task_status("Workflow execution completed")
             logging.debug(f"Workflow execution output: {out}")
         except Exception as e:
             logging.error(f"Error during SSH operations: {str(e)}")
