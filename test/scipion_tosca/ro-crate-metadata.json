@@ -68,8 +68,8 @@
         {
             "@id": "#empiar_dataset",
             "@type": "File",
-            "name": "EMPIAR-DataSet-13496",
-            "url": "rsync://ftp.ebi.ac.uk/empiar/world_availability/13496",
+            "name": "EMPIAR-DataSet-10146",
+            "url": "rsync://ftp.ebi.ac.uk/empiar/world_availability/10146",
             "encodingFormat": "text/txt"
         },
         {
