@@ -1,6 +1,7 @@
 from .base_vre import VRE, vre_factory
 import requests
 import logging
+import uuid
 from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
@@ -34,27 +35,26 @@ class VREScienceMesh(VRE):
         receiver = self.request_package.get_entity("#receiver")
         owner = self.request_package.get_entity("#owner")
         sender = self.request_package.get_entity("#sender")
-        destination = self.request_package.get_entity("#destination")
-        if destination is None:
-            destination = {"url": self.svc_url}
-
-        if not receiver or not owner or not sender or not destination:
+        if not receiver or not owner or not sender:
             raise MissingOCMParameters(
-                "Missing required entities (receiver, owner, sender, destination) for OCM share request"
+                "Missing required parameters (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
             )
-
-        sender_userid = self._generate_userid(sender)
+        resid = self.crate.get("#identifier")
+        if resid is None:
+            # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
+            resid = str(uuid.uuid4())
 
         root = self.request_package.get_entity("./")
+        # Create OCM share request JSON structure
         ocm_share_request = {
             "shareWith": receiver.get("userid"),
             "name": root.get("name", "") if root else "",
             "description": root.get("description", "") if root else "",
-            "providerId": "n/a",
-            "resourceId": "n/a",
+            "providerId": str(uuid.uuid4()),  # must be unique for each share
+            "resourceId": resid,
             "owner": owner.get("userid"),
             "senderDisplayName": sender.get("name"),
-            "sender": sender_userid,
+            "sender": self._generate_ocm_address(sender),
             "resourceType": "embedded",
             "shareType": "user",
             "protocol": {
@@ -64,11 +64,20 @@ class VREScienceMesh(VRE):
         }
         return ocm_share_request
 
-    def _generate_userid(self, sender):
+    def _generate_ocm_address(self, sender):
+        # Generate an OCM address out of the sender user ID, that is ensure the host matches the dispatcher's public FQDN
+        # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@egi.eu@<dispatcher's public FQDN>
         sender_userid = sender.get("userid")
-        if sender_userid and "@" in sender_userid:
-            sender_userid = sender_userid.split("@")[0] + "@" + settings.host
-        return sender_userid
+        if not sender_userid:
+            sender_userid = "eosc-dc-user"
+        ocm_sending_server = settings.host
+        if ocm_sending_server is None or ocm_sending_server == "":
+            # this is only valid for unit testing
+            logging.warning(
+                "No host configured for OCM sending server, using 'localhost' for testing purposes"
+            )
+            ocm_sending_server = "localhost"
+        return sender_userid + "@" + ocm_sending_server
 
 
 vre_factory.register(SCIENCEMESH_PROGRAMMING_LANGUAGE, VREScienceMesh)

@@ -239,10 +239,6 @@ def ocm_share_request(sciencemesh_vre):
     sender = pkg.get_entity("#sender")
     root = pkg.get_entity("./")
 
-    sender_userid = sender.get("userid")
-    if sender_userid and "@" in sender_userid:
-        sender_userid = sender_userid.split("@")[0] + "@" + settings.host
-
     ocm_share_request = {
         "shareWith": receiver.get("userid"),
         "name": root.get("name", "") if root else "",
@@ -251,7 +247,7 @@ def ocm_share_request(sciencemesh_vre):
         "resourceId": "n/a",
         "owner": owner.get("userid"),
         "senderDisplayName": sender.get("name"),
-        "sender": sender_userid,
+        "sender": sciencemesh_vre.generate_ocm_address(sender),
         "resourceType": "embedded",
         "shareType": "user",
         "protocol": {
