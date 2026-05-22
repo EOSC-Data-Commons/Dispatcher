@@ -17,6 +17,7 @@ def parse_rocrate(rocrate_data: Dict) -> Dict:
             status_code=400, detail=f"Invalid ROCrate data. Reason: {e}"
         )
 
+
 def parse_json_metadata(metadata: str):
     try:
         return json.loads(metadata)
