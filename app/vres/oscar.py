@@ -4,9 +4,8 @@ import requests
 import logging
 import json
 from app.exceptions import (
-    VREConfigurationError,
     ExternalServiceError,
-    ExternalDataSourceError,
+    WorkflowURLError,
 )
 from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_PROGRAMMING_LANGUAGE
 
@@ -25,51 +24,18 @@ class VREOSCAR(VRE):
         if self.fld_json:
             return self.fld_json
 
-        workflow_parts = self.crate.mainEntity.get("hasPart", [])
-        if not workflow_parts:
-            raise VREConfigurationError("Missing hasPart in workflow entity")
+        fdl_url = self.crate.mainEntity.get("url")
+        if fdl_url is None:
+            raise WorkflowURLError("Missing url in workflow entity")
+        return self._fetch_json_file(fdl_url)
 
-        fdl_json = None
-        script = None
-
-        for elem in workflow_parts:
-            if not elem.get("@type") == "File":
-                raise VREConfigurationError("Invalid hasPart type in workflow entity")
-
-            ref_elem = self.crate.dereference(elem.get("@id"))
-            if not ref_elem:
-                logging.error("Could not dereference entity %s", elem.get("@id"))
-                continue
-
-            file_url = ref_elem.get("url")
-            if not file_url:
-                logging.error("File entity %s has no URL", elem.get("@id"))
-                continue
-
-            encoding = elem.get("encodingFormat")
-
-            if encoding == "application/json":
-                fdl_json = self._fetch_file(file_url, True)
-            elif encoding == "text/x-shellscript":
-                script = self._fetch_file(file_url)
-
-        if not fdl_json:
-            raise VREConfigurationError("Missing FDL in workflow entity")
-
-        if script:
-            fdl_json["script"] = script
-
-        return fdl_json
-
-    def _fetch_file(self, url, as_json=False):
+    def _fetch_json_file(self, url):
         try:
             response = requests.get(url, timeout=30)
             response.raise_for_status()
-            if as_json:
-                return response.json()
-            return response.text
+            return response.json()
         except Exception as ex:
-            raise ExternalDataSourceError("Network error while fetching files.") from ex
+            raise WorkflowURLError("Network error while fetching FDL.") from ex
 
     def post(self):
         fdl_json = self._get_fdl_from_crate()
@@ -98,16 +64,8 @@ class VREOSCAR(VRE):
 
     def _get_input_files(self):
         # Get all files except the workflow and destination
-        non_input_files = []
-        non_input_files.append(self.crate.root_dataset.get("runsOn").get("@id"))
-        non_input_files.append(self.crate.mainEntity.get("@id"))
-        for elem in self.crate.mainEntity.get("hasPart", []):
-            if elem.get("@type") == "File":
-                non_input_files.append(elem.get("@id"))
         return [
-            e
-            for e in self.crate.get_entities()
-            if e.type == "File" and e.get("@id") not in non_input_files
+            e for e in self.crate.root_dataset.get("hasPart", []) if e.type == "File"
         ]
 
     def _invoke_service(self, oscar_url, service_name, files):
@@ -124,19 +82,29 @@ class VREOSCAR(VRE):
                 response.raise_for_status()
                 file_content = response.text
             except Exception as e:
-                logging.error("Error fetching file %s: %s", f.get("url"), e)
-                continue
-            response = requests.post(
-                url,
-                headers=headers,
-                data=base64.b64encode(file_content.encode()),
-                timeout=60,
-            )
-            if response.status_code != 201:
                 logging.error(
-                    "Error invoking OSCAR service for file %s: %s",
+                    "Error fetching file %s: %s, Ignoring...", f.get("url"), e
+                )
+                continue
+
+            try:
+                response = requests.post(
+                    url,
+                    headers=headers,
+                    data=base64.b64encode(file_content.encode()),
+                    timeout=60,
+                )
+                if response.status_code != 201:
+                    logging.error(
+                        "Error invoking OSCAR service for file %s: %s",
+                        f.get("url"),
+                        response.text,
+                    )
+            except Exception as e:
+                logging.error(
+                    "Error invoking OSCAR service for file %s: %s, Ignoring...",
                     f.get("url"),
-                    response.text,
+                    e,
                 )
 
     def delete(self):
@@ -149,11 +117,16 @@ class VREOSCAR(VRE):
             "Content-Type": "application/json",
         }
         url = self.svc_url
-        response = requests.delete(
-            f"{url}/system/services/{service_name}", headers=headers, timeout=60
-        )
-        if response.status_code != 204:
-            raise ExternalServiceError(f"Error deleting OSCAR service: {response.text}")
+        try:
+            response = requests.delete(
+                f"{url}/system/services/{service_name}", headers=headers, timeout=60
+            )
+            if response.status_code != 204:
+                raise ExternalServiceError(
+                    f"Error deleting OSCAR service: {response.text}"
+                )
+        except Exception as e:
+            logging.error("Error deleting OSCAR service %s: %s", service_name, e)
 
 
 vre_factory.register(OSCAR_PROGRAMMING_LANGUAGE, VREOSCAR)

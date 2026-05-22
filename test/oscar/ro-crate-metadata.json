@@ -1,7 +1,9 @@
 {
     "@context": [
         "https://w3id.org/ro/crate/1.1/context",
-        { "runsOn": "https://w3id.org/ro/terms/test#runsOn" }
+        {
+            "runsOn": "https://w3id.org/ro/terms/test#runsOn"
+        }
     ],
     "@graph": [
         {
@@ -11,12 +13,22 @@
             "description": "This is an example of a workflow using the OSCAR framework.",
             "license": "GNU General Public License v3.0",
             "datePublished": "2025-05-06T14:35:47+00:00",
-            "mainEntity" : { "@id": "#workflow" },
-            "runsOn" : { "@id": "#destination" },
+            "mainEntity": {
+                "@id": "#workflow"
+            },
+            "runsOn": {
+                "@id": "#destination"
+            },
             "hasPart": [
-                { "@id": "#workflow" },
-                { "@id": "#textfile" },
-                { "@id": "#destination" }
+                {
+                    "@id": "#workflow"
+                },
+                {
+                    "@id": "#textfile"
+                },
+                {
+                    "@id": "#destination"
+                }
             ]
         },
         {
@@ -40,22 +52,7 @@
             "programmingLanguage": {
                 "@id": "https://w3id.org/workflowhub/workflow-ro-crate#oscar"
             },
-            "hasPart": [
-                { "@id": "#fdl" },
-                { "@id": "#script" }
-            ]
-        },
-        {
-            "@id": "#fdl",
-            "@type": "File",
-            "encodingFormat": "application/json",
             "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json"
-        },
-        {
-            "@id": "#script",
-            "@type": "File",
-            "encodingFormat": "text/x-shellscript",
-            "url": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
         },
         {
             "@id": "https://w3id.org/workflowhub/workflow-ro-crate#oscar",
@@ -77,7 +74,7 @@
         },
         {
             "@id": "#destination",
-            "@type" : "Service",
+            "@type": "Service",
             "url": "https://oscar.vre.eosc-data-commons.eu"
         }
     ]
