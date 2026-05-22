@@ -1,4 +1,5 @@
 # test/conftest.py
+import json
 import os
 from pathlib import Path
 import pytest
@@ -270,3 +271,13 @@ def im_service(mock_settings):
     im.client = Mock()
     im.inf_id = "test_inf_id"
     return im
+
+
+@pytest.fixture
+def galaxy_rocrate_source() -> dict:
+    """Load the galaxy ROCrate fixture as a raw dict."""
+    fixtures_dir = Path(__file__).parent
+    with open(
+        fixtures_dir / "galaxy" / "ro-crate-metadata.json", encoding="utf-8"
+    ) as f:
+        return json.load(f)

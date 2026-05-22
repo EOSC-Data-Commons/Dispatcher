@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from app.routers.utils.minimal_vre import MinimalVRERequest, MinimalFileInput
 from app.domain.rocrate.request_package import RequestPackage
 from app.domain.rocrate.builder import RocrateBuilder
+from app.domain.rocrate.parser import ROCrateParser
 from app.constants import (
     GALAXY_PROGRAMMING_LANGUAGE,
     OSCAR_PROGRAMMING_LANGUAGE,
@@ -15,73 +16,42 @@ from app.constants import (
 )
 
 
+def _entity_by_id(graph: list[dict], eid: str) -> dict:
+    """Return the first entity in *graph* whose ``@id`` matches *eid*."""
+    return next(e for e in graph if e.get("@id") == eid)
+
+
+# ---------------------------------------------------------------------------
+# MinimalVRERequest validation
+# ---------------------------------------------------------------------------
+
+VALID_REQUEST_CASES = [
+    ("galaxy", "https://dockstore.org/api/ga4gh/trs/v2/tools/test", None),
+    ("oscar", "https://raw.githubusercontent.com/example/fdl.json", None),
+    ("scipion", "workflow.json", [MinimalFileInput(name="workflow.json")]),
+    ("binder", "notebook.ipynb", [MinimalFileInput(name="notebook.ipynb")]),
+    ("jupyter", "notebook.ipynb", [MinimalFileInput(name="notebook.ipynb")]),
+]
+
+MISSING_WORKFLOW_CASES = ["galaxy", "oscar", "scipion", "binder", "jupyter"]
+
+
 class TestMinimalVRERequest:
-    def test_valid_galaxy_request(self):
-        req = MinimalVRERequest(
-            vre_type="galaxy",
-            workflow="https://dockstore.org/api/ga4gh/trs/v2/tools/test",
-        )
-        assert req.vre_type == "galaxy"
-        assert req.workflow == "https://dockstore.org/api/ga4gh/trs/v2/tools/test"
+    """Validation of the MinimalVRERequest pydantic model."""
 
-    def test_valid_oscar_request(self):
-        req = MinimalVRERequest(
-            vre_type="oscar",
-            workflow="https://raw.githubusercontent.com/example/fdl.json",
-        )
-        assert req.vre_type == "oscar"
+    @pytest.mark.parametrize("vre_type,workflow,files", VALID_REQUEST_CASES)
+    def test_valid_request(self, vre_type, workflow, files):
+        kwargs = {"vre_type": vre_type, "workflow": workflow}
+        if files is not None:
+            kwargs["files"] = files
+        req = MinimalVRERequest(**kwargs)
+        assert req.vre_type == vre_type
+        assert req.workflow == workflow
 
-    def test_valid_scipion_request_with_workflow(self):
-        req = MinimalVRERequest(
-            vre_type="scipion",
-            workflow="workflow.json",
-            files=[MinimalFileInput(name="workflow.json")],
-        )
-        assert req.vre_type == "scipion"
-        assert req.workflow == "workflow.json"
-
-    def test_valid_binder_request_with_workflow(self):
-        req = MinimalVRERequest(
-            vre_type="binder",
-            workflow="notebook.ipynb",
-            files=[MinimalFileInput(name="notebook.ipynb")],
-        )
-        assert req.vre_type == "binder"
-        assert req.workflow == "notebook.ipynb"
-
-    def test_valid_jupyter_request_with_workflow(self):
-        req = MinimalVRERequest(
-            vre_type="jupyter",
-            workflow="notebook.ipynb",
-            files=[MinimalFileInput(name="notebook.ipynb")],
-        )
-        assert req.vre_type == "jupyter"
-        assert req.workflow == "notebook.ipynb"
-
-    def test_galaxy_missing_workflow_raises(self):
-        with pytest.raises(ValidationError) as exc:
-            MinimalVRERequest(vre_type="galaxy")
-        assert "workflow is required" in str(exc.value)
-
-    def test_oscar_missing_workflow_raises(self):
-        with pytest.raises(ValidationError) as exc:
-            MinimalVRERequest(vre_type="oscar")
-        assert "workflow is required" in str(exc.value)
-
-    def test_scipion_missing_workflow_raises(self):
-        with pytest.raises(ValidationError) as exc:
-            MinimalVRERequest(vre_type="scipion")
-        assert "workflow is required" in str(exc.value)
-
-    def test_binder_missing_workflow_raises(self):
-        with pytest.raises(ValidationError) as exc:
-            MinimalVRERequest(vre_type="binder")
-        assert "workflow is required" in str(exc.value)
-
-    def test_jupyter_missing_workflow_raises(self):
-        with pytest.raises(ValidationError) as exc:
-            MinimalVRERequest(vre_type="jupyter")
-        assert "workflow is required" in str(exc.value)
+    @pytest.mark.parametrize("vre_type", MISSING_WORKFLOW_CASES)
+    def test_missing_workflow_raises(self, vre_type):
+        with pytest.raises(ValidationError, match="workflow is required"):
+            MinimalVRERequest(vre_type=vre_type)
 
     def test_unknown_vre_type_raises(self):
         with pytest.raises(ValidationError):
@@ -111,7 +81,14 @@ class TestMinimalVRERequest:
         assert str(req.runtime_platform) == "https://custom-galaxy.example.org/"
 
 
+# ---------------------------------------------------------------------------
+# RequestPackage.from_minimal
+# ---------------------------------------------------------------------------
+
+
 class TestRequestPackageFromMinimal:
+    """Building a RequestPackage from minimal VRE payload data."""
+
     def test_galaxy_package(self):
         package = RequestPackage.from_minimal(
             vre_type="galaxy",
@@ -232,6 +209,11 @@ class TestRequestPackageFromMinimal:
         assert package.files[0].onedata_file_id == "00000000007EADF37368"
 
 
+# ---------------------------------------------------------------------------
+# RocrateBuilder.build_from_minimal
+# ---------------------------------------------------------------------------
+
+
 class TestRocrateBuilder:
     """Tests for RocrateBuilder.build_from_minimal()."""
 
@@ -256,25 +238,19 @@ class TestRocrateBuilder:
 
         graph = crate["@graph"]
 
-        # Find root dataset
-        root = next(e for e in graph if e.get("@id") == "./")
+        root = _entity_by_id(graph, "./")
         assert root["@type"] == "Dataset"
         assert root["mainEntity"] == {"@id": workflow_url}
 
-        # Find workflow entity
-        workflow = next(e for e in graph if e.get("@id") == workflow_url)
+        workflow = _entity_by_id(graph, workflow_url)
         assert "ComputationalWorkflow" in workflow["@type"]
         assert workflow["programmingLanguage"] == {"@id": "#galaxy-lang"}
 
-        # Find language entity
-        lang = next(e for e in graph if e.get("@id") == "#galaxy-lang")
+        lang = _entity_by_id(graph, "#galaxy-lang")
         assert lang["@type"] == "ComputerLanguage"
         assert lang["identifier"] == GALAXY_PROGRAMMING_LANGUAGE
 
-        # Find file entity
-        file_entity = next(
-            e for e in graph if e.get("@id") == "https://data.example.org/sample.fastq"
-        )
+        file_entity = _entity_by_id(graph, "https://data.example.org/sample.fastq")
         assert file_entity["@type"] == "File"
         assert file_entity["name"] == "sample.fastq"
         assert file_entity["encodingFormat"] == "application/fastq"
@@ -297,10 +273,10 @@ class TestRocrateBuilder:
 
         graph = crate["@graph"]
 
-        lang = next(e for e in graph if e.get("@id") == "#oscar-lang")
+        lang = _entity_by_id(graph, "#oscar-lang")
         assert lang["identifier"] == OSCAR_PROGRAMMING_LANGUAGE
 
-        workflow = next(e for e in graph if e.get("@id") == workflow_url)
+        workflow = _entity_by_id(graph, workflow_url)
         assert "ComputationalWorkflow" in workflow["@type"]
 
     def test_scipion_rocrate_no_workflow(self):
@@ -313,10 +289,10 @@ class TestRocrateBuilder:
         crate = RocrateBuilder.build_from_minimal(data)
 
         graph = crate["@graph"]
-        lang = next(e for e in graph if e.get("@id") == "#scipion-lang")
+        lang = _entity_by_id(graph, "#scipion-lang")
         assert lang["identifier"] == SCIPION_PROGRAMMING_LANGUAGE
 
-        workflow = next(e for e in graph if e.get("@id") == "workflow.json")
+        workflow = _entity_by_id(graph, "workflow.json")
         assert "ComputationalWorkflow" in workflow["@type"]
 
     def test_runtime_platform_override(self):
@@ -330,7 +306,7 @@ class TestRocrateBuilder:
         }
         crate = RocrateBuilder.build_from_minimal(data)
 
-        workflow = next(e for e in crate["@graph"] if e.get("@id") == workflow_url)
+        workflow = _entity_by_id(crate["@graph"], workflow_url)
         assert workflow["runtimePlatform"] == "https://custom-galaxy.example.org/"
 
     def test_onedata_file_in_rocrate(self):
@@ -350,7 +326,7 @@ class TestRocrateBuilder:
         }
         crate = RocrateBuilder.build_from_minimal(data)
 
-        file_entity = next(e for e in crate["@graph"] if e.get("@id") == "onedata_file")
+        file_entity = _entity_by_id(crate["@graph"], "onedata_file")
         assert file_entity["onedata:onezoneDomain"] == "demo.onedata.org"
         assert file_entity["onedata:fileId"] == "00000000007EADF37368"
 
@@ -375,8 +351,6 @@ class TestRocrateBuilder:
 
     def test_rocrate_can_be_parsed_back(self):
         """Verify the generated ROCrate can be parsed by ROCrateParser."""
-        from app.domain.rocrate.parser import ROCrateParser
-
         workflow_url = "https://dockstore.org/api/ga4gh/trs/v2/tools/test"
         data = {
             "vre_type": "galaxy",
