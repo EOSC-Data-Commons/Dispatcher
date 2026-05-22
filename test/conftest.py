@@ -248,7 +248,7 @@ def ocm_share_request(sciencemesh_vre):
         "resourceId": "n/a",
         "owner": owner.get("userid"),
         "senderDisplayName": sender.get("name"),
-        "sender": sciencemesh_vre.generate_ocm_address(sender),
+        "sender": sciencemesh_vre._generate_ocm_address(sender),
         "resourceType": "embedded",
         "shareType": "user",
         "protocol": {

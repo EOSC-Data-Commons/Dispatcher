@@ -39,7 +39,7 @@ class VREScienceMesh(VRE):
             raise MissingOCMParameters(
                 "Missing required parameters (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
             )
-        resid = self.crate.get("#identifier")
+        resid = self.request_package.get_entity("#identifier")
         if resid is None:
             # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
             resid = str(uuid.uuid4())
