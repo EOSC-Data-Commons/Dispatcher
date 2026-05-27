@@ -34,9 +34,6 @@
                     "@id": "https://example-files.online-convert.com/document/txt/example.txt"
                 },
                 {
-                    "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/oscar.yaml"
-                },
-                {
                     "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh"
                 }
             ]
@@ -99,12 +96,6 @@
                 "2 vCPU"
             ],
             "installUrl": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/oscar.yaml"
-        },
-        {
-            "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/oscar.yaml",
-            "@type": "File",
-            "name": "OSCAR TOSCA template file",
-            "encodingFormat": "text/yaml"
         },
         {
             "@id": "#author-dispatcher",

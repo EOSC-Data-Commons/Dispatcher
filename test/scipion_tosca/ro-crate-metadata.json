@@ -32,9 +32,6 @@
                 },
                 {
                     "@id": "https://example-files.online-convert.com/document/txt/example.txt"
-                },
-                {
-                    "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_beyond/templates/scipion.yaml"
                 }
             ]
         },
@@ -129,12 +126,6 @@
             ],
             "storageRequirements": "200 GiB",
             "installUrl": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_beyond/templates/scipion.yaml"
-        },
-        {
-            "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_beyond/templates/scipion.yaml",
-            "@type": "File",
-            "name": "Scipion TOSCA template file",
-            "encodingFormat": "text/yaml"
         },
         {
             "@id": "#author-dispatcher",

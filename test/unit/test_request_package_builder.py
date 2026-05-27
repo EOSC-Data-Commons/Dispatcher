@@ -64,15 +64,23 @@ class TestRequestPackageBuilder:
         source = _load_json(fixtures_dir, "galaxy_tosca/ro-crate-metadata.json")
         parsed = ROCrateParser.parse(source)
         package = RequestPackageBuilder.build(parsed)
-        assert package.tosca_file is not None
-        assert package.tosca_file.encoding_format == "text/yaml"
+        rp = package.workflow.runtime_platform
+        assert rp is not None
+        assert rp.install_url == (
+            "https://raw.githubusercontent.com/grycap/tosca/"
+            "refs/heads/eosc_dc/templates/galaxy.yaml"
+        )
 
     def test_build_scipion_tosca_package(self, fixtures_dir):
         source = _load_json(fixtures_dir, "scipion_tosca/ro-crate-metadata.json")
         parsed = ROCrateParser.parse(source)
         package = RequestPackageBuilder.build(parsed)
-        assert package.tosca_file is not None
-        assert package.tosca_file.encoding_format == "text/yaml"
+        rp = package.workflow.runtime_platform
+        assert rp is not None
+        assert rp.install_url == (
+            "https://raw.githubusercontent.com/grycap/tosca/"
+            "refs/heads/eosc_beyond/templates/scipion.yaml"
+        )
 
     def test_build_binder_package(self, fixtures_dir):
         source = _load_json(fixtures_dir, "simple-binder/ro-crate-metadata.json")

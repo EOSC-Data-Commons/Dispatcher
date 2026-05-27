@@ -84,13 +84,6 @@ class RequestPackage:
         excluded.add(self.workflow.id)
         return [f for f in self.files if f.id not in excluded]
 
-    @property
-    def tosca_file(self) -> FileReference | None:
-        return next(
-            (f for f in self.files if f.encoding_format == "text/yaml"),
-            None,
-        )
-
     def get_entity(self, entity_id: str) -> dict[str, Any] | None:
         graph = self.raw_crate.get("@graph", [])
         for item in graph:
@@ -284,3 +277,4 @@ class RequestPackage:
             files=files,
             raw_crate={},
         )
+

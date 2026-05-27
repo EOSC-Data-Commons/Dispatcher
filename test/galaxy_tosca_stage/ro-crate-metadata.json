@@ -32,9 +32,6 @@
                 },
                 {
                     "@id": "https://example-files.online-convert.com/document/txt/example.txt"
-                },
-                {
-                    "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/galaxy.yaml"
                 }
             ]
         },
@@ -135,12 +132,6 @@
                     "@id": "#tosca_input_file"
                 }
             ]
-        },
-        {
-            "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/galaxy.yaml",
-            "@type": "File",
-            "name": "Galaxy TOSCA template file",
-            "encodingFormat": "text/yaml"
         },
         {
             "@id": "#tosca_input_file",

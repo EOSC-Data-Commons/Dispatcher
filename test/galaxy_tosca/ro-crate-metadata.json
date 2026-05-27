@@ -32,9 +32,6 @@
                 },
                 {
                     "@id": "https://example-files.online-convert.com/document/txt/example.txt"
-                },
-                {
-                    "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/galaxy.yaml"
                 }
             ]
         },
@@ -130,12 +127,6 @@
             ],
             "storageRequirements": "200 GiB",
             "installUrl": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/galaxy.yaml"
-        },
-        {
-            "@id": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_dc/templates/galaxy.yaml",
-            "@type": "File",
-            "name": "Galaxy TOSCA template file",
-            "encodingFormat": "text/yaml"
         },
         {
             "@id": "#author-dispatcher",
