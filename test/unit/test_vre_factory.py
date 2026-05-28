@@ -4,8 +4,8 @@ from app.vres.binder import VREBinder
 from app.vres.sciencemesh import VREScienceMesh
 from app.vres.galaxy import VREGalaxy
 from app.vres.oscar import VREOSCAR
-from app.domain.rocrate.request_package import RequestPackage, WorkflowDescriptor
-from app.constants import (
+from vre_rocrate import RequestPackage, WorkflowDescriptor
+from vre_rocrate import (
     BINDER_PROGRAMMING_LANGUAGE,
     SCIENCEMESH_PROGRAMMING_LANGUAGE,
     GALAXY_PROGRAMMING_LANGUAGE,

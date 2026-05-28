@@ -4,10 +4,8 @@ from .base_vre import VRE, vre_factory
 import requests
 import logging
 from app import exceptions
-from app.constants import (
-    JUPYTER_DEFAULT_SERVICE,
-    JUPYTER_PROGRAMMING_LANGUAGE,
-)
+from vre_rocrate import JUPYTER_PROGRAMMING_LANGUAGE
+from app.constants import JUPYTER_DEFAULT_SERVICE
 import time
 
 logging.basicConfig(level=logging.INFO)

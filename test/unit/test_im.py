@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 import requests
 import yaml
 from app.services.im import IM
-from app.domain.rocrate.models import IMInputFile, RuntimePlatform
+from vre_rocrate import IMInputFile, RuntimePlatform
 from app.exceptions import IMError
 
 

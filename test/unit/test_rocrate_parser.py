@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from app.domain.rocrate.parser import ROCrateParser
+from vre_rocrate import ROCrateParser
 
 
 @pytest.fixture

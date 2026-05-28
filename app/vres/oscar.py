@@ -8,7 +8,8 @@ from app.exceptions import (
     ExternalServiceError,
     ExternalDataSourceError,
 )
-from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_PROGRAMMING_LANGUAGE
+from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
+from app.constants import OSCAR_DEFAULT_SERVICE
 
 logging.basicConfig(level=logging.INFO)
 

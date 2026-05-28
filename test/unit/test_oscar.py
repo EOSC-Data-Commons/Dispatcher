@@ -5,11 +5,12 @@ import json
 import os
 import pytest
 from unittest.mock import MagicMock, patch
-from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_PROGRAMMING_LANGUAGE
+from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
+from app.constants import OSCAR_DEFAULT_SERVICE
 from app.vres.oscar import VREOSCAR
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from fixtures.dummy_crate import DummyEntity, DummyCrate
-from app.domain.rocrate.request_package import (
+from vre_rocrate import (
     RequestPackage,
     WorkflowDescriptor,
     FileReference,

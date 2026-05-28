@@ -2,9 +2,7 @@
 
 import pytest
 
-from app.domain.rocrate.parser import ROCrateParser
-from app.domain.rocrate.validator import ValidationPipeline
-from app.exceptions import VREConfigurationError
+from vre_rocrate import ROCrateParser, ValidationPipeline, CrateValidationError
 
 
 class TestValidationPipeline:
@@ -28,7 +26,7 @@ class TestValidationPipeline:
             ],
         }
         parsed = ROCrateParser.parse(source)
-        with pytest.raises(VREConfigurationError, match="Missing mainEntity"):
+        with pytest.raises(CrateValidationError, match="Missing mainEntity"):
             ValidationPipeline.validate_basic(parsed)
 
     def test_missing_programming_language_raises(self):
@@ -46,7 +44,7 @@ class TestValidationPipeline:
             ],
         }
         parsed = ROCrateParser.parse(source)
-        with pytest.raises(VREConfigurationError, match="programmingLanguage"):
+        with pytest.raises(CrateValidationError, match="programmingLanguage"):
             ValidationPipeline.validate_basic(parsed)
 
     def test_missing_language_identifier_raises(self):
@@ -69,5 +67,5 @@ class TestValidationPipeline:
             ],
         }
         parsed = ROCrateParser.parse(source)
-        with pytest.raises(VREConfigurationError, match="identifier"):
+        with pytest.raises(CrateValidationError, match="identifier"):
             ValidationPipeline.validate_basic(parsed)

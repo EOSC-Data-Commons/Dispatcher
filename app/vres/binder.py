@@ -4,7 +4,8 @@ import logging
 import os
 import urllib
 from app.config import settings
-from app.constants import BINDER_DEFAULT_SERVICE, BINDER_PROGRAMMING_LANGUAGE
+from vre_rocrate import BINDER_PROGRAMMING_LANGUAGE
+from app.constants import BINDER_DEFAULT_SERVICE
 import git
 
 logger = logging.getLogger()

@@ -2,7 +2,8 @@ from .base_vre import VRE, vre_factory
 import requests
 import logging
 import uuid
-from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
+from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
+from app.constants import SCIENCEMESH_DEFAULT_SERVICE
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 

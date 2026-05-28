@@ -3,11 +3,12 @@
 import pytest
 from pydantic import ValidationError
 
-from app.routers.utils.minimal_vre import MinimalVRERequest, MinimalFileInput
-from app.domain.rocrate.request_package import RequestPackage
-from app.domain.rocrate.builder import RocrateBuilder
-from app.domain.rocrate.parser import ROCrateParser
-from app.constants import (
+from vre_rocrate import (
+    MinimalVRERequest,
+    MinimalFileInput,
+    RequestPackage,
+    RocrateBuilder,
+    ROCrateParser,
     GALAXY_PROGRAMMING_LANGUAGE,
     OSCAR_PROGRAMMING_LANGUAGE,
     SCIPION_PROGRAMMING_LANGUAGE,

@@ -5,9 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from app.domain.rocrate.parser import ROCrateParser
-from app.domain.rocrate.builder import RequestPackageBuilder
-from app.domain.rocrate.models import RuntimePlatform
+from vre_rocrate import ROCrateParser, RequestPackageBuilder, RuntimePlatform
 
 
 @pytest.fixture

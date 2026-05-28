@@ -1,7 +1,8 @@
 from .base_vre import VRE, vre_factory
 import logging
 from fastapi import HTTPException
-from app.constants import SCIPION_DEFAULT_SERVICE, SCIPION_PROGRAMMING_LANGUAGE
+from vre_rocrate import SCIPION_PROGRAMMING_LANGUAGE
+from app.constants import SCIPION_DEFAULT_SERVICE
 
 logging.basicConfig(level=logging.INFO)
 

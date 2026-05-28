@@ -17,14 +17,14 @@ from app.vres.binder import VREBinder
 from app.vres.sciencemesh import VREScienceMesh
 from app.config import settings
 from rocrate.rocrate import ROCrate
-from app.constants import (
+from vre_rocrate import (
     BINDER_PROGRAMMING_LANGUAGE,
     SCIENCEMESH_PROGRAMMING_LANGUAGE,
     GALAXY_PROGRAMMING_LANGUAGE,
     OSCAR_PROGRAMMING_LANGUAGE,
 )
 from app.services.im import IM
-from app.domain.rocrate.request_package import (
+from vre_rocrate import (
     RequestPackage,
     WorkflowDescriptor,
     FileReference,
@@ -217,8 +217,7 @@ def sciencemesh_rocrate():
 
 @pytest.fixture
 def sciencemesh_vre(sciencemesh_rocrate):
-    from app.domain.rocrate.parser import ROCrateParser
-    from app.domain.rocrate.builder import RequestPackageBuilder
+    from vre_rocrate import ROCrateParser, RequestPackageBuilder
 
     parsed = ROCrateParser.parse(sciencemesh_rocrate.metadata.generate())
     package = RequestPackageBuilder.build(parsed)

@@ -7,7 +7,7 @@ from typing import Any, Callable, Mapping
 from imclient import IMClient
 from app.config import settings
 from app.exceptions import IMError
-from app.domain.rocrate.models import IMInputFile, RuntimePlatform
+from vre_rocrate import IMInputFile, RuntimePlatform
 import app.constants as constants
 
 logging.basicConfig(level=logging.INFO)

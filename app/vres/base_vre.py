@@ -1,11 +1,10 @@
 import sys
 from app.services.im import IM
-from app.domain.rocrate.models import RuntimePlatform
+from vre_rocrate import RuntimePlatform
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
-from app.exceptions import VREError, VREConfigurationError
+from app.exceptions import VREConfigurationError
 import logging
-import app.constants as constants
 
 logger = logging.getLogger()
 
