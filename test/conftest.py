@@ -16,19 +16,18 @@ from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
 from app.vres.sciencemesh import VREScienceMesh
 from app.config import settings
-from rocrate.rocrate import ROCrate
 from vre_rocrate import (
     BINDER_PROGRAMMING_LANGUAGE,
     SCIENCEMESH_PROGRAMMING_LANGUAGE,
     GALAXY_PROGRAMMING_LANGUAGE,
     OSCAR_PROGRAMMING_LANGUAGE,
-)
-from app.services.im import IM
-from vre_rocrate import (
     RequestPackage,
     WorkflowDescriptor,
     FileReference,
+    Entity,
+    ParsedCrate,
 )
+from app.services.im import IM
 
 pytest_plugins = ["pytest_asyncio"]
 
@@ -208,19 +207,39 @@ def binder_vre(dummy_binder_crate):
     return vre
 
 
-@pytest.fixture
-def sciencemesh_rocrate():
+def _load_sciencemesh_crate() -> dict:
+    """Load the sciencemesh RO-Crate JSON fixture."""
     test_dir = Path(os.path.abspath(__file__))
     metadata_path = test_dir.parent.joinpath("sciencemesh", "ro-crate-metadata.json")
-    return ROCrate(os.path.dirname(metadata_path))
+    with open(metadata_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _build_entity(raw: dict) -> Entity:
+    """Build an Entity from a raw RO-Crate JSON entity dict."""
+    eid = raw.get("@id", "")
+    etype = raw.get("@type", "")
+    props = {k: v for k, v in raw.items() if k not in ("@id", "@type")}
+    return Entity(id=eid, type=etype, properties=props)
 
 
 @pytest.fixture
-def sciencemesh_vre(sciencemesh_rocrate):
-    from vre_rocrate import ROCrateParser, RequestPackageBuilder
+def sciencemesh_vre():
+    raw_crate = _load_sciencemesh_crate()
+    graph = raw_crate.get("@graph", [])
 
-    parsed = ROCrateParser.parse(sciencemesh_rocrate.metadata.generate())
-    package = RequestPackageBuilder.build(parsed)
+    entities: dict[str, Entity] = {}
+    for raw_entity in graph:
+        entity = _build_entity(raw_entity)
+        entities[entity.id] = entity
+
+    parsed = ParsedCrate(
+        root_id="./",
+        entities=entities,
+        raw=raw_crate,
+    )
+
+    package = RequestPackage.from_parsed_crate(parsed)
     vre = VREScienceMesh(
         token="test-token",
         request_id=0,
@@ -270,13 +289,3 @@ def im_service(mock_settings):
     im.client = Mock()
     im.inf_id = "test_inf_id"
     return im
-
-
-@pytest.fixture
-def galaxy_rocrate_source() -> dict:
-    """Load the galaxy ROCrate fixture as a raw dict."""
-    fixtures_dir = Path(__file__).parent
-    with open(
-        fixtures_dir / "galaxy" / "ro-crate-metadata.json", encoding="utf-8"
-    ) as f:
-        return json.load(f)
