@@ -7,7 +7,8 @@ import time
 import uuid
 from app.exceptions import VREConfigurationError, WorkflowURLError
 from app.constants import (
-    SCIPION_COMMAND,
+    SCIPION_DATA_DIR,
+    SCIPION_CONTAINER,
     SCIPION_DEFAULT_SERVICE,
     SCIPION_PROGRAMMING_LANGUAGE,
     SCIPION_MAX_EXECUTION_TIME_SECONDS,
@@ -42,18 +43,28 @@ class VREScipion(VRE):
             data_url = self._get_data_set_url()
             logging.info(f"Downloading data from {data_url}")
             data_folder = data_url.split("/")[-1]
-            get_data_command = f"rsync -avP {data_url} {data_folder}"
+            get_data_command = f"rsync -avP {data_url} {SCIPION_DATA_DIR}/{data_folder}"
             out = self._execute_long_ssh_command(self.ssh, ssh_client, get_data_command)
             logging.debug(f"Data download output: {out}")
 
             # Step 4: Run the workflow with the data
             self.update_task_status("Executing workflow")
             workflow_file = workflow_url.split("/")[-1]
-            run_command = f"{SCIPION_COMMAND} {workflow_file} {data_folder}"
-            logging.info(f"Run workflow with command: {run_command}")
-            out = self._execute_long_ssh_command(self.ssh, ssh_client, run_command)
-            self.update_task_status("Workflow execution completed")
-            logging.debug(f"Workflow execution output: {out}")
+            scipion_command = (
+                "apptainer exec --containall --env DISPLAY=:1"
+                f"--env SCIPION_USER_DATA={SCIPION_DATA_DIR}"
+                " --bind /run --bind /tmp/.X11-unix --bind /etc/resolv.conf"
+                f" --bind {SCIPION_DATA_DIR} {SCIPION_CONTAINER} /scipion/scipion3"
+            )
+            run_command = f"{scipion_command} template {workflow_file} filesPath={SCIPION_DATA_DIR}/{data_folder}"
+            logging.debug(f"Run workflow with command: {run_command}")
+            launch_workflow_command = (
+                f"nohup bash -lc {shlex.quote(run_command)} "
+                "</dev/null >/tmp/scipion-workflow.log 2>&1 & echo $!"
+            )
+            pid = self._execute_ssh_command(ssh_client, launch_workflow_command).strip()
+            self.update_task_status("Workflow launched")
+            logging.info(f"Workflow launched in background with PID {pid}")
         except Exception as e:
             logging.error(f"Error during SSH operations: {str(e)}")
             raise VREConfigurationError(f"Error during SSH operations: {str(e)}")

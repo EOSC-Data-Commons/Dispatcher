@@ -4,11 +4,11 @@ import pytest
 from unittest.mock import MagicMock, patch
 from rocrate.rocrate import ROCrate
 
-from app.constants import SCIPION_COMMAND
+from app.constants import SCIPION_CONTAINER, SCIPION_DATA_DIR
 from app.exceptions import VREConfigurationError
 from app.vres.scipion import VREScipion
 
-EXPECTED_DATASET_URL = "rsync://ftp.ebi.ac.uk/empiar/world_availability/13496"
+EXPECTED_DATASET_URL = "rsync://ftp.ebi.ac.uk/empiar/world_availability/10146"
 
 
 def load_json(file_name):
@@ -95,29 +95,41 @@ def test_execute_long_ssh_command_recovers_after_disconnect(scipion_vre):
 
 
 def test_post_happy_path(scipion_vre):
+    data_folder = EXPECTED_DATASET_URL.split("/")[-1]
     ssh_client = MagicMock()
     scipion_vre._get_ssh_client = MagicMock(return_value=ssh_client)
-    scipion_vre._execute_ssh_command = MagicMock(return_value="ok")
-    scipion_vre._execute_long_ssh_command = MagicMock(side_effect=["sync-ok", "run-ok"])
+    scipion_vre._execute_ssh_command = MagicMock(side_effect=["ok", "12345"])
+    scipion_vre._execute_long_ssh_command = MagicMock(return_value="sync-ok")
 
     final_url = scipion_vre.post()
 
     assert final_url == scipion_vre.svc_url
     scipion_vre._get_ssh_client.assert_called_once_with(scipion_vre.ssh)
-    assert scipion_vre._execute_ssh_command.call_count == 1
-    assert scipion_vre._execute_long_ssh_command.call_count == 2
+    assert scipion_vre._execute_ssh_command.call_count == 2
+    assert scipion_vre._execute_long_ssh_command.call_count == 1
 
     workflow_url = scipion_vre._get_workflow_url()
-    wget_command = scipion_vre._execute_ssh_command.call_args[0][1]
+    wget_command = scipion_vre._execute_ssh_command.call_args_list[0][0][1]
     assert wget_command == f"wget {workflow_url}"
 
-    first_long_command = scipion_vre._execute_long_ssh_command.call_args_list[0][0][2]
-    second_long_command = scipion_vre._execute_long_ssh_command.call_args_list[1][0][2]
-    assert first_long_command == f"rsync -avP {EXPECTED_DATASET_URL} 13496"
+    first_long_command = scipion_vre._execute_long_ssh_command.call_args[0][2]
     assert (
-        second_long_command
-        == f"{SCIPION_COMMAND} workflow_2D_xmipp.json.template 13496"
+        first_long_command
+        == f"rsync -avP {EXPECTED_DATASET_URL} {SCIPION_DATA_DIR}/{data_folder}"
     )
+
+    launch_command = scipion_vre._execute_ssh_command.call_args_list[1][0][1]
+    expected_run_command = (
+        "apptainer exec --containall --env DISPLAY=:1"
+        f"--env SCIPION_USER_DATA={SCIPION_DATA_DIR}"
+        " --bind /run --bind /tmp/.X11-unix --bind /etc/resolv.conf"
+        f" --bind {SCIPION_DATA_DIR} {SCIPION_CONTAINER} /scipion/scipion3"
+        f" template workflow_2D_xmipp.json.template filesPath={SCIPION_DATA_DIR}/{data_folder}"
+    )
+    assert "nohup bash -lc" in launch_command
+    assert expected_run_command in launch_command
+    assert "</dev/null >/tmp/scipion-workflow.log 2>&1 & echo $!" in launch_command
+
     ssh_client.close.assert_called_once()
 
 
