@@ -33,42 +33,41 @@ class VREScienceMesh(VRE):
         return response.json()
 
     def create_ocm_share_request(self):
-        receiver = self.request_package.get_entity("#receiver")
-        owner = self.request_package.get_entity("#owner")
-        sender = self.request_package.get_entity("#sender")
-        if not receiver or not owner or not sender:
+        pkg = self.request_package
+        receiver = pkg.receiver_userid
+        owner = pkg.owner_userid
+        sender_userid = pkg.sender_userid
+        sender_name = pkg.sender_name
+        if not receiver or not owner or not sender_userid:
             raise MissingOCMParameters(
                 "Missing required parameters (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
             )
-        resid = self.request_package.get_entity("#identifier")
+        resid = pkg.resource_id
         if resid is None:
             # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
             resid = str(uuid.uuid4())
 
-        root = self.request_package.get_entity("./")
-        # Create OCM share request JSON structure
         ocm_share_request = {
-            "shareWith": receiver.get("userid"),
-            "name": root.get("name", "") if root else "",
-            "description": root.get("description", "") if root else "",
+            "shareWith": receiver,
+            "name": pkg.root_name or "",
+            "description": pkg.root_description or "",
             "providerId": str(uuid.uuid4()),  # must be unique for each share
             "resourceId": resid,
-            "owner": owner.get("userid"),
-            "senderDisplayName": sender.get("name"),
-            "sender": self._generate_ocm_address(sender),
+            "owner": owner,
+            "senderDisplayName": sender_name,
+            "sender": self._generate_ocm_address(sender_userid),
             "resourceType": "embedded",
             "shareType": "user",
             "protocol": {
                 "name": "multi",
-                "embedded": {"payload": self.request_package.raw_crate},
+                "embedded": {"payload": pkg.raw_crate},
             },
         }
         return ocm_share_request
 
-    def _generate_ocm_address(self, sender):
+    def _generate_ocm_address(self, sender_userid: str | None):
         # Generate an OCM address out of the sender user ID, that is ensure the host matches the dispatcher's public FQDN
         # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@egi.eu@<dispatcher's public FQDN>
-        sender_userid = sender.get("userid")
         if not sender_userid:
             sender_userid = "eosc-dc-user"
         ocm_sending_server = settings.host

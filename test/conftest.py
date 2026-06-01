@@ -1,6 +1,4 @@
 # test/conftest.py
-import json
-import os
 from pathlib import Path
 import pytest
 from unittest.mock import Mock, patch
@@ -24,8 +22,6 @@ from vre_rocrate import (
     RequestPackage,
     WorkflowDescriptor,
     FileReference,
-    Entity,
-    ParsedCrate,
 )
 from app.services.im import IM
 
@@ -207,39 +203,24 @@ def binder_vre(dummy_binder_crate):
     return vre
 
 
-def _load_sciencemesh_crate() -> dict:
-    """Load the sciencemesh RO-Crate JSON fixture."""
-    test_dir = Path(os.path.abspath(__file__))
-    metadata_path = test_dir.parent.joinpath("sciencemesh", "ro-crate-metadata.json")
-    with open(metadata_path, encoding="utf-8") as f:
-        return json.load(f)
-
-
-def _build_entity(raw: dict) -> Entity:
-    """Build an Entity from a raw RO-Crate JSON entity dict."""
-    eid = raw.get("@id", "")
-    etype = raw.get("@type", "")
-    props = {k: v for k, v in raw.items() if k not in ("@id", "@type")}
-    return Entity(id=eid, type=etype, properties=props)
-
-
 @pytest.fixture
 def sciencemesh_vre():
-    raw_crate = _load_sciencemesh_crate()
-    graph = raw_crate.get("@graph", [])
-
-    entities: dict[str, Entity] = {}
-    for raw_entity in graph:
-        entity = _build_entity(raw_entity)
-        entities[entity.id] = entity
-
-    parsed = ParsedCrate(
-        root_id="./",
-        entities=entities,
-        raw=raw_crate,
+    package = RequestPackage(
+        vre_type="https://qa.cernbox.cern.ch",
+        programming_language="https://qa.cernbox.cern.ch",
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="ComputationalWorkflow",
+            programming_language_id="https://qa.cernbox.cern.ch",
+        ),
+        receiver_userid="rwelande@cernbox.cern.ch",
+        owner_userid="rasmus.oscar.welander@egi.eu",
+        sender_userid="rasmus.oscar.welander@egi.eu",
+        sender_name="Rasmus Oscar Welander",
+        root_name="ScienceMesh Research Data Package",
+        root_description="A research data package for sharing through ScienceMesh",
+        raw_crate={"@graph": []},
     )
-
-    package = RequestPackage.from_parsed_crate(parsed)
     vre = VREScienceMesh(
         token="test-token",
         request_id=0,
@@ -253,20 +234,16 @@ def sciencemesh_vre():
 @pytest.fixture
 def ocm_share_request(sciencemesh_vre):
     pkg = sciencemesh_vre.request_package
-    receiver = pkg.get_entity("#receiver")
-    owner = pkg.get_entity("#owner")
-    sender = pkg.get_entity("#sender")
-    root = pkg.get_entity("./")
 
     ocm_share_request = {
-        "shareWith": receiver.get("userid"),
-        "name": root.get("name", "") if root else "",
-        "description": root.get("description", "") if root else "",
+        "shareWith": pkg.receiver_userid,
+        "name": pkg.root_name or "",
+        "description": pkg.root_description or "",
         "providerId": "n/a",
         "resourceId": "n/a",
-        "owner": owner.get("userid"),
-        "senderDisplayName": sender.get("name"),
-        "sender": sciencemesh_vre._generate_ocm_address(sender),
+        "owner": pkg.owner_userid,
+        "senderDisplayName": pkg.sender_name,
+        "sender": sciencemesh_vre._generate_ocm_address(pkg.sender_userid),
         "resourceType": "embedded",
         "shareType": "user",
         "protocol": {

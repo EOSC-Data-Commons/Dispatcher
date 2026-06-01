@@ -3,37 +3,31 @@ import pytest
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 
 
-def _remove_entity(package, entity_id: str):
-    """Remove an entity from the raw_crate @graph."""
-    graph = package.raw_crate.get("@graph", [])
-    package.raw_crate["@graph"] = [
-        item for item in graph if item.get("@id") != entity_id
-    ]
-
-
 def test_post_errors_with_empty_rocrate(sciencemesh_vre):
-    sciencemesh_vre.request_package.raw_crate = {"@graph": []}
+    sciencemesh_vre.request_package.receiver_userid = None
+    sciencemesh_vre.request_package.owner_userid = None
+    sciencemesh_vre.request_package.sender_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_receiver_entity(sciencemesh_vre):
-    _remove_entity(sciencemesh_vre.request_package, "#receiver")
+    sciencemesh_vre.request_package.receiver_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_owner_entity(sciencemesh_vre):
-    _remove_entity(sciencemesh_vre.request_package, "#owner")
+    sciencemesh_vre.request_package.owner_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_sender_entity(sciencemesh_vre):
-    _remove_entity(sciencemesh_vre.request_package, "#sender")
+    sciencemesh_vre.request_package.sender_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
@@ -65,7 +59,6 @@ def test_post_returns_json(sciencemesh_vre, requests_mock):
 
 def test_post_succeeds_without_destination_entity(sciencemesh_vre, requests_mock):
     json = {"data": "value"}
-    _remove_entity(sciencemesh_vre.request_package, "#destination")
 
     requests_mock.post(
         f"{sciencemesh_vre.svc_url}/ocm/shares",
