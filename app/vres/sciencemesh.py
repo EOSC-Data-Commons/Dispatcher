@@ -34,23 +34,28 @@ class VREScienceMesh(VRE):
 
     def create_ocm_share_request(self):
         pkg = self.request_package
-        receiver = pkg.receiver_userid
-        owner = pkg.owner_userid
-        sender_userid = pkg.sender_userid
-        sender_name = pkg.sender_name
+        ocm = pkg.ocm_data
+        if ocm is None:
+            raise MissingOCMParameters(
+                "Missing OCM data (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
+            )
+        receiver = ocm.receiver_userid
+        owner = ocm.owner_userid
+        sender_userid = ocm.sender_userid
+        sender_name = ocm.sender_name
         if not receiver or not owner or not sender_userid:
             raise MissingOCMParameters(
                 "Missing required parameters (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
             )
-        resid = pkg.resource_id
+        resid = ocm.resource_id
         if resid is None:
             # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
             resid = str(uuid.uuid4())
 
         ocm_share_request = {
             "shareWith": receiver,
-            "name": pkg.root_name or "",
-            "description": pkg.root_description or "",
+            "name": ocm.root_name or "",
+            "description": ocm.root_description or "",
             "providerId": str(uuid.uuid4()),  # must be unique for each share
             "resourceId": resid,
             "owner": owner,
