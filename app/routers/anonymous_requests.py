@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from fastapi import Depends, Request
-from .utils import parse_zipfile, parse_rocrate
+from fastapi import Body, Depends, Request
+from .utils import parse_zipfile
 from celery.result import AsyncResult
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 import logging
@@ -43,7 +43,7 @@ def zip_rocrate(
 
 @router.post("/metadata_rocrate/")
 def metadata_rocrate(
-    data: Dict = Depends(parse_rocrate),
+    data: Dict = Body(...),
     request: Request = None,
 ):
     task = vre_from_rocrate.apply_async(args=[data, ""])

@@ -1,10 +1,10 @@
 import logging
 from typing import Dict
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import JSONResponse
 
-from .utils import parse_zipfile, parse_rocrate, oauth2_scheme
+from .utils import parse_zipfile, oauth2_scheme
 from celery.result import AsyncResult
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 
@@ -47,7 +47,7 @@ def zip_rocrate(
 @router.post("/metadata_rocrate/")
 def metadata_rocrate(
     token: str = Depends(oauth2_scheme),
-    data: Dict = Depends(parse_rocrate),
+    data: Dict = Body(...),
     request: Request = None,
 ):
     task = vre_from_rocrate.apply_async(args=[data, request.auth.provider.access_token])
