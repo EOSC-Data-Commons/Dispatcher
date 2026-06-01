@@ -1,7 +1,7 @@
 import io
 import json
 import zipfile
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 import pytest
 from fastapi import UploadFile, HTTPException
 from app.routers.utils.vre import parse_zipfile
@@ -32,8 +32,6 @@ def create_test_zip_with_files() -> bytes:
 
 
 def create_test_zip_with_invalid_json() -> bytes:
-    rocrate_data = {"test": "data"}
-
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
         zip_file.writestr("ro-crate-metadata.json", "invalid json")
@@ -62,29 +60,24 @@ def create_mock_uploadfile(content: bytes) -> Mock:
 
 
 @pytest.mark.asyncio
-@patch("app.routers.utils.vre.parse_rocrate")
-async def test_parse_zipfile_success(mock_parse_rocrate):
+async def test_parse_zipfile_success():
     zip_content = create_test_zip_with_rocrate()
     mock_uploadfile = create_mock_uploadfile(zip_content)
-    mock_parse_rocrate.return_value = "parsed_rocrate"
 
     rocrate, file_bytes_map = await parse_zipfile(mock_uploadfile)
 
-    assert rocrate == "parsed_rocrate"
+    assert rocrate == {"test": "data"}
     assert file_bytes_map == {}
-    mock_parse_rocrate.assert_called_once()
 
 
 @pytest.mark.asyncio
-@patch("app.routers.utils.vre.parse_rocrate")
-async def test_parse_zipfile_extracts_file_bytes(mock_parse_rocrate):
+async def test_parse_zipfile_extracts_file_bytes():
     zip_content = create_test_zip_with_files()
     mock_uploadfile = create_mock_uploadfile(zip_content)
-    mock_parse_rocrate.return_value = "parsed_rocrate"
 
     rocrate, file_bytes_map = await parse_zipfile(mock_uploadfile)
 
-    assert rocrate == "parsed_rocrate"
+    assert rocrate == {"test": "data"}
     assert "notebook.ipynb" in file_bytes_map
     assert file_bytes_map["notebook.ipynb"] == b'{"cells": []}'
     assert "data.csv" in file_bytes_map
