@@ -4,30 +4,28 @@ from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 
 
 def test_post_errors_with_empty_rocrate(sciencemesh_vre):
-    sciencemesh_vre.request_package.receiver_userid = None
-    sciencemesh_vre.request_package.owner_userid = None
-    sciencemesh_vre.request_package.sender_userid = None
+    sciencemesh_vre.request_package.ocm_data = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_receiver_entity(sciencemesh_vre):
-    sciencemesh_vre.request_package.receiver_userid = None
+    sciencemesh_vre.request_package.ocm_data.receiver_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_owner_entity(sciencemesh_vre):
-    sciencemesh_vre.request_package.owner_userid = None
+    sciencemesh_vre.request_package.ocm_data.owner_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_sender_entity(sciencemesh_vre):
-    sciencemesh_vre.request_package.sender_userid = None
+    sciencemesh_vre.request_package.ocm_data.sender_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()

@@ -205,6 +205,8 @@ def binder_vre(dummy_binder_crate):
 
 @pytest.fixture
 def sciencemesh_vre():
+    from vre_rocrate import OCMData
+
     package = RequestPackage(
         vre_type="https://qa.cernbox.cern.ch",
         programming_language="https://qa.cernbox.cern.ch",
@@ -213,12 +215,14 @@ def sciencemesh_vre():
             type="ComputationalWorkflow",
             programming_language_id="https://qa.cernbox.cern.ch",
         ),
-        receiver_userid="rwelande@cernbox.cern.ch",
-        owner_userid="rasmus.oscar.welander@egi.eu",
-        sender_userid="rasmus.oscar.welander@egi.eu",
-        sender_name="Rasmus Oscar Welander",
-        root_name="ScienceMesh Research Data Package",
-        root_description="A research data package for sharing through ScienceMesh",
+        ocm_data=OCMData(
+            receiver_userid="rwelande@cernbox.cern.ch",
+            owner_userid="rasmus.oscar.welander@egi.eu",
+            sender_userid="rasmus.oscar.welander@egi.eu",
+            sender_name="Rasmus Oscar Welander",
+            root_name="ScienceMesh Research Data Package",
+            root_description="A research data package for sharing through ScienceMesh",
+        ),
         raw_crate={"@graph": []},
     )
     vre = VREScienceMesh(
@@ -234,16 +238,17 @@ def sciencemesh_vre():
 @pytest.fixture
 def ocm_share_request(sciencemesh_vre):
     pkg = sciencemesh_vre.request_package
+    ocm = pkg.ocm_data
 
     ocm_share_request = {
-        "shareWith": pkg.receiver_userid,
-        "name": pkg.root_name or "",
-        "description": pkg.root_description or "",
+        "shareWith": ocm.receiver_userid,
+        "name": ocm.root_name or "",
+        "description": ocm.root_description or "",
         "providerId": "n/a",
         "resourceId": "n/a",
-        "owner": pkg.owner_userid,
-        "senderDisplayName": pkg.sender_name,
-        "sender": sciencemesh_vre._generate_ocm_address(pkg.sender_userid),
+        "owner": ocm.owner_userid,
+        "senderDisplayName": ocm.sender_name,
+        "sender": sciencemesh_vre._generate_ocm_address(ocm.sender_userid),
         "resourceType": "embedded",
         "shareType": "user",
         "protocol": {
