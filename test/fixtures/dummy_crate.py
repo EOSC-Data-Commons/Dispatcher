@@ -27,7 +27,7 @@ ONE_DATA_FILE = {
 
 
 class DummyEntity:
-    """Minimal entity that mimics the ``Entity`` dataclass from app.domain.rocrate.models."""
+    """Minimal entity that mimics a ROCrate entity for test fixtures."""
 
     def __init__(self, _type: str, **attrs: Any):
         self.type = _type
@@ -39,7 +39,7 @@ class DummyEntity:
 
 
 class DummyCrate:
-    """In‑memory representation of a ``ParsedCrate``."""
+    """In‑memory representation of a crate for building RequestPackage fixtures."""
 
     def __init__(
         self,

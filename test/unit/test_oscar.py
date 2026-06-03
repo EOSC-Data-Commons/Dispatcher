@@ -9,7 +9,6 @@ from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
 from app.constants import OSCAR_DEFAULT_SERVICE
 from app.vres.oscar import VREOSCAR
 from app.exceptions import VREConfigurationError, ExternalServiceError
-from fixtures.dummy_crate import DummyEntity, DummyCrate
 from vre_rocrate import (
     RequestPackage,
     WorkflowDescriptor,
@@ -29,30 +28,6 @@ def load_json(file_name):
 @patch("app.vres.oscar.requests.delete")
 def test_lifecycle(mock_delete, mock_post, mock_get):
     """Test OSCAR VRE post function"""
-    main = DummyEntity(
-        _type="SoftwareSourceCode",
-        **{
-            "@id": "#workflow",
-            "url": "https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
-            "runtimePlatform": "https://oscar.vre.eosc-data-commons.eu",
-        },
-    )
-    script_entity = DummyEntity(
-        _type="File",
-        **{
-            "@id": "https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
-            "encodingFormat": "text/x-shellscript",
-        },
-    )
-    input_entity = DummyEntity(
-        _type="File",
-        **{
-            "@id": "https://example-files.online-convert.com/document/txt/example.txt",
-            "name": "simpletext_input",
-            "encodingFormat": "text/txt",
-        },
-    )
-    crate = DummyCrate(main_entity=main, other_entities=[script_entity, input_entity])
     request_package = RequestPackage(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
@@ -143,8 +118,6 @@ fi"""
 
 def test_fdl_in_rocrate():
     """Test Missing url of FDL file in OSCAR VRE"""
-    main = DummyEntity(_type="SoftwareSourceCode")
-    crate = DummyCrate(main_entity=main)
     request_package = RequestPackage(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
@@ -171,11 +144,6 @@ def test_oscar_creation_error(mock_post, mock_get):
     mock_post.return_value.status_code = 400
     mock_post.return_value.text = "Bad Request"
 
-    main = DummyEntity(
-        _type="SoftwareSourceCode",
-        **{"@id": "#workflow", "url": "http://some-url"},
-    )
-    crate = DummyCrate(main_entity=main)
     request_package = RequestPackage(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,

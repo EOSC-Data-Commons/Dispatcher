@@ -1,6 +1,6 @@
 from .worker import celery
 from app.vres.base_vre import vre_factory
-from vre_rocrate import ROCrateParser, RequestPackageBuilder
+from vre_rocrate import RequestPackageBuilder
 from app.exceptions import GalaxyAPIError
 from typing import Dict
 import copy
@@ -13,8 +13,7 @@ import copy
 def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, dict[str, bytes]], token):
     rocrate_dict = copy.deepcopy(parsed_zipfile[0])
     file_bytes_map = parsed_zipfile[1]
-    parsed_crate = ROCrateParser.parse(rocrate_dict)
-    package = RequestPackageBuilder.build(parsed_crate, file_bytes_map)
+    package = RequestPackageBuilder.build(rocrate_dict, file_bytes_map)
     vre_handler = vre_factory(
         token=token,
         request_id=self.request.id,
@@ -33,8 +32,7 @@ def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, dict[str, bytes]], token)
 )
 def vre_from_rocrate(self, data: Dict, token):
     rocrate_dict = copy.deepcopy(data)
-    parsed_crate = ROCrateParser.parse(rocrate_dict)
-    package = RequestPackageBuilder.build(parsed_crate)
+    package = RequestPackageBuilder.build(rocrate_dict)
     vre_handler = vre_factory(
         token=token,
         request_id=self.request.id,
