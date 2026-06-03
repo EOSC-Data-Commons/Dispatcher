@@ -36,7 +36,7 @@ class VREGalaxy(VRE):
 
     def _get_workflow_files(self):
         """Extract file references from the request package."""
-        return self.request_package.files
+        return self.request_package.input_files
 
     def _get_workflow_url(self):
         """Extract workflow URL from the request package."""
