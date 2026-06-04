@@ -85,6 +85,9 @@
             },
             "encodingFormat": {
                 "@id": "http://edamontology.org/format_2330"
+            },
+            "defaultValue": {
+                "@id": "https://example-files.online-convert.com/document/txt/example.txt"
             }
         },
         {
