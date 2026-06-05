@@ -59,7 +59,7 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         update_state=None,
         request_package=request_package,
     )
-    fdl = load_json("../oscar/cowsay.json")
+    fdl = load_json("../fixtures/cowsay.json")
     script_content = """#!/bin/sh
 if [ "$INPUT_TYPE" = "json" ]
 then
