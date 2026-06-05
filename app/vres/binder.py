@@ -16,21 +16,38 @@ class VREBinder(VRE):
         return BINDER_DEFAULT_SERVICE
 
     def post(self):
+        doi = self._get_zenodo_doi()
+        if doi:
+            return self._get_binder_zenodo_url(doi)
+        return self._get_binder_git_url()
+
+    def _get_zenodo_doi(self) -> str | None:
+        """Extract Zenodo DOI from the workflow descriptor, if present."""
+        if self.request_package is None:
+            return None
+        return self.request_package.workflow.zenodo_doi
+
+    def _get_binder_zenodo_url(self, doi: str) -> str:
+        """Construct BinderHub URL for a Zenodo DOI."""
+        url = self.svc_url.rstrip("/")
+        return f"{url}/v2/zenodo/{doi}/"
+
+    def _get_binder_git_url(self) -> str:
+        """Prepare a local git repo from source files and return the Binder git URL."""
         repo = self._generate_repository_name(self._request_id)
         self._create(repo)
         self._write_source_files(repo)
         self._initialize_temporary_git_repo(repo)
         self._write_example_file(repo)
-        return self._get_binder_url(self._request_id)
+        url = self.svc_url.rstrip("/")
+        local_git_url = (
+            f"https://{settings.host}{settings.git_url_prefix}/{self._request_id}"
+        )
+        logger.debug(local_git_url)
+        return f"{url}/git/{urllib.parse.quote_plus(local_git_url)}/HEAD"
 
     def _create(self, repo):
         os.mkdir(repo)
-
-    def _get_binder_url(self, request_id):
-        url = self.svc_url.rstrip("/")
-        local_git_url = f"https://{settings.host}{settings.git_url_prefix}/{request_id}"
-        logger.debug(local_git_url)
-        return f"{url}/git/{urllib.parse.quote_plus(local_git_url)}/HEAD"
 
     def _write_example_file(self, repo):
         with open(f"{repo}/.git/git-daemon-export-ok", "w") as f:
