@@ -124,9 +124,8 @@ def test_get_zenodo_doi_none_when_non_zenodo_identifier():
     from app.vres.binder import VREBinder
 
     workflow = WorkflowDescriptor(
-        id="notebook.ipynb",
+        id="https://doi.org/10.1234/figshare.5678",
         type="SoftwareSourceCode",
-        identifier="https://doi.org/10.1234/figshare.5678",
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
     package = RequestPackage(
@@ -165,9 +164,8 @@ def test_get_binder_zenodo_url_trailing_slash_handling():
     from app.vres.binder import VREBinder
 
     workflow = WorkflowDescriptor(
-        id="notebook.ipynb",
+        id="https://doi.org/10.5281/zenodo.99999",
         type="SoftwareSourceCode",
-        identifier="https://doi.org/10.5281/zenodo.99999",
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
     package = RequestPackage(
