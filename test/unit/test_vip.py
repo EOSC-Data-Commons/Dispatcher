@@ -60,7 +60,7 @@ def test_post_success(mock_post, vip_request_package):
     )
 
     result = vrevip.post()
-    assert result == f"{VIP_DEFAULT_SERVICE}/home"
+    assert result == f"{VIP_DEFAULT_SERVICE}/home.html"
 
     assert mock_post.call_count == 1
     call_args = mock_post.call_args_list[0]
