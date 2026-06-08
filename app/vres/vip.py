@@ -32,7 +32,7 @@ class VREVIP(VRE):
             raise exceptions.ExternalServiceError("VIP API call failed") from e
 
         # VIP API returns no response body on success
-        return f"{self.svc_url}/home"
+        return f"{self.svc_url}/home.html"
 
     def _build_payload(self) -> dict:
         name = self._get_execution_name()
