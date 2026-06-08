@@ -2,42 +2,6 @@
     "@context": "https://w3id.org/ro/crate/1.1/context",
     "@graph": [
         {
-            "@id": "./",
-            "@type": "Dataset",
-            "name": "ScienceMesh Research Data Package",
-            "description": "A research data package with Jupyter notebook and datasets for sharing through ScienceMesh federation",
-            "datePublished": "2025-05-06T14:35:47+00:00",
-            "creator": {
-                "@id": "#creator"
-            },
-            "mainEntity": {
-                "@id": "#workflow"
-            },
-            "runsOn": {
-                "@id": "#destination"
-            },
-            "hasPart": [
-                {
-                    "@id": "#workflow"
-                },
-                {
-                    "@id": "#dataset-csv"
-                },
-                {
-                    "@id": "#creator"
-                },
-                {
-                    "@id": "#destination"
-                },
-                {
-                    "@id": "#receiver"
-                },
-                {
-                    "@id": "#sender"
-                }
-            ]
-        },
-        {
             "@id": "ro-crate-metadata.json",
             "@type": "CreativeWork",
             "about": {
@@ -48,48 +12,74 @@
             }
         },
         {
-            "@id": "#workflow",
+            "@id": "./",
+            "@type": "Dataset",
+            "name": "ScienceMesh Research Data Package",
+            "description": "A research data package with Jupyter notebook and datasets for sharing through ScienceMesh federation",
+            "datePublished": "2025-05-06T14:35:47+00:00",
+            "license": {
+                "@id": "https://creativecommons.org/licenses/by/4.0/"
+            },
+            "creator": {
+                "@id": "#creator"
+            },
+            "mainEntity": {
+                "@id": "https://raw.githubusercontent.com/dpiparo/swanExamples/refs/heads/master/notebooks/CMSDimuon_py.ipynb"
+            },
+            "hasPart": [
+                {
+                    "@id": "https://raw.githubusercontent.com/dpiparo/swanExamples/refs/heads/master/notebooks/CMSDimuon_py.ipynb"
+                },
+                {
+                    "@id": "https://raw.githubusercontent.com/dpiparo/swanExamples/master/notebooks/MuRun2010B.csv"
+                }
+            ]
+        },
+        {
+            "@id": "https://raw.githubusercontent.com/dpiparo/swanExamples/refs/heads/master/notebooks/CMSDimuon_py.ipynb",
             "@type": [
                 "File",
                 "SoftwareSourceCode",
                 "ComputationalWorkflow"
             ],
+            "conformsTo": {
+                "@id": "https://bioschemas.org/profiles/ComputationalWorkflow/0.5-DRAFT-2020_07_21/"
+            },
             "name": "CMSDimuon_py.ipynb",
             "description": "Jupyter notebook for analyzing research data in ScienceMesh environment",
             "programmingLanguage": {
-                "@id": "#sciencemesh-jupyter"
+                "@id": "#sciencemesh-lang"
             },
-            "url": "https://raw.githubusercontent.com/dpiparo/swanExamples/refs/heads/master/notebooks/CMSDimuon_py.ipynb",
+            "creator": {
+                "@id": "#creator"
+            },
+            "dateCreated": "2025-05-06",
+            "license": {
+                "@id": "https://creativecommons.org/licenses/by/4.0/"
+            },
+            "sdPublisher": {
+                "@id": "#workflow-hub"
+            },
+            "version": "1.0.0",
+            "runtimePlatform": "https://qa.cernbox.cern.ch",
             "encodingFormat": "application/x-ipynb+json"
         },
         {
-            "@id": "#dataset-csv",
+            "@id": "https://raw.githubusercontent.com/dpiparo/swanExamples/master/notebooks/MuRun2010B.csv",
             "@type": "File",
             "name": "MuRun2010B.csv",
             "description": "Sample dataset of dimuon events from CMS Open Data, used in the Jupyter notebook for analysis exercise",
-            "url": "https://raw.githubusercontent.com/dpiparo/swanExamples/master/notebooks/MuRun2010B.csv",
             "encodingFormat": "text/csv",
             "license": {
                 "@id": "https://creativecommons.org/licenses/by/4.0/"
             }
         },
         {
-            "@id": "#sciencemesh-jupyter",
+            "@id": "#sciencemesh-lang",
             "@type": "ComputerLanguage",
-            "identifier": {
-                "@id": "https://qa.cernbox.cern.ch"
-            },
+            "identifier": "https://qa.cernbox.cern.ch",
             "name": "Jupyter Notebook",
-            "url": {
-                "@id": "https://jupyter.org/"
-            }
-        },
-        {
-            "@id": "#destination",
-            "@type": "Service",
-            "name": "ScienceMesh Service",
-            "url": "https://qa.cernbox.cern.ch",
-            "description": "ScienceMesh federated storage and collaboration platform"
+            "url": "https://jupyter.org/"
         },
         {
             "@id": "#creator",
@@ -112,6 +102,18 @@
             "@id": "#receiver",
             "@type": "Person",
             "userid": "rwelande@cernbox.cern.ch"
+        },
+        {
+            "@id": "#workflow-hub",
+            "@type": "Organization",
+            "name": "Example Workflow Hub",
+            "url": "http://example.com/workflows/"
+        },
+        {
+            "@id": "https://creativecommons.org/licenses/by/4.0/",
+            "@type": "CreativeWork",
+            "name": "Creative Commons Attribution 4.0 International",
+            "alternateName": "CC-BY-4.0"
         }
     ]
 }

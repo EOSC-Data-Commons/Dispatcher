@@ -1,12 +1,12 @@
 import sys
 from app.services.im import IM
+from vre_rocrate import RuntimePlatform
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
-from app.exceptions import VREError, VREConfigurationError
+from app.exceptions import VREConfigurationError
 import logging
-import app.constants as constants
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger()
 
 
 class ROCrateValidationError(Exception):
@@ -17,28 +17,25 @@ class ROCrateValidationError(Exception):
 class IMClientProtocol(Protocol):
     """Minimal contract of the external IM client used by VRE.setup_service."""
 
-    def run_service(self, dest: Mapping[str, Any]) -> Mapping[str, Any] | None: ...
+    def run_service(self, rp: RuntimePlatform) -> Mapping[str, Any] | None: ...
 
 
 class VRE(ABC):
     def __init__(
         self,
-        crate: Any,
         token: str,
         request_id: int,
         update_state: Callable,
-        body: Any | None = None,
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
+        request_package: Any | None = None,
         **kwargs,
     ) -> None:
-        self.crate = crate
-        self.body = body
+        self.request_package = request_package
         self.token = token
         self._update_state = update_state
         self._request_id = request_id
         self._im_factory = im_factory or self._default_im_factory
         self.svc_url = self.setup_service().rstrip("/")
-        # Store any additional kwargs for subclasses
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -46,44 +43,47 @@ class VRE(ABC):
     def get_default_service(self) -> str:
         pass
 
-    def setup_service(self):
-        dest = getattr(self.crate, "root_dataset", {}).get("runsOn")
-        return self._resolve_runs_on(dest)
+    def setup_service(self) -> str:
+        rp = self._get_runtime_platform()
+        return self._resolve_service_url(rp)
 
-    def _resolve_runs_on(self, dest: Mapping[str, Any] | None) -> str:
+    def _get_runtime_platform(self) -> str | RuntimePlatform | None:
+        """Read runtimePlatform from the request package workflow descriptor."""
+        if self.request_package is not None:
+            return self.request_package.workflow.runtime_platform
+        return None
+
+    def _resolve_service_url(self, dest: str | RuntimePlatform | None) -> str:
         if dest is None:
             return self.get_default_service()
 
-        # No explicit service type – the dict is expected to contain a direct URL.
-        if dest.get("serviceType") is None:
-            return dest.get("url", self.get_default_service())
+        # Plain string: direct URL (e.g. runtimePlatform: "https://usegalaxy.eu/")
+        if isinstance(dest, str):
+            return dest
 
-        # Infrastructure Manager case – delegate to the injected client.
-        if dest.get("serviceType") == "InfrastructureManager":
-            im_client = self._im_factory(self.token)  # type: ignore[arg-type]
+        # RuntimePlatform with installUrl – delegate to Infrastructure Manager.
+        if dest.install_url is not None:
+            logger.error(f"IM dest {dest}")
+            im_client = self._im_factory(self.token, self.update_task_status)  # type: ignore[arg-type]
             if not isinstance(im_client, IMClientProtocol):
                 raise TypeError(
                     "Injected IM factory must return an object implementing IMClientProtocol"
                 )
-            self.update_task_status(constants.IM_SEQUENCE_STARTED)
             outputs = im_client.run_service(dest)
-            self.update_task_status(constants.IM_SEQUENCE_FINISHED)
             if outputs is None:
                 raise VREConfigurationError("Failed to deploy service via IM")
-            self.update_task_status(constants.IM_SEQUENCE_SUCCESSFUL)
             return outputs.get("url", self.get_default_service())
 
-        # Anything else is an error.
-        raise VREConfigurationError(
-            f"Invalid service type in runsOn: {dest.get('serviceType')!r}"
-        )
+        raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
 
     def update_task_status(self, stage):
         self._update_state(state="PROGRESS", meta={"stage": stage})
 
     @staticmethod
-    def _default_im_factory(token: str | None) -> IMClientProtocol:
-        return IM(token)
+    def _default_im_factory(
+        token: str | None, update_task_status: Callable[[str], None]
+    ) -> IMClientProtocol:
+        return IM(token, update_task_status)
 
     @abstractmethod
     def post(self):
@@ -109,25 +109,24 @@ class VREFactory:
 
     def __call__(
         self,
-        crate: Any,
         token: str,
         request_id: int,
         update_state: Callable,
-        body: Any | None = None,
+        request_package: Any | None = None,
         **kwargs,
     ):
-        elang = crate.mainEntity.get("programmingLanguage").get("identifier")
+        if request_package is None:
+            raise ValueError("request_package is required")
+        elang = request_package.programming_language
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
-        logger.debug(f"crate {crate}")
         logger.debug(f"elang {elang}")
         logger.debug(self.table[elang])
         return self.table[elang](
-            crate=crate,
             token=token,
             request_id=request_id,
             update_state=update_state,
-            body=body,
+            request_package=request_package,
             **kwargs,
         )
 

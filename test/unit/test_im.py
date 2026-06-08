@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import requests
 import yaml
 from app.services.im import IM
+from vre_rocrate import IMInputFile, RuntimePlatform
 from app.exceptions import IMError
 
 
@@ -63,13 +64,16 @@ topology_template:
     disk_size:
       default: 10
 """
-    service = {
-        "memoryRequirements": "2GB",
-        "processorRequirements": ["2vCPU", "1GPU"],
-        "storageRequirements": "20GB",
-    }
+    rp = RuntimePlatform(
+        name="Test",
+        install_url="http://test.url",
+        memory="2GB",
+        num_cpus=2,
+        num_gpus=1,
+        storage="20GB",
+    )
 
-    result = IM._add_inputs_to_tosca_template(yaml.safe_load(test_tosca), service)
+    result = IM._add_inputs_to_tosca_template(yaml.safe_load(test_tosca), rp)
 
     assert result["topology_template"]["inputs"]["mem_size"]["default"] == "2GB"
     assert result["topology_template"]["inputs"]["num_cpus"]["default"] == 2
@@ -87,9 +91,9 @@ def test_deploy_service(mock_get_tosca, mock_add_inputs, mock_settings):
     im = IM("test_token")
     im.client = mock_im_client
 
-    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+    rp = RuntimePlatform(name="Test", install_url="http://test.url")
 
-    inf_id = im.deploy_service(service)
+    inf_id = im.deploy_service(rp)
 
     assert inf_id == "test_inf_id"
     mock_im_client.create.assert_called_once_with("new: template\n", desc_type="yaml")
@@ -107,10 +111,10 @@ def test_deploy_service_error_raises_imerror(
     im = IM("test_token")
     im.client = mock_im_client
 
-    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+    rp = RuntimePlatform(name="Test", install_url="http://test.url")
 
     with pytest.raises(IMError, match="Failed to deploy service: create error"):
-        im.deploy_service(service)
+        im.deploy_service(rp)
 
     mock_im_client.create.assert_called_once_with("new: template\n", desc_type="yaml")
 
@@ -243,7 +247,7 @@ def test_get_tosca_template(mock_get, mock_settings):
 )
 def test_run_service(mock_add_inputs, mock_get_tosca, mock_settings):
     im = IM("test_token")
-    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+    rp = RuntimePlatform(name="Test", install_url="http://test.url")
 
     mock_im_client = Mock()
     mock_im_client.create.return_value = (True, "test_inf_id")
@@ -252,7 +256,7 @@ def test_run_service(mock_add_inputs, mock_get_tosca, mock_settings):
         (True, {"outputs": {"url": "http://some.url"}}),
     ]
     im.client = mock_im_client
-    log = im.run_service(service)
+    log = im.run_service(rp)
     assert log == {"outputs": {"url": "http://some.url"}}
     mock_im_client.create.assert_called_once_with("new: template\n", desc_type="yaml")
 
@@ -269,7 +273,7 @@ def test_run_service_error_cleans_up_and_raises(
     mock_settings.im_sleep = 0
 
     im = IM("test_token")
-    service = {"hasPart": [{"encodingFormat": "text/yaml", "url": "http://test.url"}]}
+    rp = RuntimePlatform(name="Test", install_url="http://test.url")
 
     mock_im_client = Mock()
     mock_im_client.create.return_value = (True, "test_inf_id")
@@ -281,7 +285,7 @@ def test_run_service_error_cleans_up_and_raises(
     im.client = mock_im_client
 
     with pytest.raises(IMError, match="Current state: failed"):
-        im.run_service(service)
+        im.run_service(rp)
 
     mock_im_client.get_infra_property.assert_any_call("test_inf_id", "contmsg")
     mock_im_client.destroy.assert_called_once_with("test_inf_id")
@@ -295,23 +299,25 @@ def test_add_input_files_to_tosca_template(mock_settings):
         }
     }
 
-    service = {
-        "input": [
-            {
-                "@type": "File",
-                "url": "http://example.com/data1.txt",
-                "contentLocation": "compute1:/data",
-            },
-            {
-                "@type": "File",
-                "url": "http://example.com/data2.txt",
-                "contentLocation": "/data",
-            },
-        ]
-    }
+    rp = RuntimePlatform(
+        name="Test",
+        install_url="http://test.url",
+        input_files=[
+            IMInputFile(
+                url="http://example.com/data1.txt",
+                destination="/data",
+                compute_node="compute1",
+            ),
+            IMInputFile(
+                url="http://example.com/data2.txt",
+                destination="/data",
+                compute_node=None,
+            ),
+        ],
+    )
 
     im = IM("test_token")
-    updated_tosca = im._add_files_to_tosca_template(test_tosca, service)
+    updated_tosca = im._add_files_to_tosca_template(test_tosca, rp)
     node_templates = updated_tosca["topology_template"]["node_templates"]
     assert len(node_templates) == 3
     assert "get_data_0" in node_templates

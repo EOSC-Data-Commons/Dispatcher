@@ -8,14 +8,15 @@ from app.exceptions import (
     ExternalServiceError,
     ExternalDataSourceError,
 )
-from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_PROGRAMMING_LANGUAGE
+from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
+from app.constants import OSCAR_DEFAULT_SERVICE
 
 logging.basicConfig(level=logging.INFO)
 
 
 class VREOSCAR(VRE):
-    def __init__(self, crate=None, body=None, token=None, **kwargs):
-        super().__init__(crate, body=body, token=token, **kwargs)
+    def __init__(self, token=None, **kwargs):
+        super().__init__(token=token, **kwargs)
         self.fld_json = None
 
     def get_default_service(self):
@@ -25,36 +26,17 @@ class VREOSCAR(VRE):
         if self.fld_json:
             return self.fld_json
 
-        workflow_parts = self.crate.mainEntity.get("hasPart", [])
-        if not workflow_parts:
-            raise VREConfigurationError("Missing hasPart in workflow entity")
+        fdl_url = self.request_package.workflow_url
+        if not fdl_url:
+            raise VREConfigurationError("Missing FDL URL in workflow entity")
+        fdl_json = self._fetch_file(fdl_url, True)
 
-        fdl_json = None
         script = None
-
-        for elem in workflow_parts:
-            if not elem.get("@type") == "File":
-                raise VREConfigurationError("Invalid hasPart type in workflow entity")
-
-            ref_elem = self.crate.dereference(elem.get("@id"))
-            if not ref_elem:
-                logging.error("Could not dereference entity %s", elem.get("@id"))
-                continue
-
-            file_url = ref_elem.get("url")
-            if not file_url:
-                logging.error("File entity %s has no URL", elem.get("@id"))
-                continue
-
-            encoding = elem.get("encodingFormat")
-
-            if encoding == "application/json":
-                fdl_json = self._fetch_file(file_url, True)
-            elif encoding == "text/x-shellscript":
+        for sf in self.request_package.script_files:
+            file_url = sf.url or sf.id
+            if file_url:
                 script = self._fetch_file(file_url)
-
-        if not fdl_json:
-            raise VREConfigurationError("Missing FDL in workflow entity")
+                break
 
         if script:
             fdl_json["script"] = script
@@ -97,34 +79,24 @@ class VREOSCAR(VRE):
         return service_url
 
     def _get_input_files(self):
-        # Get all files except the workflow and destination
-        non_input_files = []
-        non_input_files.append(self.crate.root_dataset.get("runsOn").get("@id"))
-        non_input_files.append(self.crate.mainEntity.get("@id"))
-        for elem in self.crate.mainEntity.get("hasPart", []):
-            if elem.get("@type") == "File":
-                non_input_files.append(elem.get("@id"))
-        return [
-            e
-            for e in self.crate.get_entities()
-            if e.type == "File" and e.get("@id") not in non_input_files
-        ]
+        return self.request_package.oscar_input_files
 
     def _invoke_service(self, oscar_url, service_name, files):
         headers = {"Authorization": f"Bearer {self.token}"}
         url = f"{oscar_url}/job/{service_name}"
         for f in files:
+            file_url = f.url or f.id
             try:
                 logging.info(
                     "Creating invocation for service %s and file %s",
                     service_name,
-                    f.get("url"),
+                    file_url,
                 )
-                response = requests.get(f.get("url"), timeout=60)
+                response = requests.get(file_url, timeout=60)
                 response.raise_for_status()
                 file_content = response.text
             except Exception as e:
-                logging.error("Error fetching file %s: %s", f.get("url"), e)
+                logging.error("Error fetching file %s: %s", file_url, e)
                 continue
             response = requests.post(
                 url,
@@ -135,7 +107,7 @@ class VREOSCAR(VRE):
             if response.status_code != 201:
                 logging.error(
                     "Error invoking OSCAR service for file %s: %s",
-                    f.get("url"),
+                    file_url,
                     response.text,
                 )
 

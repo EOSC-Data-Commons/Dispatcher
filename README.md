@@ -78,7 +78,7 @@ Then it lands back to https://DISPATCHER_HOSTNAME/docs, where API calls are avai
 Going to https://usegalaxy.eu/,
 Dispatcher creates a landing page with simple workflow, that accepts a `txt` file and creates its reversed copy.
 
-1. `POST /requests/metadata_rocrate`. Use [test/galaxy/ro-crate-metadata.json](test/galaxy/ro-crate-metadata.json) as payload.
+1. `POST /requests/metadata_rocrate`. Use the Galaxy fixture from [vre-rocrate](https://github.com/EGI-Federation/vre-rocrate) (`tests/fixtures/galaxy/ro-crate-metadata.json`) as payload.
 2. `GET /requests/REQUEST-UUID` to retrieve the target URL to execute the workflow. The UUID is returned by the POST request above
 
 ### Galaxy TOSCA
@@ -95,13 +95,13 @@ Trivial Jupyter notebook (print the Pi value).
 The test talks to [EGI Notebooks](https://replay.notebooks.egi.eu/) by default.
 Change `#destination` in `ro-crate-metadata.json` eventually.
 
-Zip the content of [test/simple-binder](test/simple-binder) and post the file to `/requests/zip_rocrate/`
+Zip the content of the simple-binder fixture from [vre-rocrate](https://github.com/EGI-Federation/vre-rocrate) (`tests/fixtures/simple-binder/`) and post the file to `/requests/zip_rocrate/`
 
 ### More realistict Binder
 
 Testing notebook stolen from our other project, which takls to our service to find similar AlphaFold protein structures and displays their alignment.
 
-Again, zip [test/alphafind-notebook](test/alphafind-notebook) and post the file to `/requests/zip_rocrate/`
+Again, zip the alphafind-notebook fixture from [vre-rocrate](https://github.com/EGI-Federation/vre-rocrate) (`tests/fixtures/alphafind-notebook/`) and post the file to `/requests/zip_rocrate/`
 
 ### ScienceMesh
 Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.

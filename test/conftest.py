@@ -1,5 +1,4 @@
 # test/conftest.py
-import os
 from pathlib import Path
 import pytest
 from unittest.mock import Mock, patch
@@ -14,19 +13,53 @@ from fixtures.dummy_crate import (
 from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
 from app.vres.sciencemesh import VREScienceMesh
-import io
-import zipfile as zf
 from app.config import settings
-from rocrate.rocrate import ROCrate
-from app.constants import (
+from vre_rocrate import (
     BINDER_PROGRAMMING_LANGUAGE,
     SCIENCEMESH_PROGRAMMING_LANGUAGE,
     GALAXY_PROGRAMMING_LANGUAGE,
     OSCAR_PROGRAMMING_LANGUAGE,
+    RequestPackage,
+    WorkflowDescriptor,
+    FileReference,
 )
 from app.services.im import IM
 
 pytest_plugins = ["pytest_asyncio"]
+
+
+def _build_request_package(crate: DummyCrate, lang_id: str) -> RequestPackage:
+    """Build a RequestPackage from a DummyCrate for tests."""
+    main = crate.main_entity
+    workflow = WorkflowDescriptor(
+        id=main.id,
+        type=main.type,
+        url=main.get("url"),
+        programming_language_id=lang_id,
+        runtime_platform=main.get("runtimePlatform"),
+        properties=main.properties,
+    )
+    files = []
+    for e in crate.get_entities():
+        if e.type == "File":
+            files.append(
+                FileReference(
+                    id=e.id,
+                    name=e.get("name", e.id),
+                    encoding_format=e.get("encodingFormat"),
+                    url=e.get("url") or e.id,
+                    onedata_domain=e.get("onedata:onezoneDomain"),
+                    onedata_file_id=e.get("onedata:fileId"),
+                    properties=e.properties,
+                )
+            )
+    return RequestPackage(
+        vre_type=lang_id,
+        programming_language=lang_id,
+        workflow=workflow,
+        files=files,
+        raw_crate={},
+    )
 
 
 @pytest.fixture
@@ -69,7 +102,19 @@ def dummy_binder_crate():
             "identifier": BINDER_PROGRAMMING_LANGUAGE,
         },
     )
-    return DummyCrate(main_entity=main)
+    readme = DummyEntity(
+        _type="File",
+        **{"@id": "README.md", "name": "README.md", "content": b"# Test"},
+    )
+    input_file = DummyEntity(
+        _type="File",
+        **{"@id": "input.txt", "name": "input.txt", "content": b"test data"},
+    )
+    script = DummyEntity(
+        _type="File",
+        **{"@id": "script.py", "name": "script.py", "content": b"print('hello')"},
+    )
+    return DummyCrate(main_entity=main, other_entities=[readme, input_file, script])
 
 
 @pytest.fixture
@@ -111,10 +156,12 @@ def dummy_sciencemesh_crate():
 @pytest.fixture
 def galaxy_vre(dummy_galaxy_crate):
     vre = VREGalaxy(
-        crate=dummy_galaxy_crate,
         token="test-token",
         request_id=0,
         update_state=None,
+        request_package=_build_request_package(
+            dummy_galaxy_crate, GALAXY_PROGRAMMING_LANGUAGE
+        ),
     )
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
@@ -123,10 +170,12 @@ def galaxy_vre(dummy_galaxy_crate):
 @pytest.fixture
 def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
     vre = VREGalaxy(
-        crate=dummy_galaxy_crate_onedata,
         token="test-token",
         request_id=0,
         update_state=None,
+        request_package=_build_request_package(
+            dummy_galaxy_crate_onedata, GALAXY_PROGRAMMING_LANGUAGE
+        ),
     )
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
@@ -140,45 +189,71 @@ def tmp_dir_setup(tmpdir):
     yield
 
 
-def create_test_zip_body():
-    # Create a ZIP file in memory with test content
-    zip_buffer = io.BytesIO()
-    with zf.ZipFile(zip_buffer, "w") as zip_file:
-        zip_file.writestr("ro-crate-metadata.json", '{"@context": "..."}')
-        zip_file.writestr("README.md", "# Test")
-        zip_file.writestr("input.txt", "test data")
-        zip_file.writestr("script.py", "print('hello')")
-
-    return zip_buffer.getvalue()
-
-
 @pytest.fixture
 def binder_vre(dummy_binder_crate):
     vre = VREBinder(
-        crate=dummy_binder_crate,
         token="test-token",
         request_id=0,
         update_state=None,
-        body=create_test_zip_body(),
+        request_package=_build_request_package(
+            dummy_binder_crate, BINDER_PROGRAMMING_LANGUAGE
+        ),
     )
     vre.svc_url = "https://mybinder.org"
     return vre
 
 
 @pytest.fixture
-def sciencemesh_rocrate():
-    test_dir = Path(os.path.abspath(__file__))
-    metadata_path = test_dir.parent.joinpath("sciencemesh", "ro-crate-metadata.json")
-    return ROCrate(os.path.dirname(metadata_path))
-
-
-@pytest.fixture
-def sciencemesh_vre(sciencemesh_rocrate):
-    vre = VREScienceMesh(
-        crate=sciencemesh_rocrate,
+def binder_vre_with_doi():
+    """Binder VRE with a Zenodo DOI as the workflow @id."""
+    workflow = WorkflowDescriptor(
+        id="https://doi.org/10.5281/zenodo.12345678",
+        type="SoftwareSourceCode",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        raw_crate={},
+    )
+    vre = VREBinder(
         token="test-token",
         request_id=0,
         update_state=None,
+        request_package=package,
+    )
+    vre.svc_url = "https://mybinder.org"
+    return vre
+
+
+@pytest.fixture
+def sciencemesh_vre():
+    from vre_rocrate import OCMData
+
+    package = RequestPackage(
+        vre_type="https://qa.cernbox.cern.ch",
+        programming_language="https://qa.cernbox.cern.ch",
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="ComputationalWorkflow",
+            programming_language_id="https://qa.cernbox.cern.ch",
+        ),
+        ocm_data=OCMData(
+            receiver_userid="rwelande@cernbox.cern.ch",
+            owner_userid="rasmus.oscar.welander@egi.eu",
+            sender_userid="rasmus.oscar.welander@egi.eu",
+            sender_name="Rasmus Oscar Welander",
+            root_name="ScienceMesh Research Data Package",
+            root_description="A research data package for sharing through ScienceMesh",
+        ),
+        raw_crate={"@graph": []},
+    )
+    vre = VREScienceMesh(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
     )
     vre.svc_url = "https://sciencemesh.example.org"
     return vre
@@ -186,22 +261,23 @@ def sciencemesh_vre(sciencemesh_rocrate):
 
 @pytest.fixture
 def ocm_share_request(sciencemesh_vre):
-    receiver = sciencemesh_vre.crate.get("#receiver")
-    owner = sciencemesh_vre.crate.get("#owner")
-    sender = sciencemesh_vre.crate.get("#sender")
+    pkg = sciencemesh_vre.request_package
+    ocm = pkg.ocm_data
 
     ocm_share_request = {
-        "shareWith": receiver.get("userid"),
-        "name": sciencemesh_vre.crate.name,
-        "description": sciencemesh_vre.crate.description,
-        "owner": owner.get("userid"),
-        "senderDisplayName": sender.get("name"),
-        "sender": sciencemesh_vre.generate_ocm_address(sender),
+        "shareWith": ocm.receiver_userid,
+        "name": ocm.root_name or "",
+        "description": ocm.root_description or "",
+        "providerId": "n/a",
+        "resourceId": "n/a",
+        "owner": ocm.owner_userid,
+        "senderDisplayName": ocm.sender_name,
+        "sender": sciencemesh_vre._generate_ocm_address(ocm.sender_userid),
         "resourceType": "embedded",
         "shareType": "user",
         "protocol": {
             "name": "multi",
-            "embedded": {"payload": sciencemesh_vre.crate.metadata.generate()},
+            "embedded": {"payload": pkg.raw_crate},
         },
     }
     return ocm_share_request

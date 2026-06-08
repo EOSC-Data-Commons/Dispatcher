@@ -1,7 +1,6 @@
 from .worker import celery
 from app.vres.base_vre import vre_factory
-from rocrate.rocrate import ROCrate
-from fastapi import UploadFile
+from vre_rocrate import RequestPackageBuilder
 from app.exceptions import GalaxyAPIError
 from typing import Dict
 import copy
@@ -11,15 +10,15 @@ import copy
     name="vre_from_zipfile",
     bind=True,
 )
-def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
-    crate = ROCrate(source=copy.deepcopy(parsed_zipfile[0]))
-    zip_file = parsed_zipfile[1]
+def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, dict[str, bytes]], token):
+    rocrate_dict = copy.deepcopy(parsed_zipfile[0])
+    file_bytes_map = parsed_zipfile[1]
+    package = RequestPackageBuilder.build(rocrate_dict, file_bytes_map)
     vre_handler = vre_factory(
-        crate=crate,
         token=token,
         request_id=self.request.id,
         update_state=self.update_state,
-        body=zip_file,
+        request_package=package,
     )
     return {"url": vre_handler.post()}
 
@@ -32,11 +31,12 @@ def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, bytes], token):
     bind=True,
 )
 def vre_from_rocrate(self, data: Dict, token):
-    crate = ROCrate(source=copy.deepcopy(data))
+    rocrate_dict = copy.deepcopy(data)
+    package = RequestPackageBuilder.build(rocrate_dict)
     vre_handler = vre_factory(
-        crate=crate,
         token=token,
         request_id=self.request.id,
         update_state=self.update_state,
+        request_package=package,
     )
     return {"url": vre_handler.post()}

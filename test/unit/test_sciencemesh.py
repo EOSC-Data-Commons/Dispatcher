@@ -1,33 +1,31 @@
 import uuid
 import pytest
-from rocrate.rocrate import ROCrate
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 
 
 def test_post_errors_with_empty_rocrate(sciencemesh_vre):
-    """"""
-    sciencemesh_vre.crate = ROCrate()
+    sciencemesh_vre.request_package.ocm_data = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_receiver_entity(sciencemesh_vre):
-    sciencemesh_vre.crate.delete("#receiver")
+    sciencemesh_vre.request_package.ocm_data.receiver_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_owner_entity(sciencemesh_vre):
-    sciencemesh_vre.crate.delete("#owner")
+    sciencemesh_vre.request_package.ocm_data.owner_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_sender_entity(sciencemesh_vre):
-    sciencemesh_vre.crate.delete("#sender")
+    sciencemesh_vre.request_package.ocm_data.sender_userid = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
@@ -59,7 +57,6 @@ def test_post_returns_json(sciencemesh_vre, requests_mock):
 
 def test_post_succeeds_without_destination_entity(sciencemesh_vre, requests_mock):
     json = {"data": "value"}
-    sciencemesh_vre.crate.delete("#destination")
 
     requests_mock.post(
         f"{sciencemesh_vre.svc_url}/ocm/shares",

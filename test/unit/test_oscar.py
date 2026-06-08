@@ -5,10 +5,15 @@ import json
 import os
 import pytest
 from unittest.mock import MagicMock, patch
-from rocrate.rocrate import ROCrate
+from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
 from app.constants import OSCAR_DEFAULT_SERVICE
 from app.vres.oscar import VREOSCAR
 from app.exceptions import VREConfigurationError, ExternalServiceError
+from vre_rocrate import (
+    RequestPackage,
+    WorkflowDescriptor,
+    FileReference,
+)
 
 
 def load_json(file_name):
@@ -23,11 +28,38 @@ def load_json(file_name):
 @patch("app.vres.oscar.requests.delete")
 def test_lifecycle(mock_delete, mock_post, mock_get):
     """Test OSCAR VRE post function"""
-    crate = ROCrate(source=load_json("../oscar/ro-crate-metadata.json"))
-    vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
+    request_package = RequestPackage(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="SoftwareSourceCode",
+            url="https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
+            runtime_platform="https://oscar.vre.eosc-data-commons.eu",
+        ),
+        files=[
+            FileReference(
+                id="https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
+                name="script.sh",
+                encoding_format="text/x-shellscript",
+                url="https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
+            ),
+            FileReference(
+                id="https://example-files.online-convert.com/document/txt/example.txt",
+                name="simpletext_input",
+                encoding_format="text/txt",
+                url="https://example-files.online-convert.com/document/txt/example.txt",
+            ),
+        ],
+        raw_crate={},
     )
-    fdl = load_json("../oscar/cowsay.json")
+    vreoscar = VREOSCAR(
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
+    )
+    fdl = load_json("../fixtures/cowsay.json")
     script_content = """#!/bin/sh
 if [ "$INPUT_TYPE" = "json" ]
 then
@@ -36,7 +68,6 @@ else
     cat "$INPUT_FILE_PATH" | /usr/games/cowsay
 fi"""
 
-    # Mock requests.get for FDL and script
     def get_side_effect(url, **kwargs):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -52,8 +83,6 @@ fi"""
         return mock_resp
 
     mock_get.side_effect = get_side_effect
-
-    # Mock requests.post for service creation and invocation
     mock_post.return_value.status_code = 201
 
     result = vreoscar.post()
@@ -87,49 +116,24 @@ fi"""
     )
 
 
-def test_no_hasparts():
-    """Test Missing hasPart in OSCAR VRE"""
-    crate = MagicMock()
-    crate.mainEntity = {"hasPart": []}
-    crate.root_dataset = {}
+def test_fdl_in_rocrate():
+    """Test Missing url of FDL file in OSCAR VRE"""
+    request_package = RequestPackage(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
+        raw_crate={},
+    )
     vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
     )
 
     with pytest.raises(VREConfigurationError) as exc:
         vreoscar._get_fdl_from_crate()
-    assert "Missing hasPart in workflow entity" == str(exc.value)
-
-
-def test_invalid_entity_type():
-    """Test Invalid hasPart type in OSCAR VRE"""
-    crate = MagicMock()
-    crate.mainEntity = {"hasPart": [{"@type": "NotAFile"}]}
-    crate.root_dataset = {}
-    vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
-    )
-
-    with pytest.raises(VREConfigurationError) as exc:
-        vreoscar._get_fdl_from_crate()
-    assert "Invalid hasPart type in workflow entity" == str(exc.value)
-
-
-def test_fdl_missing():
-    """Test Missing FDL in OSCAR VRE"""
-    crate = MagicMock()
-    crate.mainEntity = {
-        "hasPart": [{"@type": "File", "@id": "fdl", "encodingFormat": "text/plain"}]
-    }
-    crate.root_dataset = {}
-    crate.dereference.return_value = {"url": "http://some-url"}
-    vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
-    )
-
-    with pytest.raises(VREConfigurationError) as exc:
-        vreoscar._get_fdl_from_crate()
-    assert "Missing FDL in workflow entity" == str(exc.value)
+    assert "Missing FDL URL in workflow entity" == str(exc.value)
 
 
 @patch("app.vres.oscar.requests.get")
@@ -140,16 +144,19 @@ def test_oscar_creation_error(mock_post, mock_get):
     mock_post.return_value.status_code = 400
     mock_post.return_value.text = "Bad Request"
 
-    crate = MagicMock()
-    crate.mainEntity = {
-        "hasPart": [
-            {"@type": "File", "@id": "fdl", "encodingFormat": "application/json"}
-        ]
-    }
-    crate.root_dataset = {}
-    crate.dereference.return_value = {"url": "http://some-url"}
+    request_package = RequestPackage(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow", type="SoftwareSourceCode", url="http://some-url"
+        ),
+        raw_crate={},
+    )
     vreoscar = VREOSCAR(
-        crate=crate, token="dummy_token", request_id=0, update_state=None
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
     )
 
     with pytest.raises(ExternalServiceError) as exc:
