@@ -19,9 +19,9 @@ def vip_request_package():
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
-            id="#workflow",
+            id="https://vip.creatis.insa-lyon.fr/rest/pipelines/CQUEST/0.6",
+            url="https://vip.creatis.insa-lyon.fr/rest/pipelines/CQUEST/0.6",
             type="SoftwareSourceCode",
-            url="CQUEST/0.6",
         ),
         files=[
             FileReference(

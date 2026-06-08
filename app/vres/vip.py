@@ -55,7 +55,26 @@ class VREVIP(VRE):
             raise exceptions.VREConfigurationError(
                 "Missing pipelineIdentifier (workflow URL) in VIP request"
             )
-        return pipeline
+        return self._parse_pipeline_identifier(pipeline)
+
+    @staticmethod
+    def _parse_pipeline_identifier(url: str) -> str:
+        """Extract pipeline name/version from a VIP pipeline URL.
+
+        Example:
+            'https://vip.creatis.insa-lyon.fr/rest/pipelines/CQUEST/0.6'
+            -> 'CQUEST/0.6'
+        """
+        from urllib.parse import urlparse
+
+        path = urlparse(url).path.strip("/")
+        parts = path.split("/")
+        # The pipeline identifier is the last two path segments
+        if len(parts) >= 2:
+            return f"{parts[-2]}/{parts[-1]}"
+        raise exceptions.VREConfigurationError(
+            f"Cannot parse pipeline identifier from URL: {url}"
+        )
 
     def _map_input_values(self) -> dict:
         result = {}
