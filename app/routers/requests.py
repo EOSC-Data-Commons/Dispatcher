@@ -1,19 +1,15 @@
-"""
-Request router for authenticated VRE requests.
-"""
-
+import logging
 from typing import Dict
 
-from fastapi import APIRouter, Depends, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import JSONResponse
-from rocrate.rocrate import ROCrate
 
-import logging
+from .utils import parse_zipfile, oauth2_scheme
+from celery.result import AsyncResult
+from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 from celery.result import AsyncResult
-
-from .utils import oauth2_scheme, parse_zipfile, parse_rocrate
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +37,7 @@ def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
 @router.post("/zip_rocrate/")
 def zip_rocrate(
     token: str = Depends(oauth2_scheme),
-    parsed_zipfile: (Dict, bytes) = Depends(parse_zipfile),
+    parsed_zipfile: tuple[Dict, dict[str, bytes]] = Depends(parse_zipfile),
     request: Request = None,
 ):
     task = vre_from_zipfile.apply_async(
@@ -54,7 +50,7 @@ def zip_rocrate(
 @router.post("/metadata_rocrate/")
 def metadata_rocrate(
     token: str = Depends(oauth2_scheme),
-    data: Dict = Depends(parse_rocrate),
+    data: Dict = Body(...),
     request: Request = None,
 ):
     task = vre_from_rocrate.apply_async(args=[data, request.auth.provider.access_token])

@@ -1,16 +1,10 @@
-"""
-Galaxy VRE implementation for workflow-based environments.
-"""
-
-import requests
-
-from app import exceptions
-import logging
-
 from .base_vre import VRE, vre_factory
+import requests
+import logging
+from app import exceptions
+from vre_rocrate import GALAXY_PROGRAMMING_LANGUAGE
 from app.constants import (
     GALAXY_DEFAULT_SERVICE,
-    GALAXY_PROGRAMMING_LANGUAGE,
     GALAXY_PUBLIC_DEFAULT,
     GALAXY_WORKFLOW_TARGET_TYPE,
 )
@@ -41,12 +35,12 @@ class VREGalaxy(VRE):
         }
 
     def _get_workflow_files(self):
-        """Extract file entities from the crate."""
-        return [e for e in self.crate.get_entities() if e.type == "File"]
+        """Extract file references from the request package."""
+        return self.request_package.input_files
 
     def _get_workflow_url(self):
-        """Extract workflow URL from the crate."""
-        workflow_url = self.crate.mainEntity.get("url")
+        """Extract workflow URL from the request package."""
+        workflow_url = self.request_package.workflow_url
         if workflow_url is None:
             # checked here, as some other vres might be actual files
             logger.error(f"{self.__class__.__name__}: Missing url in workflow entity")
@@ -54,26 +48,24 @@ class VREGalaxy(VRE):
         return workflow_url
 
     def _modify_for_api_data_input(self, files):
-        """Convert file entities to API-compatible format."""
+        """Convert file references to API-compatible format."""
         result = {}
         for f in files:
-            properties = f.properties()
-
             file_meta = {
                 "class": "File",
-                "filetype": properties["encodingFormat"].split("/")[-1],
+                "filetype": (
+                    f.encoding_format.split("/")[-1] if f.encoding_format else "unknown"
+                ),
             }
 
-            if "onedata:fileId" in properties:
-                oz_domain = properties["onedata:onezoneDomain"]
-                file_id = properties["onedata:fileId"]
+            if f.onedata_file_id:
                 file_meta["location"] = (
-                    f"https://{oz_domain}/api/v3/onezone/shares/data/{file_id}/content"
+                    f"https://{f.onedata_domain}/api/v3/onezone/shares/data/{f.onedata_file_id}/content"
                 )
             else:
-                file_meta["location"] = f["url"]
+                file_meta["location"] = f.url or f.id
 
-            result[properties["name"]] = file_meta
+            result[f.name] = file_meta
 
         return result
 

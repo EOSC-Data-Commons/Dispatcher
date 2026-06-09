@@ -6,9 +6,10 @@ dispatcher:
 git:
   # macos
   # backend: /Library/Developer/CommandLineTools/usr/libexec/git-core/git-http-backend
-  # linux 
+  # linux
   backend: /usr/libexec/git-core/git-http-backend
   repos: /tmp/git/repos
+  url_prefix: /git
 
 nginx:
   prefix: nginx

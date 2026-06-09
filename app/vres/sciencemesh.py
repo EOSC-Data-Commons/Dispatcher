@@ -1,15 +1,11 @@
-"""
-ScienceMesh VRE implementation for file sharing environments.
-"""
-
-import requests
-
-from app.config import settings
-from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCIENCEMESH_PROGRAMMING_LANGUAGE
-from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
-import logging
-
 from .base_vre import VRE, vre_factory
+import requests
+import logging
+import uuid
+from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
+from app.constants import SCIENCEMESH_DEFAULT_SERVICE
+from app.config import settings
+from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -37,46 +33,56 @@ class VREScienceMesh(VRE):
         return response.json()
 
     def create_ocm_share_request(self):
-        receiver = self.crate.get("#receiver")
-        owner = self.crate.get("#owner")
-        sender = self.crate.get("#sender")
-        destination = self.crate.get("#destination")
-        if destination is None:
-            destination = {"url": self.svc_url}
-
-        if not receiver or not owner or not sender or not destination:
+        pkg = self.request_package
+        ocm = pkg.ocm_data
+        if ocm is None:
             raise MissingOCMParameters(
-                "Missing required entities (receiver, owner, sender, destination) for OCM share request"
+                "Missing OCM data (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
             )
+        receiver = ocm.receiver_userid
+        owner = ocm.owner_userid
+        sender_userid = ocm.sender_userid
+        sender_name = ocm.sender_name
+        if not receiver or not owner or not sender_userid:
+            raise MissingOCMParameters(
+                "Missing required parameters (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
+            )
+        resid = ocm.resource_id
+        if resid is None:
+            # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
+            resid = str(uuid.uuid4())
 
-        sender_userid = self._generate_userid(sender)
-
-        # Create OCM share request JSON structure
         ocm_share_request = {
-            "shareWith": receiver.get("userid"),
-            "name": self.crate.name,
-            "description": self.crate.description,
-            "providerId": "n/a",
-            "resourceId": "n/a",
-            "owner": owner.get("userid"),
-            "senderDisplayName": sender.get("name"),
-            "sender": sender_userid,
+            "shareWith": receiver,
+            "name": ocm.root_name or "",
+            "description": ocm.root_description or "",
+            "providerId": str(uuid.uuid4()),  # must be unique for each share
+            "resourceId": resid,
+            "owner": owner,
+            "senderDisplayName": sender_name,
+            "sender": self._generate_ocm_address(sender_userid),
             "resourceType": "embedded",
             "shareType": "user",
             "protocol": {
                 "name": "multi",
-                "embedded": {"payload": self.crate.metadata.generate()},
+                "embedded": {"payload": pkg.raw_crate},
             },
         }
         return ocm_share_request
 
-    def _generate_userid(self, sender):
-        # The sender user ID needs to be altered to match the dispatcher's public FQDN
-        # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@<dispatcher public FQDN>
-        sender_userid = sender.get("userid")
-        if sender_userid and "@" in sender_userid:
-            sender_userid = sender_userid.split("@")[0] + "@" + settings.host
-        return sender_userid
+    def _generate_ocm_address(self, sender_userid: str | None):
+        # Generate an OCM address out of the sender user ID, that is ensure the host matches the dispatcher's public FQDN
+        # e.g. rasmus.oscar.welander@egi.eu becomes rasmus.oscar.welander@egi.eu@<dispatcher's public FQDN>
+        if not sender_userid:
+            sender_userid = "eosc-dc-user"
+        ocm_sending_server = settings.host
+        if ocm_sending_server is None or ocm_sending_server == "":
+            # this is only valid for unit testing
+            logging.warning(
+                "No host configured for OCM sending server, using 'localhost' for testing purposes"
+            )
+            ocm_sending_server = "localhost"
+        return sender_userid + "@" + ocm_sending_server
 
 
 vre_factory.register(SCIENCEMESH_PROGRAMMING_LANGUAGE, VREScienceMesh)

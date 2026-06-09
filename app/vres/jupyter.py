@@ -1,23 +1,12 @@
-"""
-Jupyter VRE implementation for notebook-based environments.
-"""
-
-import io
 import json
-import time
-import zipfile as zf
 from typing import Any, Dict, Optional
-
-import requests
-
-from app import exceptions
-from app.constants import (
-    JUPYTER_DEFAULT_SERVICE,
-    JUPYTER_PROGRAMMING_LANGUAGE,
-)
-import logging
-
 from .base_vre import VRE, vre_factory
+import requests
+import logging
+from app import exceptions
+from vre_rocrate import JUPYTER_PROGRAMMING_LANGUAGE
+from app.constants import JUPYTER_DEFAULT_SERVICE
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +26,7 @@ class VREJupyter(VRE):
         self._start_jupyter_server(user_name)
         self.update_task_status("Jupyter server starting")
         api_token = self._create_api_token(user_name)
-        notebook_name, notebook_content = self._get_notebook_from_zipfile()
+        notebook_name, notebook_content = self._get_notebook_from_crate()
         self._wait_for_server_creation()
         self.upload_notebook(notebook_content, notebook_name, user_name, api_token)
         return f"{self.get_default_service()}/user/{user_name}"
@@ -83,16 +72,15 @@ class VREJupyter(VRE):
             logger.error(f"Failed to create API token: {e}")
             raise exceptions.ExternalServiceError(f"Token creation failed: {e}")
 
-    def _get_notebook_from_zipfile(self):
-        copied_file_name = ""
-        with io.BytesIO(self.body) as bytes_io:
-            with zf.ZipFile(bytes_io) as zfile:
-                for filename in zfile.namelist():
-                    if filename.endswith(".ipynb"):
-                        copied_file_name = filename
-                        with zfile.open(filename) as f:
-                            notebook_content = json.load(f)
-        return copied_file_name, notebook_content
+    def _get_notebook_from_crate(self):
+        for fref in self.request_package.files:
+            if fref.id.endswith(".ipynb"):
+                content = fref.properties.get("content")
+                if content is not None:
+                    if isinstance(content, bytes):
+                        content = json.loads(content.decode())
+                    return fref.id, content
+        raise exceptions.VREConfigurationError("No .ipynb notebook found in crate")
 
     def _wait_for_server_creation(self):
         info = self._get_userinfo()

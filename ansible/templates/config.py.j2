@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     private_key_file: str = "{{ nginx.cert }}/privkey.pem"
     host: str = "{{ inventory_hostname }}"
     git_repos: str = "{{ git.repos }}"
-
+    git_url_prefix: str = "{{ git.url_prefix }}"
     im_endpoint: str = "{{ im.endpoint }}"
     im_cloud_provider: dict = {{ im.cloud_provider }}
     im_max_time: int = {{ im.wait.max_time }}

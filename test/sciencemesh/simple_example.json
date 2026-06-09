@@ -1,0 +1,12 @@
+{
+    "vre_type": "sciencemesh",
+    "workflow": "https://raw.githubusercontent.com/dpiparo/swanExamples/refs/heads/master/notebooks/CMSDimuon_py.ipynb",
+    "files": [
+        {
+            "name": "MuRun2010B.csv",
+            "url": "https://raw.githubusercontent.com/dpiparo/swanExamples/master/notebooks/MuRun2010B.csv",
+            "encoding_format": "text/csv"
+        }
+    ],
+    "runtime_platform": "https://qa.cernbox.cern.ch"
+}

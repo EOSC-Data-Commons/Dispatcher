@@ -1,21 +1,11 @@
-"""
-Binder VRE implementation for notebook-based environments.
-"""
-
-import io
-import os
-import subprocess
-import urllib
-import uuid
-import zipfile as zf
-
-import git
-
-from app.config import settings
-from app.constants import BINDER_DEFAULT_SERVICE, BINDER_PROGRAMMING_LANGUAGE
-import logging
-
 from .base_vre import VRE, vre_factory
+import os
+import urllib
+from app.config import settings
+from vre_rocrate import BINDER_PROGRAMMING_LANGUAGE
+from app.constants import BINDER_DEFAULT_SERVICE
+import git
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -24,22 +14,40 @@ class VREBinder(VRE):
     def get_default_service(self):
         return BINDER_DEFAULT_SERVICE
 
-    def post(self):
+    def p
+    t(self):
+        doi = self._get_zenodo_doi()
+        if doi:
+            return self._get_binder_zenodo_url(doi)
+        return self._get_binder_git_url()
+
+    def _get_zenodo_doi(self) -> str | None:
+        """Extract Zenodo DOI from the workflow descriptor, if present."""
+        if self.request_package is None:
+            return None
+        return self.request_package.workflow.zenodo_doi
+
+    def _get_binder_zenodo_url(self, doi: str) -> str:
+        """Construct BinderHub URL for a Zenodo DOI."""
+        url = self.svc_url.rstrip("/")
+        return f"{url}/v2/zenodo/{doi}/"
+
+    def _get_binder_git_url(self) -> str:
+        """Prepare a local git repo from source files and return the Binder git URL."""
         repo = self._generate_repository_name(self._request_id)
         self._create(repo)
         self._write_source_files(repo)
         self._initialize_temporary_git_repo(repo)
         self._write_example_file(repo)
-        return self._get_binder_url(self._request_id)
+        url = self.svc_url.rstrip("/")
+        local_git_url = (
+            f"https://{settings.host}{settings.git_url_prefix}/{self._request_id}"
+        )
+        logger.debug(local_git_url)
+        return f"{url}/git/{urllib.parse.quote_plus(local_git_url)}/HEAD"
 
     def _create(self, repo):
         os.mkdir(repo)
-
-    def _get_binder_url(self, request_id):
-        url = self.svc_url.rstrip("/")
-        local_git_url = f"https://{settings.host}/git/{request_id}"
-        logger.debug(local_git_url)
-        return f"{url}/git/{urllib.parse.quote_plus(local_git_url)}/HEAD"
 
     def _write_example_file(self, repo):
         with open(f"{repo}/.git/git-daemon-export-ok", "w") as f:
@@ -62,16 +70,13 @@ class VREBinder(VRE):
         return f"{gitrepos}/{request_id}"
 
     def _write_source_files(self, repo):
-        logger.debug(f"{__class__.__name__}: unzipping ROCrate")
-        with io.BytesIO(self.body) as bytes_io:
-            with zf.ZipFile(bytes_io) as zfile:
-                for filename in zfile.namelist():
-                    logger.debug("  " + filename)
-                    if filename != "ro-crate-metadata.json":
-                        with zfile.open(filename) as z, open(
-                            f"{repo}/{filename}", "wb"
-                        ) as f:
-                            f.write(z.read())
+        logger.debug(f"{__class__.__name__}: writing source files from request package")
+        for fref in self.request_package.local_files:
+            filename = fref.id
+            content = fref.properties.get("content")
+            if content is not None:
+                with open(f"{repo}/{filename}", "wb") as f:
+                    f.write(content if isinstance(content, bytes) else content.encode())
 
 
 vre_factory.register(BINDER_PROGRAMMING_LANGUAGE, VREBinder)

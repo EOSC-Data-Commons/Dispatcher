@@ -1,5 +1,4 @@
 asgiref==3.8.1
-rocrate==0.13.0
 aiohttp
 aiofiles==23.1.0
 celery==5.4.0
@@ -23,3 +22,4 @@ pytest-asyncio>=0.20.0
 black>=25.1.0
 GitPython>=3.1.46
 requests-mock>=1.12.1
+vre-rocrate @ git+https://github.com/EOSC-Data-Commons/vre_rocrate.git@master

@@ -4,3 +4,4 @@ from .sciencemesh import VREScienceMesh
 from .scipion import VREScipion
 from .jupyter import VREJupyter
 from .oscar import VREOSCAR
+from .vip import VREVIP

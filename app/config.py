@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     private_key_file: str = ""
     host: str = ""
     git_repos: str = ""
+    git_url_prefix: str = "/git"
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
 
