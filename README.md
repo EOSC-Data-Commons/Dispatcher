@@ -1,5 +1,7 @@
 # Dispatcher
 
+
+
 A **WORK-IN-PROGRESS** prototype of EDC Dispatcher, see also [Dispatcher page](https://confluence.egi.eu/display/EOSCDATACOMMONS/Dispatcher+draft) in project Confluence.
 
 **Note:** This is a proof-of-concept implementation and should not be used in production without further testing and refinement.
@@ -107,3 +109,4 @@ Again, zip the alphafind-notebook fixture from [vre-rocrate](https://github.com/
 Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.
 
 
+![Funded by EU](EU_blue.png)
