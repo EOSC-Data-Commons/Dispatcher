@@ -78,7 +78,7 @@ class VREScienceMesh(VRE):
         ocm_sending_server = settings.host
         if ocm_sending_server is None or ocm_sending_server == "":
             # this is only valid for unit testing
-            logging.warning(
+            logger.warning(
                 "No host configured for OCM sending server, using 'localhost' for testing purposes"
             )
             ocm_sending_server = "localhost"

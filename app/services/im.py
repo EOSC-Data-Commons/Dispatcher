@@ -215,10 +215,10 @@ class IM:
             if not compute_name and compute_nodes:
                 compute_name = list(compute_nodes.keys())[0]
             if not compute_name:
-                logging.error("No compute node available for input file, skipping.")
+                logger.error("No compute node available for input file, skipping.")
                 continue
             if compute_name not in compute_nodes:
-                logging.error(
+                logger.error(
                     "Compute node %s not found in TOSCA template, skipping file.",
                     compute_name,
                 )
