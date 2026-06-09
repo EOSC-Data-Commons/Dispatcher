@@ -14,8 +14,7 @@ class VREBinder(VRE):
     def get_default_service(self):
         return BINDER_DEFAULT_SERVICE
 
-    def p
-    t(self):
+    def post(self):
         doi = self._get_zenodo_doi()
         if doi:
             return self._get_binder_zenodo_url(doi)
