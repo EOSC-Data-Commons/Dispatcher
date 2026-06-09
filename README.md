@@ -108,5 +108,8 @@ Again, zip the alphafind-notebook fixture from [vre-rocrate](https://github.com/
 ### ScienceMesh
 Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.
 
+---
 
-![Funded by EU](EU_blue.png)
+![Funded by EU](EU_blue.png) 
+
+_EOSC Data Commons is funded by the European Union Grant Agreement Number 101188179_
