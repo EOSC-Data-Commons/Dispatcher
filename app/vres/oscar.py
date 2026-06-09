@@ -88,13 +88,13 @@ class VREOSCAR(VRE):
             file_url = f.url or f.id
             try:
                 logger.info(
-                    f"Creating invocation for service {service_name} and file {f.get('url')}"
+                    f"Creating invocation for service {service_name} and file {file_url}"
                 )
                 response = requests.get(file_url, timeout=60)
                 response.raise_for_status()
                 file_content = response.text
             except Exception as e:
-                logger.error(f"Error fetching file {f.get('url')}: {e}")
+                logger.error(f"Error fetching file {file_url}: {e}")
                 continue
             response = requests.post(
                 url,
@@ -104,7 +104,7 @@ class VREOSCAR(VRE):
             )
             if response.status_code != 201:
                 logger.error(
-                    f"Error invoking OSCAR service for file {f.get('url')}: {response.text}"
+                    f"Error invoking OSCAR service for file {file_url}: {response.text}"
                 )
 
     def delete(self):
