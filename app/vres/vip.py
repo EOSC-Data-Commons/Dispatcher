@@ -5,7 +5,7 @@ from app import exceptions
 from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
 from app.constants import VIP_DEFAULT_SERVICE, VIP_DEFAULT_RESULTS_LOCATION
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Hardcoded per-user API key for VIP
 VIP_API_KEY = "9pr5fpfnom57hphp06ee9co70f"
@@ -23,12 +23,12 @@ class VREVIP(VRE):
         }
         url = f"{self.svc_url}/rest/executions"
 
-        logging.info("Creating VIP execution: %s", payload["name"])
+        logger.info("Creating VIP execution: %s", payload["name"])
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=60)
             response.raise_for_status()
         except requests.RequestException as e:
-            logging.error("VIP API request failed: %s", e)
+            logger.error("VIP API request failed: %s", e)
             raise exceptions.ExternalServiceError("VIP API call failed") from e
 
         # VIP API returns no response body on success

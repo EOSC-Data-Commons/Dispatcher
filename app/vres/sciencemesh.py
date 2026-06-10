@@ -7,7 +7,7 @@ from app.constants import SCIENCEMESH_DEFAULT_SERVICE
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class VREScienceMesh(VRE):
@@ -19,16 +19,16 @@ class VREScienceMesh(VRE):
         data = self.create_ocm_share_request()
 
         try:
-            logging.info(f"{self.__class__.__name__}: calling {self.svc_url}")
+            logger.info(f"{self.__class__.__name__}: calling {self.svc_url}")
             response = requests.post(
                 f"{self.svc_url}/ocm/shares",
                 headers=headers,
                 json=data,
             )
-            logging.info(f"{self.__class__.__name__}: returned {response.text}")
+            logger.info(f"{self.__class__.__name__}: returned {response.text}")
             response.raise_for_status()
         except requests.RequestException as e:
-            logging.error(f"{self.__class__.__name__}: API request failed: {e}")
+            logger.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise ScienceMeshAPIError("ScienceMesh API call failed") from e
         return response.json()
 
@@ -78,7 +78,7 @@ class VREScienceMesh(VRE):
         ocm_sending_server = settings.host
         if ocm_sending_server is None or ocm_sending_server == "":
             # this is only valid for unit testing
-            logging.warning(
+            logger.warning(
                 "No host configured for OCM sending server, using 'localhost' for testing purposes"
             )
             ocm_sending_server = "localhost"

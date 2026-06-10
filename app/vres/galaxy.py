@@ -9,7 +9,7 @@ from app.constants import (
     GALAXY_WORKFLOW_TARGET_TYPE,
 )
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class VREGalaxy(VRE):
@@ -42,7 +42,8 @@ class VREGalaxy(VRE):
         """Extract workflow URL from the request package."""
         workflow_url = self.request_package.workflow_url
         if workflow_url is None:
-            logging.error(f"{self.__class__.__name__}: Missing url in workflow entity")
+            # checked here, as some other vres might be actual files
+            logger.error(f"{self.__class__.__name__}: Missing url in workflow entity")
             raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
@@ -74,14 +75,13 @@ class VREGalaxy(VRE):
 
         api_url = self._get_api_url()
 
-        logging.info(f"{self.__class__.__name__}: calling {api_url} with {data}")
+        logger.info(f"{self.__class__.__name__}: calling {api_url} with {data}")
 
         try:
-            print(f"Sending request to Galaxy API... {data}")
             response = requests.post(api_url, headers=headers, json=data)
             response.raise_for_status()
         except requests.RequestException as e:
-            logging.error(f"{self.__class__.__name__}: API request failed: {e}")
+            logger.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise exceptions.GalaxyAPIError("Galaxy API call failed") from e
         return response.json()
 
@@ -97,7 +97,7 @@ class VREGalaxy(VRE):
         """Extract the landing ID from the API response."""
         uuid = response_data.get("uuid")
         if uuid is None:
-            logging.error(
+            logger.error(
                 f"{self.__class__.__name__}: Galaxy API response missing 'uuid' field"
             )
             raise exceptions.GalaxyAPIError("Galaxy API response missing 'uuid' field")

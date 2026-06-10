@@ -12,3 +12,4 @@ ssl/
 ansible.log
 *.zip
 .coverage
+.roo/

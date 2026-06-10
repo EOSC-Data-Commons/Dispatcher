@@ -6,7 +6,7 @@ from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 from app.exceptions import VREConfigurationError
 import logging
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class ROCrateValidationError(Exception):
@@ -91,8 +91,8 @@ class VRE(ABC):
 
 
 class VREFactory:
-    instance = None
-    table = {}
+    instance: "VREFactory | None" = None
+    table: dict[str, type] = {}
 
     def __new__(cls, *args, **kwargs):
         if not cls.instance:

@@ -1,7 +1,11 @@
+import logging
+
 from .utils import oauth2_scheme
 from fastapi.responses import RedirectResponse
 from fastapi import Depends, Request, APIRouter
 from typing import Annotated
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/oauth2",
@@ -12,7 +16,7 @@ router = APIRouter(
 
 @router.get("/login")
 async def test(request: Request):
-    print(request)
+    logger.debug("OAuth2 login redirect for request: %s", request)
     return RedirectResponse("/oauth2/egi-checkin/authorize")
 
 

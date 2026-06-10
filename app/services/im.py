@@ -1,16 +1,26 @@
-import logging
-import requests
+"""
+Infrastructure Manager (IM) service for deploying VRE services.
+
+This module handles the deployment and management of infrastructure
+using the Infrastructure Manager API.
+"""
+
 import copy
 import time
+
+import requests
 import yaml
 from typing import Any, Callable, Mapping
 from imclient import IMClient
+
 from app.config import settings
+import logging
+
 from app.exceptions import IMError
 from vre_rocrate import IMInputFile, RuntimePlatform
 import app.constants as constants
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class IM:
@@ -109,7 +119,7 @@ class IM:
             response.raise_for_status()
             return yaml.safe_load(response.text)
         except requests.RequestException:
-            logging.exception(f"Error fetching TOSCA template from {url}")
+            logger.exception(f"Error fetching TOSCA template from {url}")
             raise IMError(f"Failed to fetch TOSCA template from: {url}")
 
     @staticmethod
@@ -118,7 +128,7 @@ class IM:
             if inputs.get(key, {}).get("default") is not None:
                 inputs[key]["default"] = value
             else:
-                logging.warning(f"The TOSCA template does not define '{key}' input.")
+                logger.warning(f"The TOSCA template does not define '{key}' input.")
 
     @staticmethod
     def _add_inputs_to_tosca_template(
@@ -172,10 +182,10 @@ class IM:
             if not compute_name and compute_nodes:
                 compute_name = list(compute_nodes.keys())[0]
             if not compute_name:
-                logging.error("No compute node available for input file, skipping.")
+                logger.error("No compute node available for input file, skipping.")
                 continue
             if compute_name not in compute_nodes:
-                logging.error(
+                logger.error(
                     "Compute node %s not found in TOSCA template, skipping file.",
                     compute_name,
                 )
@@ -209,9 +219,9 @@ class IM:
             yaml.safe_dump(tosca_template), desc_type="yaml"
         )
         if not success:
-            logging.error(f"Failed to deploy service: {inf_id}")
+            logger.error(f"Failed to deploy service: {inf_id}")
             raise IMError(f"Failed to deploy service: {inf_id}")
-        logging.info(f"Service deployed successfully with ID: {inf_id}")
+        logger.info(f"Service deployed successfully with ID: {inf_id}")
         self.inf_id = inf_id
         return str(inf_id)
 
@@ -219,7 +229,7 @@ class IM:
         """Waits for the service to be in 'configured' state, indicating it's ready."""
         if self.inf_id is None:
             raise IMError("No service deployed yet.")
-        logging.info(f"Waiting for service {self.inf_id} to be ready...")
+        logger.info(f"Waiting for service {self.inf_id} to be ready...")
 
         max_time = settings.im_max_time
         wait = 0
@@ -238,46 +248,44 @@ class IM:
                 if success:
                     state = res["state"]
                 else:
-                    logging.error(
+                    logger.error(
                         f"Failed to get infrastructure state: {res} ({retries + 1}/{settings.im_max_retries})."
                     )
             except Exception as e:
-                logging.exception(
-                    f"Error getting infrastructure state: {e} ({retries + 1}/{settings.im_max_retries})."
-                )
+                logger.exception(f"Error getting infrastructure state: {e}")
                 success = False
 
             if state == "unknown":
                 retries += 1
 
             if state in pending_states:
-                logging.debug(f"The infrastructure is in state: {state}. Wait ...")
+                logger.debug(f"The infrastructure is in state: {state}. Wait ...")
                 time.sleep(settings.im_sleep)
                 wait += settings.im_sleep
 
         if state == "configured":
-            logging.info(f"Service {self.inf_id} is ready.")
+            logger.info(f"Service {self.inf_id} is ready.")
         else:
             msg = f"Service did not reach 'configured' state. Current state: {state}."
             if wait >= max_time:
                 msg += "(Timeout)"
-            logging.error(msg)
+            logger.error(msg)
 
             try:
                 # Get deployment log for debugging
                 success, inflog = self.client.get_infra_property(self.inf_id, "contmsg")
                 if success:
-                    logging.debug(f"Deployment log: {inflog}")
+                    logger.debug(f"Deployment log: {inflog}")
                 else:
-                    logging.error(f"Failed to get deployment log {inflog}.")
+                    logger.error(f"Failed to get deployment log {inflog}.")
             except Exception as e:
-                logging.exception(f"Error getting deployment log: {e}")
+                logger.exception(f"Error getting deployment log: {e}")
 
             try:
-                logging.debug("Destroying service after error.")
+                logger.debug("Destroying service after error.")
                 self.destroy_service()
             except Exception:
-                logging.exception("Failed to destroy service after error")
+                logger.exception("Failed to destroy service after error")
 
             raise IMError(msg)
 
@@ -296,7 +304,7 @@ class IM:
         success, res = self.client.destroy(self.inf_id)
         if not success:
             raise IMError(f"Failed to destroy service: {res}")
-        logging.info(f"Service {self.inf_id} destroyed successfully.")
+        logger.info(f"Service {self.inf_id} destroyed successfully.")
         self.inf_id = None
 
     def run_service(self, rp: RuntimePlatform) -> Mapping[str, Any]:

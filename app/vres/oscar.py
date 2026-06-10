@@ -11,7 +11,7 @@ from app.exceptions import (
 from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
 from app.constants import OSCAR_DEFAULT_SERVICE
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class VREOSCAR(VRE):
@@ -58,8 +58,8 @@ class VREOSCAR(VRE):
         self.fld_json = fdl_json
         service_name = fdl_json["name"]
 
-        logging.info("Creating OSCAR service %s", service_name)
-        logging.debug("FDL: %s", json.dumps(fdl_json))
+        logger.info(f"Creating OSCAR service {service_name}")
+        logger.debug(f"FDL: {json.dumps(fdl_json)}")
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
@@ -87,16 +87,14 @@ class VREOSCAR(VRE):
         for f in files:
             file_url = f.url or f.id
             try:
-                logging.info(
-                    "Creating invocation for service %s and file %s",
-                    service_name,
-                    file_url,
+                logger.info(
+                    f"Creating invocation for service {service_name} and file {file_url}"
                 )
                 response = requests.get(file_url, timeout=60)
                 response.raise_for_status()
                 file_content = response.text
             except Exception as e:
-                logging.error("Error fetching file %s: %s", file_url, e)
+                logger.error(f"Error fetching file {file_url}: {e}")
                 continue
             response = requests.post(
                 url,
@@ -105,17 +103,15 @@ class VREOSCAR(VRE):
                 timeout=60,
             )
             if response.status_code != 201:
-                logging.error(
-                    "Error invoking OSCAR service for file %s: %s",
-                    file_url,
-                    response.text,
+                logger.error(
+                    f"Error invoking OSCAR service for file {file_url}: {response.text}"
                 )
 
     def delete(self):
         fdl_json = self._get_fdl_from_crate()
         service_name = fdl_json["name"]
 
-        logging.info("Deleting OSCAR service %s", service_name)
+        logger.info(f"Deleting OSCAR service {service_name}")
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",

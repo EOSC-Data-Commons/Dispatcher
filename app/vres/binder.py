@@ -1,14 +1,13 @@
 from .base_vre import VRE, vre_factory
-import io
-import logging
 import os
 import urllib
 from app.config import settings
 from vre_rocrate import BINDER_PROGRAMMING_LANGUAGE
 from app.constants import BINDER_DEFAULT_SERVICE
 import git
+import logging
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class VREBinder(VRE):

@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from vre_rocrate import SCIPION_PROGRAMMING_LANGUAGE
 from app.constants import SCIPION_DEFAULT_SERVICE
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class VREScipion(VRE):

@@ -8,7 +8,7 @@ from vre_rocrate import JUPYTER_PROGRAMMING_LANGUAGE
 from app.constants import JUPYTER_DEFAULT_SERVICE
 import time
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class VREJupyter(VRE):
@@ -63,13 +63,13 @@ class VREJupyter(VRE):
             )
             response.raise_for_status()
             token_data = response.json()
-            print(token_data)
+            logger.debug(f"Token data: {token_data}")
             api_token = token_data.get("token")
             if not api_token:
                 raise exceptions.InvalidResponseError("Token not found in response")
             return api_token
         except requests.RequestException as e:
-            logging.error(f"Failed to create API token: {e}")
+            logger.error(f"Failed to create API token: {e}")
             raise exceptions.ExternalServiceError(f"Token creation failed: {e}")
 
     def _get_notebook_from_crate(self):
@@ -113,7 +113,7 @@ class VREJupyter(VRE):
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
-            logging.error(f"Failed to upload notebook: {e}")
+            logger.error(f"Failed to upload notebook: {e}")
             raise exceptions.ServiceError(f"Upload failed: {e}")
 
 

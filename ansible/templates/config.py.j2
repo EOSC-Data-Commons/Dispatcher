@@ -15,5 +15,10 @@ class Settings(BaseSettings):
     im_max_time: int = {{ im.wait.max_time }}
     im_sleep: int = {{ im.wait.sleep }}
     im_max_retries: int = {{ im.wait.max_retries }}
+
     redis_port: int = {{ redis.port }}
+
+    log_level: str = "{{ logging.level | default('INFO') }}"
+    log_format: str = "{{ logging.format | default('text') }}"
+
 settings = Settings()
