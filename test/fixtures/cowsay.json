@@ -15,6 +15,7 @@
             "path": "cowsay/output"
         }
     ],
+    "script": "#!/bin/sh\n\nif [ \"$INPUT_TYPE\" = \"json\" ]\nthen\n    jq '.message' \"$INPUT_FILE_PATH\" -r | /usr/games/cowsay\nelse\n    cat \"$INPUT_FILE_PATH\" | /usr/games/cowsay\nfi",
     "isolation_level": "SERVICE",
     "visibility": "private"
 }
