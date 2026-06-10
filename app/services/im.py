@@ -153,39 +153,6 @@ class IM:
                 compute_nodes[node_name] = node
         return compute_nodes
 
-    def _validate_input_file(self, input_file: dict) -> bool:
-        """Validates if the input is of type File and has a url."""
-        if input_file.get("@type") != "File":
-            logger.warning("Input is not of type File, skipping.")
-            return False
-        if not input_file.get("url"):
-            logger.warning("Input does not have a url, skipping.")
-            return False
-        return True
-
-    def _parse_compute_and_dest(self, input_file: dict, compute_nodes: dict) -> tuple:
-        """Parses contentLocation to extract compute node name and destination path."""
-        content_location = input_file.get("contentLocation")
-        compute_name = None
-        if content_location and ":" in content_location:
-            parts = content_location.split(":")
-            return parts[0], parts[1]
-        if compute_nodes:
-            compute_name = list(compute_nodes.keys())[0]
-        return compute_name, content_location
-
-    def _validate_compute_node(self, compute_name: str, compute_nodes: dict) -> bool:
-        """Validates if the compute node exists in the TOSCA template."""
-        if not compute_name:
-            logger.error("No compute node available.")
-            return False
-        if compute_name and compute_name not in compute_nodes:
-            logger.error(
-                f"Compute node {compute_name} not found in TOSCA template, skipping file."
-            )
-            return False
-        return True
-
     @staticmethod
     def _gen_get_data_node(
         file_url: str, file_dest: str | None, compute_name: str
