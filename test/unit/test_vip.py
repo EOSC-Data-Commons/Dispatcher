@@ -19,9 +19,9 @@ def vip_request_package():
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
-            id="#workflow",
+            id="https://vip.creatis.insa-lyon.fr/rest/pipelines/CQUEST/0.6",
+            url="https://vip.creatis.insa-lyon.fr/rest/pipelines/CQUEST/0.6",
             type="SoftwareSourceCode",
-            url="CQUEST/0.6",
         ),
         files=[
             FileReference(
@@ -60,7 +60,7 @@ def test_post_success(mock_post, vip_request_package):
     )
 
     result = vrevip.post()
-    assert result == f"{VIP_DEFAULT_SERVICE}/home"
+    assert result == f"{VIP_DEFAULT_SERVICE}/home.html"
 
     assert mock_post.call_count == 1
     call_args = mock_post.call_args_list[0]
