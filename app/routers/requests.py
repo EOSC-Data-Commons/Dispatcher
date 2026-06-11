@@ -40,8 +40,9 @@ def zip_rocrate(
     parsed_zipfile: tuple[Dict, dict[str, bytes]] = Depends(parse_zipfile),
     request: Request = None,
 ):
+    vip_api_key = request.headers.get("VIP-API-Key")
     task = vre_from_zipfile.apply_async(
-        args=[parsed_zipfile, request.auth.provider.access_token]
+        args=[parsed_zipfile, request.auth.provider.access_token, vip_api_key]
     )
     logger.info(f"Task created: {task.id}")
     return JSONResponse({"task_id": task.id})
@@ -53,6 +54,9 @@ def metadata_rocrate(
     data: Dict = Body(...),
     request: Request = None,
 ):
-    task = vre_from_rocrate.apply_async(args=[data, request.auth.provider.access_token])
+    vip_api_key = request.headers.get("VIP-API-Key")
+    task = vre_from_rocrate.apply_async(
+        args=[data, request.auth.provider.access_token, vip_api_key]
+    )
     logger.info(f"Task created: {task.id}")
     return JSONResponse({"task_id": task.id})
