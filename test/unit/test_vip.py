@@ -57,7 +57,7 @@ def test_post_success(mock_post, vip_request_package):
         request_id=42,
         update_state=None,
         request_package=vip_request_package,
-        vip_api_key="test_api_key_123",
+        api_key="test_api_key_123",
     )
 
     result = vrevip.post()
@@ -66,6 +66,7 @@ def test_post_success(mock_post, vip_request_package):
     assert mock_post.call_count == 1
     call_args = mock_post.call_args_list[0]
     assert call_args[0][0] == f"{VIP_DEFAULT_SERVICE}/rest/executions"
+    assert call_args[1]["headers"]["apikey"] == "test_api_key_123"
     assert call_args[1]["headers"]["apikey"] == "test_api_key_123"
     assert call_args[1]["headers"]["Content-Type"] == "application/json"
 
@@ -81,7 +82,7 @@ def test_post_success(mock_post, vip_request_package):
 
 
 def test_missing_api_key():
-    """Test VREConfigurationError raised when vip_api_key is not provided."""
+    """Test VREConfigurationError raised when api_key is not provided."""
     request_package = RequestPackage(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
@@ -101,7 +102,7 @@ def test_missing_api_key():
 
     with pytest.raises(VREConfigurationError) as exc:
         vrevip.post()
-    assert "Missing VIP API key" in str(exc.value)
+    assert "Missing API key" in str(exc.value)
 
 
 def test_missing_pipeline_identifier():
@@ -138,7 +139,7 @@ def test_api_error(mock_post, vip_request_package):
         request_id=0,
         update_state=None,
         request_package=vip_request_package,
-        vip_api_key="test_key",
+        api_key="test_key",
     )
 
     with pytest.raises(ExternalServiceError) as exc:
@@ -153,7 +154,7 @@ def test_get_default_service():
         request_id=0,
         update_state=None,
         request_package=None,
-        vip_api_key="test_key",
+        api_key="test_key",
     )
     assert vrevip.get_default_service() == VIP_DEFAULT_SERVICE
 
@@ -165,7 +166,7 @@ def test_input_values_mapping(vip_request_package):
         request_id=0,
         update_state=None,
         request_package=vip_request_package,
-        vip_api_key="test_key",
+        api_key="test_key",
     )
 
     result = vrevip._map_input_values()
@@ -201,7 +202,7 @@ def test_input_values_fallback_to_id():
         request_id=0,
         update_state=None,
         request_package=request_package,
-        vip_api_key="test_key",
+        api_key="test_key",
     )
 
     result = vrevip._map_input_values()

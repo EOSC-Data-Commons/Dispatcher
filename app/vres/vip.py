@@ -13,15 +13,15 @@ class VREVIP(VRE):
         return VIP_DEFAULT_SERVICE
 
     def post(self) -> str:
-        vip_api_key = getattr(self, "vip_api_key", None)
-        if not vip_api_key:
+        api_key = getattr(self, "api_key", None)
+        if not api_key:
             raise exceptions.VREConfigurationError(
-                "Missing VIP API key: provide VIP-API-Key header in the request"
+                "Missing API key: provide API-Key header in the request"
             )
 
         payload = self._build_payload()
         headers = {
-            "apikey": vip_api_key,
+            "apikey": api_key,
             "Content-Type": "application/json",
         }
         url = f"{self.svc_url}/rest/executions"

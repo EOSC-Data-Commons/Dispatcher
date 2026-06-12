@@ -11,7 +11,7 @@ import copy
     bind=True,
 )
 def vre_from_zipfile(
-    self, parsed_zipfile: tuple[Dict, dict[str, bytes]], token, vip_api_key=None
+    self, parsed_zipfile: tuple[Dict, dict[str, bytes]], token, api_key=None
 ):
     rocrate_dict = copy.deepcopy(parsed_zipfile[0])
     file_bytes_map = parsed_zipfile[1]
@@ -21,7 +21,7 @@ def vre_from_zipfile(
         request_id=self.request.id,
         update_state=self.update_state,
         request_package=package,
-        vip_api_key=vip_api_key,
+        api_key=api_key,
     )
     return {"url": vre_handler.post()}
 
@@ -33,7 +33,7 @@ def vre_from_zipfile(
     max_retries=3,
     bind=True,
 )
-def vre_from_rocrate(self, data: Dict, token, vip_api_key=None):
+def vre_from_rocrate(self, data: Dict, token, api_key=None):
     rocrate_dict = copy.deepcopy(data)
     package = RequestPackageBuilder.build(rocrate_dict)
     vre_handler = vre_factory(
@@ -41,6 +41,6 @@ def vre_from_rocrate(self, data: Dict, token, vip_api_key=None):
         request_id=self.request.id,
         update_state=self.update_state,
         request_package=package,
-        vip_api_key=vip_api_key,
+        api_key=api_key,
     )
     return {"url": vre_handler.post()}
