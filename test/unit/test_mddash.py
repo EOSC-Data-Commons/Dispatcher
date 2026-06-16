@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from requests.exceptions import RequestException
 from vre_rocrate import MDDASH_PROGRAMMING_LANGUAGE
 from app.constants import MDDASH_DEFAULT_SERVICE
-from app.vres.mddash import VREMDDash
+from app.vres.mddash import VREMDDash, MDDashContext
 from app.exceptions import (
     VREConfigurationError,
     VREAuthenticationError,
@@ -46,6 +46,16 @@ def _make_vre(package=None):
         request_id=42,
         update_state=MagicMock(),
         request_package=package or _build_package(),
+    )
+
+
+def _make_ctx(session=None, user="testuser", xsrf_token="mock-xsrf", singleuser=""):
+    """Create an MDDashContext with sensible test defaults."""
+    return MDDashContext(
+        session=session or MagicMock(),
+        user=user,
+        xsrf_token=xsrf_token,
+        singleuser=singleuser,
     )
 
 
@@ -135,13 +145,12 @@ def test_post_missing_pdb_file(*_):
 def test_create_experiment_request_failure():
     """_create_experiment raises ExternalServiceError when POST fails."""
     vre = _make_vre()
-    vre.singleuser = "/user/testuser/"
     session = MagicMock()
     session.post.side_effect = RequestException("connection refused")
-    vre.session = session
+    ctx = _make_ctx(session=session, singleuser="/user/testuser/")
 
     with pytest.raises(ExternalServiceError) as exc:
-        vre._create_experiment()
+        vre._create_experiment(ctx)
     assert "Failed to create MDDash experiment" in str(exc.value)
 
 
@@ -171,14 +180,12 @@ def test_login_request_failure(mock_session):
 def test_start_server_request_failure():
     """_start_server raises ExternalServiceError when POST fails."""
     vre = _make_vre()
-    vre.user = "testuser"
-    vre.xsrf_token = "mock-xsrf"
     session = MagicMock()
     session.post.side_effect = RequestException("connection refused")
-    vre.session = session
+    ctx = _make_ctx(session=session)
 
     with pytest.raises(ExternalServiceError) as exc:
-        vre._start_server()
+        vre._start_server(ctx)
     assert "Failed to start MDDash server" in str(exc.value)
 
 
@@ -192,10 +199,10 @@ def test_wait_for_server_request_failure():
     vre = _make_vre()
     session = MagicMock()
     session.get.side_effect = RequestException("connection refused")
-    vre.session = session
+    ctx = _make_ctx(session=session)
 
     with pytest.raises(ExternalServiceError) as exc:
-        vre._wait_for_server()
+        vre._wait_for_server(ctx)
     assert "MDDash server poll failed" in str(exc.value)
 
 
@@ -203,17 +210,16 @@ def test_wait_for_server_request_failure():
 def test_wait_for_server_timeout(*_):
     """_wait_for_server raises ExternalServiceError when server never becomes ready."""
     vre = _make_vre()
-    vre.user = "testuser"
 
     not_ready_resp = MagicMock(status_code=200)
     not_ready_resp.json.return_value = {"servers": {}}
 
     session = MagicMock()
     session.get.return_value = not_ready_resp
-    vre.session = session
+    ctx = _make_ctx(session=session)
 
     with pytest.raises(ExternalServiceError) as exc:
-        vre._wait_for_server()
+        vre._wait_for_server(ctx)
     assert "did not start within" in str(exc.value)
 
 
@@ -225,24 +231,22 @@ def test_wait_for_server_timeout(*_):
 def test_auth_mddash_request_failure():
     """_auth_mddash raises ExternalServiceError when GET fails."""
     vre = _make_vre()
-    vre.singleuser = "/user/testuser/"
     session = MagicMock()
     session.get.side_effect = RequestException("connection refused")
-    vre.session = session
+    ctx = _make_ctx(session=session, singleuser="/user/testuser/")
 
     with pytest.raises(ExternalServiceError) as exc:
-        vre._auth_mddash()
+        vre._auth_mddash(ctx)
     assert "MDDash auth failed" in str(exc.value)
 
 
 def test_post_missing_mddash_auth_cookie():
     """_auth_mddash raises VREAuthenticationError when mddash-auth cookie is not set."""
     vre = _make_vre()
-    vre.singleuser = "/user/testuser/"
     session = MagicMock()
     session.cookies.__contains__.return_value = False
-    vre.session = session
+    ctx = _make_ctx(session=session, singleuser="/user/testuser/")
 
     with pytest.raises(VREAuthenticationError) as exc:
-        vre._auth_mddash()
+        vre._auth_mddash(ctx)
     assert "mddash-auth cookie not set" in str(exc.value)

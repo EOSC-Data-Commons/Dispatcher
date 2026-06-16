@@ -1,4 +1,5 @@
 from .base_vre import VRE, vre_factory
+from dataclasses import dataclass
 import requests
 import logging
 import time
@@ -12,76 +13,89 @@ from app.constants import (
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class MDDashContext:
+    """Transient per-invocation state that flows explicitly through the MDDash
+    request pipeline.  No mutable state leaks onto the VRE instance itself."""
+
+    session: requests.Session
+    user: str
+    xsrf_token: str
+    singleuser: str = ""
+
+
 class VREMDDash(VRE):
     def get_default_service(self):
         return MDDASH_DEFAULT_SERVICE
 
     def post(self):
         self.update_task_status("logging in to MDDash")
-        self._login()
+        ctx = self._login()
 
         self.update_task_status("starting MDDash server")
-        self._start_server()
+        self._start_server(ctx)
 
         self.update_task_status("waiting for MDDash server")
-        self._wait_for_server()
+        ctx = self._wait_for_server(ctx)
 
         self.update_task_status("authenticating with MDDash")
-        self._auth_mddash()
+        self._auth_mddash(ctx)
 
         self.update_task_status("creating MDDash experiment")
-        self._create_experiment()
+        self._create_experiment(ctx)
 
-        return f"{self.svc_url}{self.singleuser}dash/"
+        return f"{self.svc_url}{ctx.singleuser}dash/"
 
-    def _login(self):
+    def _login(self) -> MDDashContext:
         url = self.svc_url
         bearer = {"Authorization": f"token {self.token}"}
-        self.session = requests.Session()
+        session = requests.Session()
 
         logger.info(bearer)
         try:
-            r = self.session.get(url + "/hub/jwt_login", headers=bearer)
+            r = session.get(url + "/hub/jwt_login", headers=bearer)
             r.raise_for_status()
             logger.info(f"GET {url}/hub/jwt_login {r.text}")
 
-            r = self.session.get(url + "/hub/home", headers=bearer)
+            r = session.get(url + "/hub/home", headers=bearer)
             r.raise_for_status()
             logger.info(f"GET {url}/hub/home {r.text}")
-            self.xsrf_token = self.session.cookies.get("_xsrf")
+            xsrf_token = session.cookies.get("_xsrf")
 
-            r = self.session.get(url + "/hub/api/user", headers=bearer)
+            r = session.get(url + "/hub/api/user", headers=bearer)
             r.raise_for_status()
             logger.info(f"GET {url}/hub/api/user: {r.json()}")
 
-            self.user = r.json()["name"]
+            user = r.json()["name"]
         except requests.RequestException as e:
             logger.error(f"MDDash login failed: {e}")
             raise exceptions.ExternalServiceError(f"MDDash login failed: {e}") from e
 
-    def _start_server(self):
+        return MDDashContext(session=session, user=user, xsrf_token=xsrf_token)
+
+    def _start_server(self, ctx: MDDashContext) -> None:
         url = self.svc_url
 
         try:
-            r = self.session.post(
-                f"{url}/hub/api/users/{self.user}/servers/",
+            r = ctx.session.post(
+                f"{url}/hub/api/users/{ctx.user}/servers/",
                 headers={
-                    "X-XSRFToken": self.xsrf_token,
+                    "X-XSRFToken": ctx.xsrf_token,
                     "Content-Type": "application/json",
                     "Referer": f"{url}/hub/home",
                 },
-                json={"_xsrf": self.xsrf_token},
+                json={"_xsrf": ctx.xsrf_token},
             )
             if r.status_code != 400:  # OK, server already exists
                 r.raise_for_status()
-            logger.info(f"{url}/hub/api/users/{self.user}/servers: {r.text}")
+            logger.info(f"{url}/hub/api/users/{ctx.user}/servers: {r.text}")
         except requests.RequestException as e:
             logger.error(f"Failed to start MDDash server: {e}")
             raise exceptions.ExternalServiceError(
                 f"Failed to start MDDash server: {e}"
             ) from e
 
-    def _wait_for_server(self):
+    def _wait_for_server(self, ctx: MDDashContext) -> MDDashContext:
         url = self.svc_url
 
         max_retries = 60
@@ -94,7 +108,7 @@ class VREMDDash(VRE):
             logger.info(f"--- Poll attempt {i+1}/{max_retries}")
 
             try:
-                resp = self.session.get(user_api_url)
+                resp = ctx.session.get(user_api_url)
                 resp.raise_for_status()
             except requests.RequestException as e:
                 logger.error(f"MDDash server poll failed: {e}")
@@ -118,27 +132,27 @@ class VREMDDash(VRE):
 
         if not server_ready:
             raise exceptions.ExternalServiceError(
-                f"{self.user} did not start within {max_retries * retry_interval}s"
+                f"{ctx.user} did not start within {max_retries * retry_interval}s"
             )
 
-        self.singleuser = default_server.get("url", "")
+        singleuser = default_server.get("url", "")
+        ctx.singleuser = singleuser
+        return ctx
 
-    def _auth_mddash(self):
+    def _auth_mddash(self, ctx: MDDashContext) -> None:
         url = self.svc_url
 
         try:
-            resp = self.session.get(
-                f"{url}{self.singleuser}dash/", allow_redirects=True
-            )
+            resp = ctx.session.get(f"{url}{ctx.singleuser}dash/", allow_redirects=True)
             resp.raise_for_status()
         except requests.RequestException as e:
             logger.error(f"MDDash auth failed: {e}")
             raise exceptions.ExternalServiceError(f"MDDash auth failed: {e}") from e
 
-        if "mddash-auth" not in self.session.cookies:
+        if "mddash-auth" not in ctx.session.cookies:
             raise exceptions.VREAuthenticationError("mddash-auth cookie not set")
 
-    def _create_experiment(self):
+    def _create_experiment(self, ctx: MDDashContext) -> None:
         url = self.svc_url
 
         pdb_files = self.request_package.input_files
@@ -151,8 +165,8 @@ class VREMDDash(VRE):
         notebooks_repo = self.request_package.workflow.url or MDDASH_DEFAULT_PROTOCOL
 
         try:
-            resp = self.session.post(
-                f"{url}{self.singleuser}dash/api/experiments",
+            resp = ctx.session.post(
+                f"{url}{ctx.singleuser}dash/api/experiments",
                 data={
                     "experiment-name": f"{self._request_id}: {pdb}",
                     "type": "pdb",
