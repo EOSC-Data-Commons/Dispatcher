@@ -1,28 +1,32 @@
 from .worker import celery
 from app.vres.base_vre import vre_factory
 from vre_rocrate import RequestPackageBuilder
-from app.exceptions import GalaxyAPIError
+from app.exceptions import GalaxyAPIError, VREAuthenticationError
 from app.services.secrets import SecretStore
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional, Tuple
 import copy
 
 
-def _resolve_api_key(secret_ref: Optional[str]) -> Optional[str]:
-    """Resolve an opaque reference to the actual API key via SecretStore.
+def _resolve_api_key(
+    secret_ref: Optional[str],
+) -> Tuple[Optional[str], Callable[[], None]]:
+    """Read the API key referenced by *secret_ref*, returning it and a
+    cleanup callable that should be invoked only after a successful
+    ``post()``.
 
-    Returns ``None`` when *secret_ref* is ``None`` (no API key was
-    provided in the original request).
+    The secret is *not* consumed during resolution so that Celery
+    auto‑retries can re‑read it.  The returned *cleanup* callable
+    performs the one‑time delete.
     """
     if secret_ref is None:
-        return None
+        return None, lambda: None
     store = SecretStore()
-    api_key = store.get_and_delete(secret_ref)
+    api_key = store.get(secret_ref)
     if api_key is None:
-        raise ValueError(
-            f"API key reference '{secret_ref}' not found in secret store "
-            "(expired or already consumed)"
+        raise VREAuthenticationError(
+            f"API key reference '{secret_ref}' not found in secret store " "(expired)"
         )
-    return api_key
+    return api_key, lambda: store.delete(secret_ref)
 
 
 @celery.task(
@@ -38,7 +42,7 @@ def vre_from_zipfile(
     rocrate_dict = copy.deepcopy(parsed_zipfile[0])
     file_bytes_map = parsed_zipfile[1]
     package = RequestPackageBuilder.build(rocrate_dict, file_bytes_map)
-    api_key = _resolve_api_key(secret_ref)
+    api_key, cleanup = _resolve_api_key(secret_ref)
     vre_handler = vre_factory(
         token=token,
         request_id=self.request.id,
@@ -46,7 +50,9 @@ def vre_from_zipfile(
         request_package=package,
         api_key=api_key,
     )
-    return {"url": vre_handler.post()}
+    result = vre_handler.post()
+    cleanup()
+    return {"url": result}
 
 
 @celery.task(
@@ -59,7 +65,7 @@ def vre_from_zipfile(
 def vre_from_rocrate(self, data: Dict, token, secret_ref: Optional[str] = None):
     rocrate_dict = copy.deepcopy(data)
     package = RequestPackageBuilder.build(rocrate_dict)
-    api_key = _resolve_api_key(secret_ref)
+    api_key, cleanup = _resolve_api_key(secret_ref)
     vre_handler = vre_factory(
         token=token,
         request_id=self.request.id,
@@ -67,4 +73,6 @@ def vre_from_rocrate(self, data: Dict, token, secret_ref: Optional[str] = None):
         request_package=package,
         api_key=api_key,
     )
-    return {"url": vre_handler.post()}
+    result = vre_handler.post()
+    cleanup()
+    return {"url": result}
