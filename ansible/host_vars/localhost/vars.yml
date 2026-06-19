@@ -1,0 +1,3 @@
+oauth2:
+  client_id: "abc"
+  client_secret: "abcd"

@@ -1,0 +1,47 @@
+---
+- hosts: localhost
+  connection: local
+  become: true
+  become_user: root
+  tasks:
+    - name: Copy local version of repo
+      synchronize:
+        src: ../../
+        dest: "{{ dispatcher.dir }}"
+
+    - name: Install docker-compose-local.yml
+      ansible.builtin.template:
+        src: docker-compose-local.yml.j2
+        dest: "{{ dispatcher.dir }}/docker-compose.yml"
+
+    - name: Install ocm.json
+      ansible.builtin.template:
+        src: ocm.json.j2
+        dest: "{{ dispatcher.dir }}/nginx/ocm.json"
+
+    - name: Install nginx.conf
+      ansible.builtin.template:
+        src: nginx.conf.j2
+        dest: "{{ dispatcher.dir }}/nginx/nginx.conf"
+
+    - name: Install api-config file
+      ansible.builtin.template:
+        src: config.py.j2
+        dest: "{{ dispatcher.dir }}/app/config.py"
+
+    - name: Run generate certificates
+      community.docker.docker_compose_v2_run:
+        project_src: "{{ dispatcher.dir }}"
+        service: "certgen"
+
+    - name: Ensure docker-compose app is running
+      community.docker.docker_compose_v2:
+        project_src: "{{ dispatcher.dir }}"
+        state: present 
+        build: "always"
+
+    - name: Clean dangling images
+      community.docker.docker_prune:
+        images: true
+        images_filters:
+          dangling: true
