@@ -38,7 +38,7 @@ services:
   nginx:
     image: nginxinc/nginx-unprivileged:latest
     ports:
-      - "8443:443"
+      - "443:443"
     volumes:
       - ./:/code
       - ./nginx/certbot/conf:{{nginx.cert}}
