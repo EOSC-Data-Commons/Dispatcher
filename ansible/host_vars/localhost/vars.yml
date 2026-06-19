@@ -22,7 +22,7 @@ redis:
   port: 6379
 
 api:
-  port: 8000
+  port: 8005
   environment: development
 
 im:
