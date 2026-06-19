@@ -1,3 +1,44 @@
+dispatcher:
+  dir: "{{ ansible_env.HOME }}/edc-dispatcher"
+
 oauth2:
   client_id: "abc"
   client_secret: "abcd"
+
+git:
+  backend: /usr/libexec/git-core/git-http-backend
+  repos: /tmp/git/repos
+  url_prefix: /git
+
+nginx:
+  prefix: nginx
+  etc: /etc
+  logs: /var/log
+  pid: /tmp/nginx.pid
+  fcgi: /tmp/fcgiwrap.socket
+  cert: /etc/ssl/nginx
+
+redis:
+  port: 6379
+
+api:
+  port: 8000
+  environment: local
+
+im:
+  endpoint: ""
+  cloud_provider:
+    type: ""
+    host: ""
+    username: ""
+    auth_version: ""
+    tenant: ""
+    domain: ""
+  wait:
+    max_time: 36000
+    sleep: 30
+    max_retries: 3
+
+logging:
+  level: INFO
+  format: text
