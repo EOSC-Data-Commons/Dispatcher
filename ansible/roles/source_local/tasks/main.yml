@@ -1,0 +1,5 @@
+---
+- name: Copy local version of repo
+  synchronize:
+    src: "{{ playbook_dir }}/../"
+    dest: "{{ dispatcher.dir }}"

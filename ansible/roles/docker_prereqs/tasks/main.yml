@@ -1,0 +1,32 @@
+---
+- name: Add Docker official GPG key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker APT repository
+  ansible.builtin.apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+    state: present
+
+- name: Ensure docker and git are present
+  apt:
+    name:
+      - docker-ce
+      - git
+    state: present
+    update_cache: yes
+
+- name: Create/update docker daemon.json
+  copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "mtu": 1450
+      }
+    mode: '0644'
+
+- name: Restart Docker
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted

@@ -1,0 +1,20 @@
+---
+- name: Start nginx_helper for certbot
+  community.docker.docker_compose_v2:
+    project_src: "{{ dispatcher.dir }}"
+    state: present
+    files: ["docker-compose-init.yml"]
+    services: ["nginx_helper"]
+    remove_orphans: true
+
+- name: Run certbot
+  community.docker.docker_compose_v2_run:
+    project_src: "{{ dispatcher.dir }}"
+    files: ["docker-compose-init.yml"]
+    service: "certbot"
+
+- name: Run modify_cert
+  community.docker.docker_compose_v2_run:
+    project_src: "{{ dispatcher.dir }}"
+    files: ["docker-compose-init.yml"]
+    service: "modify_cert"
