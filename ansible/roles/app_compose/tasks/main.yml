@@ -10,6 +10,7 @@
     project_src: "{{ dispatcher.dir }}"
     state: absent
     files: ["docker-compose-init.yml"]
+  when: compose_init | default(true) | bool
 
 - name: Clean dangling images
   community.docker.docker_prune:
