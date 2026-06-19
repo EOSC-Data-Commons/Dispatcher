@@ -23,7 +23,7 @@ redis:
 
 api:
   port: 8000
-  environment: demo
+  environment: development
 
 im:
   endpoint: ""
