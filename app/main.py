@@ -65,10 +65,6 @@ ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_k
 class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
     CHECKIN_ENV = settings.egi_checkin_env
 
-    def oidc_endpoint(self):
-        return "https://aai-demo.egi.eu/auth/realms/egi"
-
-
 class DummyOAuth2Client(OAuth2Client):
     async def authenticate(self, code: Optional[str] = None, **kwargs):
         return {
@@ -80,7 +76,7 @@ class DummyOAuth2Client(OAuth2Client):
 
 
 def get_oauth2_client() -> OAuth2Client:
-    if os.getenv("ENV") == "development":
+    if os.getenv("ENV") == "local":
         logger.info("Using dummy OAuth2 client for local development")
         return DummyOAuth2Client(
             backend=TestEGICheckinOpenIdConnect, client_id="", client_secret=""
