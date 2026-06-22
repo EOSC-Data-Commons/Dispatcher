@@ -65,6 +65,7 @@ ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_k
 class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
     CHECKIN_ENV = settings.egi_checkin_env
 
+
 class DummyOAuth2Client(OAuth2Client):
     async def authenticate(self, code: Optional[str] = None, **kwargs):
         return {
