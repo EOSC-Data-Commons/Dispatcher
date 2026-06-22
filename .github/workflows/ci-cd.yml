@@ -1,49 +1,67 @@
-name: Deploy to stable
+name: Deploy
 
 on:
-  push:
-    branches: [ master ]
+  workflow_run:
+    workflows: ["Build, lint and test"]
+    types: [completed]
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
 
-    - name: Install Ansible
-      run: |
-        pip install ansible
+      - name: Install Ansible
+        run: |
+          pip install ansible
 
-    - name: Setup SSH
-      uses: webfactory/ssh-agent@v0.9.1
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Determine deployment target
+        id: vars
+        run: |
+          TAG=$(git tag --points-at HEAD --list 'v*' | head -1)
+          if [ -n "$TAG" ]; then
+            echo "target_host=player.eosc-data-commons.eu" >> $GITHUB_OUTPUT
+            echo "version=$TAG" >> $GITHUB_OUTPUT
+          else
+            echo "target_host=${{ secrets.DISPATCHER_HOST }}" >> $GITHUB_OUTPUT
+            echo "version=master" >> $GITHUB_OUTPUT
+          fi
 
-    - name: Setup Ansible Vault
-      run: |
-        echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/vault_password.txt
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Test SSH Connection
-      run: |
-        ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.DISPATCHER_HOST }}
+      - name: Setup Ansible Vault
+        run: |
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/vault_password.txt
 
-    - name: Run Ansible Playbook
-      run: |
-        cd ansible
-        ansible-playbook dispatcher.yml \
-          --limit "${{ secrets.DISPATCHER_HOST }}" \
-          --vault-password-file vault_password.txt
+      - name: Test SSH Connection
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ steps.vars.outputs.target_host }}
 
-    - name: Healthcheck
-      uses: jtalk/url-health-check-action@v4
-      with:
-        url: https://${{ secrets.DISPATCHER_HOST }}/
-        follow-redirect: true
-        max-attempts: 3
-        retry-delay: 5s
+      - name: Run Ansible Playbook
+        run: |
+          cd ansible
+          ansible-playbook dispatcher.yml \
+            --limit "${{ steps.vars.outputs.target_host }}" \
+            --vault-password-file vault_password.txt \
+            --extra-vars "dispatcher.branch=${{ steps.vars.outputs.version }}"
+
+      - name: Healthcheck
+        uses: jtalk/url-health-check-action@v4
+        with:
+          url: https://${{ steps.vars.outputs.target_host }}/
+          follow-redirect: true
+          max-attempts: 3
+          retry-delay: 5s
