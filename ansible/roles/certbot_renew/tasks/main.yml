@@ -1,0 +1,7 @@
+---
+- name: Ensure certbot renewal job that runs at midnight exists
+  ansible.builtin.cron:
+    name: "certbot renew"
+    minute: "0"
+    hour: "0"
+    job: "docker compose -f {{ dispatcher.dir }}/docker-compose.yml run --rm certbot && docker compose -f {{ dispatcher.dir }}/docker-compose.yml exec nginx nginx -s reload > /dev/null"

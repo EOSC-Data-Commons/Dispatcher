@@ -1,0 +1,8 @@
+---
+- name: Checkout this repo
+  ansible.builtin.git:
+    repo: "{{ dispatcher.repo }}"
+    dest: "{{ dispatcher.dir }}"
+    version: "{{ dispatcher.branch }}"
+    update: yes
+    force: yes
