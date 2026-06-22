@@ -4,18 +4,14 @@ services:
 
   web:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level debug --reload 
-    ports:
-      - "8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level debug --reload 
     volumes:
       - ./app:/usr/src/app
       - ./nginx/certbot/conf:{{nginx.cert}}
     environment:
       - CELERY_BROKER_URL=redis://redis:{{ redis.port }}/0
       - CELERY_RESULT_BACKEND=redis://redis:{{ redis.port }}/0
-      - ENV=development
-#    env_file:
-#      - .env
+      - ENV=local
     depends_on:
       - redis
       - certgen

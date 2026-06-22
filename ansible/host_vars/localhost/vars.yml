@@ -23,7 +23,7 @@ redis:
 
 api:
   port: 8005
-  environment: development
+  environment: dev
 
 im:
   endpoint: ""
