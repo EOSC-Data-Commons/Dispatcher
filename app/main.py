@@ -66,7 +66,7 @@ class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
     CHECKIN_ENV = settings.egi_checkin_env
 
     def oidc_endpoint(self):
-        return "https://aai-demo.egi.eu/oidc/"
+        return "https://aai-demo.egi.eu/auth/realms/egi"
 
 
 class DummyOAuth2Client(OAuth2Client):
