@@ -7,6 +7,9 @@ BINDER_DEFAULT_SERVICE = "https://mybinder.org"
 SCIENCEMESH_DEFAULT_SERVICE = "https://qa.cernbox.cern.ch"
 
 SCIPION_DEFAULT_SERVICE = "https://scipion.i2pc.es/"
+SCIPION_MAX_EXECUTION_TIME_SECONDS = 3600 * 24  # 24 hours
+SCIPION_DATA_DIR = "/home/scipionuser/ScipionUserData"
+SCIPION_CONTAINER = "/home/scipionuser/container/apptainer-spa:latest.sif"
 
 OSCAR_DEFAULT_SERVICE = "https://oscar.vre.eosc-data-commons.eu"
 
