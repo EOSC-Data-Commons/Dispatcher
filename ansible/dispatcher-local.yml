@@ -1,6 +1,5 @@
 ---
 - hosts: localhost
-  connection: local
   roles:
     - source_local
     - role: app_config
