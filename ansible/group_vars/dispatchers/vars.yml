@@ -3,6 +3,10 @@ dispatcher:
   branch: master
   dir: /opt/edc/dispatcher
 
+# Flat variable so --extra-vars "dispatcher_branch=v0.0.1" works
+# (dot-notation extra-vars don't override nested dict keys)
+dispatcher_branch: "{{ dispatcher.branch }}"
+
 git:
   # macos
   # backend: /Library/Developer/CommandLineTools/usr/libexec/git-core/git-http-backend
