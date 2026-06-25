@@ -3,6 +3,6 @@
   ansible.builtin.git:
     repo: "{{ dispatcher.repo }}"
     dest: "{{ dispatcher.dir }}"
-    version: "{{ dispatcher.branch }}"
+    version: "{{ dispatcher_branch }}"
     update: yes
     force: yes
