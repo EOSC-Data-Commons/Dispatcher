@@ -39,12 +39,6 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         ),
         files=[
             FileReference(
-                id="https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
-                name="script.sh",
-                encoding_format="text/x-shellscript",
-                url="https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
-            ),
-            FileReference(
                 id="https://example-files.online-convert.com/document/txt/example.txt",
                 name="simpletext_input",
                 encoding_format="text/txt",
@@ -60,21 +54,12 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         request_package=request_package,
     )
     fdl = load_json("../fixtures/cowsay.json")
-    script_content = """#!/bin/sh
-if [ "$INPUT_TYPE" = "json" ]
-then
-    jq '.message' "$INPUT_FILE_PATH" -r | /usr/games/cowsay
-else
-    cat "$INPUT_FILE_PATH" | /usr/games/cowsay
-fi"""
 
     def get_side_effect(url, **kwargs):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         if url.endswith(".json"):
             mock_resp.json.return_value = fdl
-        elif url.endswith(".sh"):
-            mock_resp.text = script_content
         elif url.endswith(".txt"):
             mock_resp.text = "input file content"
         else:
@@ -92,7 +77,6 @@ fi"""
     assert (
         mock_post.call_args_list[0][0][0] == f"{OSCAR_DEFAULT_SERVICE}/system/services"
     )
-    fdl["script"] = script_content
     assert mock_post.call_args_list[0][1]["json"] == fdl
     assert mock_post.call_args_list[0][1]["headers"] == {
         "Authorization": "Bearer dummy_token",
