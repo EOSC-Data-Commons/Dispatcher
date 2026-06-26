@@ -42,7 +42,7 @@ def test_post_errors_on_invalid_api_response(sciencemesh_vre, requests_mock):
         sciencemesh_vre.post()
 
 
-def test_post_returns_json(sciencemesh_vre, requests_mock):
+def test_post_returns_svc_url(sciencemesh_vre, requests_mock):
     json = {"data": "value"}
 
     requests_mock.post(
@@ -52,7 +52,7 @@ def test_post_returns_json(sciencemesh_vre, requests_mock):
         json=json,
     )
 
-    assert sciencemesh_vre.post() == json
+    assert sciencemesh_vre.post() == sciencemesh_vre.svc_url
 
 
 def test_post_succeeds_without_destination_entity(sciencemesh_vre, requests_mock):
@@ -64,7 +64,7 @@ def test_post_succeeds_without_destination_entity(sciencemesh_vre, requests_mock
         status_code=200,
         json=json,
     )
-    assert sciencemesh_vre.post() == json
+    assert sciencemesh_vre.post() == sciencemesh_vre.svc_url
 
 
 def test_post_sends_correct_ocm_share_request(
