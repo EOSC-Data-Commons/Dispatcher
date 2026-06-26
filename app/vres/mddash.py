@@ -54,17 +54,17 @@ class VREMDDash(VRE):
         logger.info(bearer)
         try:
             r = session.get(url + "/hub/jwt_login", headers=bearer)
+            logger.info(f"Call GET {url}/hub/jwt_login")
             r.raise_for_status()
-            logger.info(f"GET {url}/hub/jwt_login {r.text}")
 
             r = session.get(url + "/hub/home", headers=bearer)
+            logger.info(f"Call GET {url}/hub/home")
             r.raise_for_status()
-            logger.info(f"GET {url}/hub/home {r.text}")
             xsrf_token = session.cookies.get("_xsrf")
 
             r = session.get(url + "/hub/api/user", headers=bearer)
+            logger.info(f"Call GET {url}/hub/api/user: {r.json()}")
             r.raise_for_status()
-            logger.info(f"GET {url}/hub/api/user: {r.json()}")
 
             user = r.json()["name"]
         except requests.RequestException as e:
