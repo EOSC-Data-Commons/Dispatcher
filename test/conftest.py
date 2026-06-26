@@ -273,7 +273,7 @@ def ocm_share_request(sciencemesh_vre):
         "owner": ocm.owner_userid,
         "senderDisplayName": ocm.sender_name,
         "sender": sciencemesh_vre._generate_ocm_address(ocm.sender_userid),
-        "resourceType": "embedded",
+        "resourceType": "ro-crate",
         "shareType": "user",
         "protocol": {
             "name": "multi",

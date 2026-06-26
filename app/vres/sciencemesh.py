@@ -30,7 +30,7 @@ class VREScienceMesh(VRE):
         except requests.RequestException as e:
             logger.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise ScienceMeshAPIError("ScienceMesh API call failed") from e
-        return response.json()
+        return self.svc_url
 
     def create_ocm_share_request(self):
         pkg = self.request_package
@@ -61,13 +61,14 @@ class VREScienceMesh(VRE):
             "owner": owner,
             "senderDisplayName": sender_name,
             "sender": self._generate_ocm_address(sender_userid),
-            "resourceType": "embedded",
+            "resourceType": "ro-crate",
             "shareType": "user",
             "protocol": {
                 "name": "multi",
                 "embedded": {"payload": pkg.raw_crate},
             },
         }
+        logger.info(f"OCM share request {ocm_share_request}")
         return ocm_share_request
 
     def _generate_ocm_address(self, sender_userid: str | None):
@@ -82,6 +83,7 @@ class VREScienceMesh(VRE):
                 "No host configured for OCM sending server, using 'localhost' for testing purposes"
             )
             ocm_sending_server = "localhost"
+        logger.info(f"OCM sending server {ocm_sending_server}")
         return sender_userid + "@" + ocm_sending_server
 
 
