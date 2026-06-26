@@ -3,7 +3,7 @@ api:
   environment: prod
 
 im:
-  endpoint: https://im.egi.eu/im
+  endpoint: https://im.egi.eu/im/
   cloud_provider:
     type: OpenStack
     host: "https://identity.brno.openstack.cloud.e-infra.cz"
