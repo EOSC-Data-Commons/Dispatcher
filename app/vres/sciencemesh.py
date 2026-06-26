@@ -61,7 +61,7 @@ class VREScienceMesh(VRE):
             "owner": owner,
             "senderDisplayName": sender_name,
             "sender": self._generate_ocm_address(sender_userid),
-            "resourceType": "embedded",
+            "resourceType": "ro-crate",
             "shareType": "user",
             "protocol": {
                 "name": "multi",
