@@ -7,10 +7,10 @@ im:
   cloud_provider:
     type: OpenStack
     host: "https://identity.brno.openstack.cloud.e-infra.cz"
-    username: "demo.egi.eu"
+    username: "egi.eu"
     auth_version: "3.x_oidc_access_token"
     tenant: "openid"
-    domain: "vo.eosc-data-commons.eu"
+    # domain: # empty -> user's personal project
   wait:
     max_time: 36000 # 10h
     sleep: 30
