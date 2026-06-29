@@ -41,7 +41,10 @@ im:
     username: "demo.egi.eu"
     auth_version: "3.x_oidc_access_token"
     tenant: "openid"
-    domain: "vo.eosc-data-commons.eu"
+    # domain: # XXX: emtpy -> user's default project
+
+# don't use for users' deployment, production Dispatcher runs here
+#    domain: "vo.eosc-data-commons.eu"
   wait:
     max_time: 36000 # 10h
     sleep: 30
