@@ -57,6 +57,7 @@ def test_post_success(mock_post, vip_request_package):
         request_id=42,
         update_state=None,
         request_package=vip_request_package,
+        api_key="test_api_key_123",
     )
 
     result = vrevip.post()
@@ -65,7 +66,8 @@ def test_post_success(mock_post, vip_request_package):
     assert mock_post.call_count == 1
     call_args = mock_post.call_args_list[0]
     assert call_args[0][0] == f"{VIP_DEFAULT_SERVICE}/rest/executions"
-    assert "apikey" in call_args[1]["headers"]
+    assert call_args[1]["headers"]["apikey"] == "test_api_key_123"
+    assert call_args[1]["headers"]["apikey"] == "test_api_key_123"
     assert call_args[1]["headers"]["Content-Type"] == "application/json"
 
     payload = call_args[1]["json"]
@@ -77,6 +79,30 @@ def test_post_success(mock_post, vip_request_package):
         "data_file": "https://www.creatis.insa-lyon.fr/~abonnet/Rec003_Vox1.mrui",
         "zipped_folder": "https://www.creatis.insa-lyon.fr/~abonnet/basis_11_7.zip",
     }
+
+
+def test_missing_api_key():
+    """Test VREConfigurationError raised when api_key is not provided."""
+    request_package = RequestPackage(
+        vre_type=VIP_PROGRAMMING_LANGUAGE,
+        programming_language=VIP_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="https://vip.creatis.insa-lyon.fr/rest/pipelines/CQUEST/0.6",
+            url="https://vip.creatis.insa-lyon.fr/rest/pipelines/CQUEST/0.6",
+            type="SoftwareSourceCode",
+        ),
+        raw_crate={},
+    )
+    vrevip = VREVIP(
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
+    )
+
+    with pytest.raises(VREConfigurationError) as exc:
+        vrevip.post()
+    assert "Missing API key" in str(exc.value)
 
 
 def test_missing_pipeline_identifier():
@@ -113,6 +139,7 @@ def test_api_error(mock_post, vip_request_package):
         request_id=0,
         update_state=None,
         request_package=vip_request_package,
+        api_key="test_key",
     )
 
     with pytest.raises(ExternalServiceError) as exc:
@@ -127,6 +154,7 @@ def test_get_default_service():
         request_id=0,
         update_state=None,
         request_package=None,
+        api_key="test_key",
     )
     assert vrevip.get_default_service() == VIP_DEFAULT_SERVICE
 
@@ -138,6 +166,7 @@ def test_input_values_mapping(vip_request_package):
         request_id=0,
         update_state=None,
         request_package=vip_request_package,
+        api_key="test_key",
     )
 
     result = vrevip._map_input_values()
@@ -173,6 +202,7 @@ def test_input_values_fallback_to_id():
         request_id=0,
         update_state=None,
         request_package=request_package,
+        api_key="test_key",
     )
 
     result = vrevip._map_input_values()

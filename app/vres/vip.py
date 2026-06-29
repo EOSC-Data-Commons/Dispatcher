@@ -7,18 +7,21 @@ from app.constants import VIP_DEFAULT_SERVICE, VIP_DEFAULT_RESULTS_LOCATION
 
 logger = logging.getLogger(__name__)
 
-# Hardcoded per-user API key for VIP
-VIP_API_KEY = "9pr5fpfnom57hphp06ee9co70f"
-
 
 class VREVIP(VRE):
     def get_default_service(self) -> str:
         return VIP_DEFAULT_SERVICE
 
     def post(self) -> str:
+        api_key = getattr(self, "api_key", None)
+        if not api_key:
+            raise exceptions.VREConfigurationError(
+                "Missing API key: provide API-Key header in the request"
+            )
+
         payload = self._build_payload()
         headers = {
-            "apikey": VIP_API_KEY,
+            "apikey": api_key,
             "Content-Type": "application/json",
         }
         url = f"{self.svc_url}/rest/executions"
