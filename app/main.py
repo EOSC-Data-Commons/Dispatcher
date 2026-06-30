@@ -6,8 +6,10 @@ middleware for request handling and authentication.
 """
 
 import logging
+import os
 import ssl
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI
 from fastapi_oauth2.middleware import OAuth2Middleware
@@ -64,19 +66,37 @@ class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
     CHECKIN_ENV = settings.egi_checkin_env
 
 
-client = OAuth2Client(
-    backend=TestEGICheckinOpenIdConnect,
-    scope=[
-        "openid email profile entitlements voperson_id voperson_external_affiliation eduperson_entitlement"
-    ],
-    client_id=settings.client_id,
-    client_secret=settings.client_secret,
-    redirect_uri=settings.redirect_uri,
-    claims=Claims(
-        identity=lambda user: f"{user.provider}:{user.id}",
-    ),
-)
+class DummyOAuth2Client(OAuth2Client):
+    async def authenticate(self, code: Optional[str] = None, **kwargs):
+        return {
+            "id": "dummy-user",
+            "email": "dev@example.com",
+            "name": "Dev User",
+            "picture": None,
+        }
+
+
+def get_oauth2_client() -> OAuth2Client:
+    if os.getenv("ENV") == "local":
+        logger.info("Using dummy OAuth2 client for local development")
+        return DummyOAuth2Client(
+            backend=TestEGICheckinOpenIdConnect, client_id="", client_secret=""
+        )
+    return OAuth2Client(
+        backend=TestEGICheckinOpenIdConnect,
+        scope=[
+            "openid email profile entitlements voperson_id voperson_external_affiliation eduperson_entitlement"
+        ],
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
+        redirect_uri=settings.redirect_uri,
+        claims=Claims(
+            identity=lambda user: f"{user.provider}:{user.id}",
+        ),
+    )
+
 
 app.add_middleware(
-    OAuth2Middleware, config=OAuth2Config(clients=[client], same_site="none")
+    OAuth2Middleware,
+    config=OAuth2Config(clients=[get_oauth2_client()], same_site="none"),
 )
