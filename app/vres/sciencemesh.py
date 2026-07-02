@@ -6,7 +6,7 @@ from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
 from app.constants import SCIENCEMESH_DEFAULT_SERVICE
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
-from app.services.token_utils import extract_user_from_token
+from .utils.token_utils import extract_user_from_token
 
 logger = logging.getLogger(__name__)
 

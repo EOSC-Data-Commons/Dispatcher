@@ -291,7 +291,7 @@ def mock_token_user():
     Patches the imported reference in sciencemesh.py because the function
     is imported directly via ``from app.services.token_utils import ...``.
     """
-    from app.services.token_utils import TokenUser
+    from app.vres.utils.token_utils import TokenUser
 
     with patch(
         "app.vres.sciencemesh.extract_user_from_token",
