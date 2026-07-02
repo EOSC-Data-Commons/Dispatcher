@@ -107,7 +107,10 @@ Testing notebook stolen from our other project, which takls to our service to fi
 Again, zip the alphafind-notebook fixture from [vre-rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate) (`tests/fixtures/alphafind-notebook/`) and post the file to `/requests/zip_rocrate/`
 
 ### ScienceMesh
-Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.
+Dispatches an RO-Crate as an embedded OCM (Open Cloud Mesh) share to a ScienceMesh node (default: CERNBox). The `sender` and `owner` of the share are resolved from the authenticated user's EGI Check-in identity, while the `receiver` is provided in the RO-Crate OCM metadata. For local testing, run the `test/sciencemesh/sciencemesh_vre_stub.py` server stub and POST `test/sciencemesh/ro-crate-metadata.json`.
+
+1. `POST /requests/metadata_rocrate`. Use the ScienceMesh fixture from [vre-rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate) (`tests/fixtures/sciencemesh/ro-crate-metadata.json`) as payload. Only the `#receiver` needs to be modified in the RO-Crate
+2. `GET /requests/REQUEST-UUID` to retrieve the target URL to access ScienceMesh. The UUID is returned by the POST request above
 
 ---
 
