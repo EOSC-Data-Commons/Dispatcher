@@ -36,10 +36,7 @@ def extract_user_from_token(access_token: str) -> TokenUser:
     Raises :class:`VREAuthenticationError` when the call fails or the
     response does not contain a non-empty ``sub`` field.
     """
-    userinfo_url = _CHECKIN_USERINFO_URLS.get(
-        settings.egi_checkin_env,
-        _CHECKIN_USERINFO_URLS["dev"],
-    )
+    userinfo_url = _CHECKIN_USERINFO_URLS.get(settings.egi_checkin_env)
 
     headers = {"Authorization": f"Bearer {access_token}"}
 
