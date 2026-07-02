@@ -4,7 +4,7 @@ GALAXY_PUBLIC_DEFAULT = False
 
 BINDER_DEFAULT_SERVICE = "https://mybinder.org"
 
-SCIENCEMESH_DEFAULT_SERVICE = "https://qa.cernbox.cern.ch"
+SCIENCEMESH_DEFAULT_SERVICE = "https://eosc.cernbox.cern.ch"
 
 SCIPION_DEFAULT_SERVICE = "https://scipion.i2pc.es/"
 

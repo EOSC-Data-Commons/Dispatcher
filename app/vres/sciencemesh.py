@@ -6,6 +6,7 @@ from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
 from app.constants import SCIENCEMESH_DEFAULT_SERVICE
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
+from .utils.token_utils import extract_user_from_token
 
 logger = logging.getLogger(__name__)
 
@@ -37,16 +38,19 @@ class VREScienceMesh(VRE):
         ocm = pkg.ocm_data
         if ocm is None:
             raise MissingOCMParameters(
-                "Missing OCM data (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
+                "Missing OCM data to dispatch via OCM to a ScienceMesh VRE"
             )
         receiver = ocm.receiver_userid
-        owner = ocm.owner_userid
-        sender_userid = ocm.sender_userid
-        sender_name = ocm.sender_name
-        if not receiver or not owner or not sender_userid:
+        if not receiver:
             raise MissingOCMParameters(
-                "Missing required parameters (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
+                "Missing required parameter 'receiver' to dispatch via OCM to a ScienceMesh VRE"
             )
+
+        # Extract sender/owner from access token (EGI Check-in federation backend)
+        token_user = extract_user_from_token(self.token)
+        sender_userid = token_user.email
+        sender_name = token_user.name or token_user.email
+
         resid = ocm.resource_id
         if resid is None:
             # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
@@ -58,7 +62,7 @@ class VREScienceMesh(VRE):
             "description": ocm.root_description or "",
             "providerId": str(uuid.uuid4()),  # must be unique for each share
             "resourceId": resid,
-            "owner": owner,
+            "owner": sender_userid,
             "senderDisplayName": sender_name,
             "sender": self._generate_ocm_address(sender_userid),
             "resourceType": "ro-crate",
