@@ -227,6 +227,10 @@ def binder_vre_with_doi():
     return vre
 
 
+SCIENCEMESH_SENDER_EMAIL = "rasmus.oscar.welander@egi.eu"
+SCIENCEMESH_SENDER_NAME = "Rasmus Oscar Welander"
+
+
 @pytest.fixture
 def sciencemesh_vre():
     from vre_rocrate import OCMData
@@ -241,16 +245,13 @@ def sciencemesh_vre():
         ),
         ocm_data=OCMData(
             receiver_userid="rwelande@cernbox.cern.ch",
-            owner_userid="rasmus.oscar.welander@egi.eu",
-            sender_userid="rasmus.oscar.welander@egi.eu",
-            sender_name="Rasmus Oscar Welander",
             root_name="ScienceMesh Research Data Package",
             root_description="A research data package for sharing through ScienceMesh",
         ),
         raw_crate={"@graph": []},
     )
     vre = VREScienceMesh(
-        token="test-token",
+        token="test-access-token",
         request_id=0,
         update_state=None,
         request_package=package,
@@ -270,9 +271,9 @@ def ocm_share_request(sciencemesh_vre):
         "description": ocm.root_description or "",
         "providerId": "n/a",
         "resourceId": "n/a",
-        "owner": ocm.owner_userid,
-        "senderDisplayName": ocm.sender_name,
-        "sender": sciencemesh_vre._generate_ocm_address(ocm.sender_userid),
+        "owner": SCIENCEMESH_SENDER_EMAIL,
+        "senderDisplayName": SCIENCEMESH_SENDER_NAME,
+        "sender": SCIENCEMESH_SENDER_EMAIL + "@localhost",
         "resourceType": "ro-crate",
         "shareType": "user",
         "protocol": {
@@ -281,6 +282,25 @@ def ocm_share_request(sciencemesh_vre):
         },
     }
     return ocm_share_request
+
+
+@pytest.fixture
+def mock_token_user():
+    """Mock extract_user_from_token to return a fixed TokenUser.
+
+    Patches the imported reference in sciencemesh.py because the function
+    is imported directly via ``from app.services.token_utils import ...``.
+    """
+    from app.vres.utils.token_utils import TokenUser
+
+    with patch(
+        "app.vres.sciencemesh.extract_user_from_token",
+        return_value=TokenUser(
+            email=SCIENCEMESH_SENDER_EMAIL,
+            name=SCIENCEMESH_SENDER_NAME,
+        ),
+    ) as mock:
+        yield mock
 
 
 @pytest.fixture
