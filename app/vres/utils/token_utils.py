@@ -45,7 +45,7 @@ def extract_user_from_token(access_token: str) -> TokenUser:
         response.raise_for_status()
         data = response.json()
     except requests.RequestException as e:
-        logger.error("Failed to fetch userinfo from EGI Check-in: %s", e)
+        logger.error(f"Failed to fetch userinfo from EGI Check-in: {e}")
         raise VREAuthenticationError(
             "Failed to fetch user identity from EGI Check-in"
         ) from e
@@ -58,5 +58,5 @@ def extract_user_from_token(access_token: str) -> TokenUser:
 
     name = user.get("preferred_username")
 
-    logger.debug("Extracted user from token: email=%s, name=%s", email, name)
+    logger.debug(f"Extracted user from token: email={email}, name={name}")
     return TokenUser(email=email, name=name)
