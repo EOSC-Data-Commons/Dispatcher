@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 # Federation-backend userinfo URLs keyed by the egi_checkin_env setting.
 _CHECKIN_USERINFO_URLS = {
-    "prod": "https://aai.egi.eu/federation-backend/tenants/egi/user",
-    "demo": "https://aai-demo.egi.eu/federation-backend/tenants/egi/user",
-    "dev": "https://aai-dev.egi.eu/federation-backend/tenants/egi/user",
+    "prod": "https://aai.egi.eu/auth/realms/egi/protocol/openid-connect/userinfo",
+    "demo": "https://aai-demo.egi.eu/auth/realms/egi/protocol/openid-connect/userinfo",
+    "dev": "https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/userinfo",
 }
 
 
@@ -50,13 +50,12 @@ def extract_user_from_token(access_token: str) -> TokenUser:
             "Failed to fetch user identity from EGI Check-in"
         ) from e
 
-    user = data.get("user", {})
-    email = user.get("sub")
+    email = data.get("sub")
     if not email:
         logger.error("EGI Check-in userinfo response missing 'sub' field")
         raise VREAuthenticationError("Missing 'sub' in user identity from EGI Check-in")
 
-    name = user.get("preferred_username")
+    name = data.get("preferred_username")
 
     logger.debug(f"Extracted user from token: email={email}, name={name}")
     return TokenUser(email=email, name=name)
