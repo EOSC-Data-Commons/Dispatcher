@@ -12,7 +12,9 @@ from app.exceptions import VREConfigurationError
 from app.vres.scipion import VREScipion
 
 EXPECTED_DATASET_URL = "rsync://ftp.ebi.ac.uk/empiar/world_availability/12944/"
-EXPECTED_WORKFLOW_URL = "https://workflowhub.eu/workflows/1747/git/1/raw/workflow_simple.json"
+EXPECTED_WORKFLOW_URL = (
+    "https://workflowhub.eu/workflows/1747/git/1/raw/workflow_simple.json"
+)
 
 
 def make_scipion_rocrate():
@@ -255,11 +257,9 @@ def test_post_happy_path(scipion_vre):
 
     launch_command = scipion_vre._execute_ssh_command.call_args_list[1][0][1]
     expected_run_command = (
-        "apptainer exec --containall --env DISPLAY=:1 "
-        f"--env SCIPION_USER_DATA={SCIPION_DATA_DIR}"
-        " --bind /run --bind /tmp/.X11-unix --bind /etc/resolv.conf"
-        f" --bind {SCIPION_DATA_DIR} {SCIPION_CONTAINER} /scipion/scipion3"
-        f" template workflow_simple.json filesPath={SCIPION_DATA_DIR}/{data_folder}"
+        f"python {SCIPION_DATA_DIR}/scipion_EMPIAR.py {data_folder} "
+        f"--template {SCIPION_DATA_DIR}/workflow_simple.json "
+        f"--scipion-user-data {SCIPION_DATA_DIR}"
     )
     assert "nohup bash -lc" in launch_command
     assert expected_run_command in launch_command

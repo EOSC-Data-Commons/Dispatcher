@@ -51,10 +51,9 @@ class VREScipion(VRE):
             self.update_task_status("Executing workflow")
             workflow_file = workflow_url.split("/")[-1]
             scipion_command = (
-                "apptainer exec --containall --env DISPLAY=:1 "
-                f"--env SCIPION_USER_DATA={SCIPION_DATA_DIR}"
-                " --bind /run --bind /tmp/.X11-unix --bind /etc/resolv.conf"
-                f" --bind {SCIPION_DATA_DIR} {SCIPION_CONTAINER} /scipion/scipion3"
+                f"python {SCIPION_DATA_DIR}/scipion_EMPIAR.py {data_folder} "
+                f"--template {SCIPION_DATA_DIR}/{workflow_file} "
+                f"--scipion-user-data {SCIPION_DATA_DIR}"
             )
             run_command = f"{scipion_command} template {workflow_file} filesPath={SCIPION_DATA_DIR}/{data_folder}"
             logging.debug(f"Run workflow with command: {run_command}")
