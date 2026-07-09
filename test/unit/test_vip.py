@@ -1,7 +1,7 @@
 """Test VIP VRE"""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
 from app.constants import VIP_DEFAULT_SERVICE
 from app.vres.vip import VREVIP
@@ -47,8 +47,15 @@ def vip_request_package():
     )
 
 
+@pytest.fixture
+def mock_vault_key():
+    """Mock vault_get_api_key to return a test key."""
+    with patch("app.vres.vip.vault_get_api_key", return_value="test_api_key_123") as m:
+        yield m
+
+
 @patch("app.vres.vip.requests.post")
-def test_post_success(mock_post, vip_request_package):
+def test_post_success(mock_post, vip_request_package, mock_vault_key):
     """Test VIP VRE post function returns /home on success."""
     mock_post.return_value.status_code = 200
 
@@ -57,16 +64,16 @@ def test_post_success(mock_post, vip_request_package):
         request_id=42,
         update_state=None,
         request_package=vip_request_package,
-        api_key="test_api_key_123",
     )
 
     result = vrevip.post()
     assert result == f"{VIP_DEFAULT_SERVICE}/home.html"
 
+    mock_vault_key.assert_called_once_with("dummy_token", "vip")
+
     assert mock_post.call_count == 1
     call_args = mock_post.call_args_list[0]
     assert call_args[0][0] == f"{VIP_DEFAULT_SERVICE}/rest/executions"
-    assert call_args[1]["headers"]["apikey"] == "test_api_key_123"
     assert call_args[1]["headers"]["apikey"] == "test_api_key_123"
     assert call_args[1]["headers"]["Content-Type"] == "application/json"
 
@@ -81,8 +88,8 @@ def test_post_success(mock_post, vip_request_package):
     }
 
 
-def test_missing_api_key():
-    """Test VREConfigurationError raised when api_key is not provided."""
+def test_vault_key_not_found(vip_request_package):
+    """Test VREConfigurationError raised when vault does not contain the key."""
     request_package = RequestPackage(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
@@ -100,9 +107,13 @@ def test_missing_api_key():
         request_package=request_package,
     )
 
-    with pytest.raises(VREConfigurationError) as exc:
-        vrevip.post()
-    assert "Missing API key" in str(exc.value)
+    with patch(
+        "app.vres.vip.vault_get_api_key",
+        side_effect=VREConfigurationError("Secret 'vip' not found in vault"),
+    ):
+        with pytest.raises(VREConfigurationError) as exc:
+            vrevip.post()
+        assert "not found in vault" in str(exc.value)
 
 
 def test_missing_pipeline_identifier():
@@ -126,7 +137,7 @@ def test_missing_pipeline_identifier():
 
 
 @patch("app.vres.vip.requests.post")
-def test_api_error(mock_post, vip_request_package):
+def test_api_error(mock_post, vip_request_package, mock_vault_key):
     """Test ExternalServiceError raised when VIP API returns an error."""
     mock_post.return_value.status_code = 500
     mock_post.return_value.text = "Internal Server Error"
@@ -139,7 +150,6 @@ def test_api_error(mock_post, vip_request_package):
         request_id=0,
         update_state=None,
         request_package=vip_request_package,
-        api_key="test_key",
     )
 
     with pytest.raises(ExternalServiceError) as exc:
@@ -154,7 +164,6 @@ def test_get_default_service():
         request_id=0,
         update_state=None,
         request_package=None,
-        api_key="test_key",
     )
     assert vrevip.get_default_service() == VIP_DEFAULT_SERVICE
 
@@ -166,7 +175,6 @@ def test_input_values_mapping(vip_request_package):
         request_id=0,
         update_state=None,
         request_package=vip_request_package,
-        api_key="test_key",
     )
 
     result = vrevip._map_input_values()
@@ -202,7 +210,6 @@ def test_input_values_fallback_to_id():
         request_id=0,
         update_state=None,
         request_package=request_package,
-        api_key="test_key",
     )
 
     result = vrevip._map_input_values()

@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
 
+    # Vault (EGI Secret Store) configuration
+    vault_url: str = ""
+    vault_jwt_mount: str = "jwt"
+    vault_kv_mount: str = "secrets"
+    vault_kv_version: int = 1
+    vault_jwt_role: str = ""
+
     # Logging configuration
     log_level: str = "INFO"
     log_format: str = "text"  # 'text' or 'json' for future expansion

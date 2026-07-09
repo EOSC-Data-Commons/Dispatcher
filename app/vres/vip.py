@@ -2,6 +2,7 @@ from .base_vre import VRE, vre_factory
 import requests
 import logging
 from app import exceptions
+from app.vres.utils.vault import vault_get_api_key
 from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
 from app.constants import VIP_DEFAULT_SERVICE, VIP_DEFAULT_RESULTS_LOCATION
 
@@ -13,11 +14,7 @@ class VREVIP(VRE):
         return VIP_DEFAULT_SERVICE
 
     def post(self) -> str:
-        api_key = getattr(self, "api_key", None)
-        if not api_key:
-            raise exceptions.VREConfigurationError(
-                "Missing API key: provide API-Key header in the request"
-            )
+        api_key = vault_get_api_key(self.token, "vip")
 
         payload = self._build_payload()
         headers = {
