@@ -1,0 +1,19 @@
+---
+- name: Ensure docker-compose app is running
+  community.docker.docker_compose_v2:
+    project_src: "{{ dispatcher.dir }}"
+    state: present
+    build: "always"
+
+- name: Stop docker init
+  community.docker.docker_compose_v2:
+    project_src: "{{ dispatcher.dir }}"
+    state: absent
+    files: ["docker-compose-init.yml"]
+
+- name: Clean dangling images
+  community.docker.docker_prune:
+    images: true
+    images_filters:
+      dangling: true
+

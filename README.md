@@ -1,17 +1,10 @@
 # Dispatcher
 
-
-
-A **WORK-IN-PROGRESS** prototype of EDC Dispatcher, see also [Dispatcher page](https://confluence.egi.eu/display/EOSCDATACOMMONS/Dispatcher+draft) in project Confluence.
-
-**Note:** This is a proof-of-concept implementation and should not be used in production without further testing and refinement.
-
-## Overview
-
-Dispatcher is a component which consumes a ROCrate object (either ZIP file or just its `ro-crate-metadata.json`) containing references to workflow and its input files, 
+Dispatcher implements the entrypoint of **EOSC Data Player** in the architecture of [EOSC Data Commons](https://eosc-data-commons.eu). 
+As such, it consumes an ROCrate object (either ZIP file or just its `ro-crate-metadata.json`) containing references to workflow and its input files, 
 and instantiates an environment for the user, where the data are available and the workflow can be started.
 
-The ROCrate profile Dispatcher recognizes is not fully defined yet, follow examples in [test/](test/).
+The implementation of ROCrate parsing together with minimalistic specification of the covered functionality and working examples was moved to a standalone repository [EOSC-Data-Commons/vre_rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate).
 
 The endpoint accepts requests at the paths:
 - `/requests/zip_rocrate`: POST, ROCrate as a zip file in the body
@@ -19,14 +12,22 @@ The endpoint accepts requests at the paths:
 
 On successful completition, a URL pointing to the prepared environment is returned.
 
-## Quickstart
+## Deployment
+
+Production installation of Dispatcher, operated by CESNET, runs at https://player.eosc-data-commons.eu/. Authentication via EGI CheckIn (production environment) is required.
+This installation is deplyed with CI/CD on tagging **vX.Y.Z** in this repository.
+
+Development installation is deployed at https://dev1.player.eosc-data-commons.eu/ (authenticated in EGI CheckIn demo environment).
+This installation is deployed from the head of master branch in this repository, i.e. after successfull merge of any PR.
+
+## Testing quickstart
 
 We do our best to keep [development instance](https://dev1.player.eosc-data-commons.eu/docs) running the current version, and it is available for testing.
-Report if anything is broken, please.
+Report if anything is broken via Gighub issues, please.
 
 1. Go to https://dev1.player.eosc-data-commons.eu; this should redirect you to EGI CheckIn identity provider
 2. You will be redirected to /docs; this is an automatically generated Swagger UI page capable of making test calls
-3. Choose an example in  [test/](test/) (refer to brief description below):
+3. Choose an example in https://github.com/EOSC-Data-Commons/vre_rocrate/tree/master/tests/fixtures (refer to brief description below):
    - grab `ro-crate-metadata.json` if it is the only file of the example
    - make a flat zip file containing all the files of the example otherwise
 4. POST the file via the Swagger to `/requests/metadata_rocrate` or `/requests/zip_rocrate`. The server returns `request_id`
@@ -43,7 +44,7 @@ Report if anything is broken, please.
 6. Set VS Code to use this virtual environment by using `CTRL-SHIFT-P` and `Python: Select Interpreter` and then your virtual environment (Should be Python 3.x.x (venv) ./venv/bin/python)
 7. The formatting happens automatically when saving a file.
    
-## Deployment
+## Independent deployment
 
 To deploy your own Dispatcher instance you need:
 
@@ -80,7 +81,7 @@ Then it lands back to https://DISPATCHER_HOSTNAME/docs, where API calls are avai
 Going to https://usegalaxy.eu/,
 Dispatcher creates a landing page with simple workflow, that accepts a `txt` file and creates its reversed copy.
 
-1. `POST /requests/metadata_rocrate`. Use the Galaxy fixture from [vre-rocrate](https://github.com/EGI-Federation/vre-rocrate) (`tests/fixtures/galaxy/ro-crate-metadata.json`) as payload.
+1. `POST /requests/metadata_rocrate`. Use the Galaxy fixture from [vre-rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate) (`tests/fixtures/galaxy/ro-crate-metadata.json`) as payload.
 2. `GET /requests/REQUEST-UUID` to retrieve the target URL to execute the workflow. The UUID is returned by the POST request above
 
 ### Galaxy TOSCA
@@ -97,16 +98,19 @@ Trivial Jupyter notebook (print the Pi value).
 The test talks to [EGI Notebooks](https://replay.notebooks.egi.eu/) by default.
 Change `#destination` in `ro-crate-metadata.json` eventually.
 
-Zip the content of the simple-binder fixture from [vre-rocrate](https://github.com/EGI-Federation/vre-rocrate) (`tests/fixtures/simple-binder/`) and post the file to `/requests/zip_rocrate/`
+Zip the content of the simple-binder fixture from [vre-rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate) (`tests/fixtures/simple-binder/`) and post the file to `/requests/zip_rocrate/`
 
 ### More realistict Binder
 
 Testing notebook stolen from our other project, which takls to our service to find similar AlphaFold protein structures and displays their alignment.
 
-Again, zip the alphafind-notebook fixture from [vre-rocrate](https://github.com/EGI-Federation/vre-rocrate) (`tests/fixtures/alphafind-notebook/`) and post the file to `/requests/zip_rocrate/`
+Again, zip the alphafind-notebook fixture from [vre-rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate) (`tests/fixtures/alphafind-notebook/`) and post the file to `/requests/zip_rocrate/`
 
 ### ScienceMesh
-Testing for ScienceMesh is currently only local, in order to test it you can run the `test/sciencemesh/test_sciencemesh_class.py` server stub and then make a POST request to the Dispatcher with the provided ro-crate `test/sciencemesh/ro-crate-metadata.json` and you should see the server receiving the ro-crate as an embedded OCM (Open Cloud Mesh) share. A ScienceMesh node is being prepared to test this remotely in order to test with CERNBox.
+Dispatches an RO-Crate as an embedded OCM (Open Cloud Mesh) share to a ScienceMesh node (default: CERNBox). The `sender` and `owner` of the share are resolved from the authenticated user's EGI Check-in identity, while the `receiver` is provided in the RO-Crate OCM metadata. For local testing, run the `test/sciencemesh/sciencemesh_vre_stub.py` server stub and POST `test/sciencemesh/ro-crate-metadata.json`.
+
+1. `POST /requests/metadata_rocrate`. Use the ScienceMesh fixture from [vre-rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate) (`tests/fixtures/sciencemesh/ro-crate-metadata.json`) as payload. Only the `#receiver` needs to be modified in the RO-Crate
+2. `GET /requests/REQUEST-UUID` to retrieve the target URL to access ScienceMesh. The UUID is returned by the POST request above
 
 ---
 

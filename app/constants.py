@@ -4,7 +4,7 @@ GALAXY_PUBLIC_DEFAULT = False
 
 BINDER_DEFAULT_SERVICE = "https://mybinder.org"
 
-SCIENCEMESH_DEFAULT_SERVICE = "https://qa.cernbox.cern.ch"
+SCIENCEMESH_DEFAULT_SERVICE = "https://eosc.cernbox.cern.ch"
 
 SCIPION_DEFAULT_SERVICE = "https://scipion.i2pc.es/"
 
@@ -18,3 +18,6 @@ IM_SEQUENCE_FINISHED = "IM sequence finished"
 IM_SEQUENCE_SUCCESSFUL = "IM sequence successful"
 
 JUPYTER_DEFAULT_SERVICE = "https://notebooks-dev.egi.zcu.cz"
+
+MDDASH_DEFAULT_SERVICE = "https://mddash-edc.dyn.cloud.e-infra.cz"
+MDDASH_DEFAULT_PROTOCOL = "https://github.com/sb-ncbr/mddash-notebooks.git"

@@ -3,6 +3,10 @@ dispatcher:
   branch: master
   dir: /opt/edc/dispatcher
 
+# Flat variable so --extra-vars "dispatcher_branch=v0.0.1" works
+# (dot-notation extra-vars don't override nested dict keys)
+dispatcher_branch: "{{ dispatcher.branch }}"
+
 git:
   # macos
   # backend: /Library/Developer/CommandLineTools/usr/libexec/git-core/git-http-backend
@@ -44,7 +48,10 @@ im:
     username: "demo.egi.eu"
     auth_version: "3.x_oidc_access_token"
     tenant: "openid"
-    domain: "vo.eosc-data-commons.eu"
+    # domain: # XXX: emtpy -> user's default project
+
+# don't use for users' deployment, production Dispatcher runs here
+#    domain: "vo.eosc-data-commons.eu"
   wait:
     max_time: 36000 # 10h
     sleep: 30
