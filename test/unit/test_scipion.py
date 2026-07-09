@@ -260,6 +260,7 @@ def test_post_happy_path(scipion_vre):
         f"python {SCIPION_DATA_DIR}/scipion_EMPIAR.py {data_folder} "
         f"--template {SCIPION_DATA_DIR}/workflow_simple.json "
         f"--scipion-user-data {SCIPION_DATA_DIR}"
+        f"--container {SCIPION_CONTAINER}"
     )
     assert "nohup bash -lc" in launch_command
     assert expected_run_command in launch_command
