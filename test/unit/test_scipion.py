@@ -1,4 +1,5 @@
 import pytest
+import shlex
 from unittest.mock import MagicMock, patch
 from vre_rocrate import (
     FileReference,
@@ -7,11 +8,11 @@ from vre_rocrate import (
     WorkflowDescriptor,
 )
 
-from app.constants import SCIPION_CONTAINER, SCIPION_DATA_DIR
+from app.constants import SCIPION_CONTAINER, SCIPION_DATA_DIR, SCIPION_USER
 from app.exceptions import VREConfigurationError
 from app.vres.scipion import VREScipion
 
-EXPECTED_DATASET_URL = "rsync://ftp.ebi.ac.uk/empiar/world_availability/12944/"
+EXPECTED_DATASET_URL = "rsync://ftp.ebi.ac.uk/empiar/world_availability/12944"
 EXPECTED_WORKFLOW_URL = (
     "https://workflowhub.eu/workflows/1747/git/1/raw/workflow_simple.json"
 )
@@ -247,23 +248,28 @@ def test_post_happy_path(scipion_vre):
 
     workflow_url = scipion_vre._get_workflow_url()
     wget_command = scipion_vre._execute_ssh_command.call_args_list[0][0][1]
-    assert wget_command == f"wget {workflow_url}"
+    assert (
+        wget_command
+        == f"sudo su - {SCIPION_USER} -c 'wget {workflow_url} -O {SCIPION_DATA_DIR}/{workflow_url.split('/')[-1]}'"
+    )
 
     first_long_command = scipion_vre._execute_long_ssh_command.call_args[0][2]
     assert (
         first_long_command
-        == f"rsync -avP {EXPECTED_DATASET_URL} {SCIPION_DATA_DIR}/{data_folder}"
+        == f"sudo su - {SCIPION_USER} -c 'rsync -avP {EXPECTED_DATASET_URL} {SCIPION_DATA_DIR}'"
     )
 
     launch_command = scipion_vre._execute_ssh_command.call_args_list[1][0][1]
     expected_run_command = (
+        f"sudo su - {SCIPION_USER} -c '"
         f"python {SCIPION_DATA_DIR}/scipion_EMPIAR.py {data_folder} "
         f"--template {SCIPION_DATA_DIR}/workflow_simple.json "
-        f"--scipion-user-data {SCIPION_DATA_DIR}"
-        f"--container {SCIPION_CONTAINER}"
+        f"--scipion-user-data {SCIPION_DATA_DIR} "
+        f"--container {SCIPION_CONTAINER}'"
     )
     assert "nohup bash -lc" in launch_command
-    assert expected_run_command in launch_command
+    launched_run_command = shlex.split(launch_command)[3]
+    assert expected_run_command in launched_run_command
     assert "</dev/null >/tmp/scipion-workflow.log 2>&1 & echo $!" in launch_command
 
     ssh_client.close.assert_called_once()

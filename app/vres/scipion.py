@@ -8,6 +8,7 @@ import time
 import uuid
 from app.exceptions import VREConfigurationError, WorkflowURLError
 from app.constants import (
+    SCIPION_USER,
     SCIPION_DATA_DIR,
     SCIPION_CONTAINER,
     SCIPION_DEFAULT_SERVICE,
@@ -34,16 +35,16 @@ class VREScipion(VRE):
             # Step 2: Download the workflow
             workflow_url = self._get_workflow_url()
             logging.info(f"Downloading workflow from {workflow_url}")
-            get_workflow_command = f"wget {workflow_url}"
+            get_workflow_command = f"sudo su - {SCIPION_USER} -c 'wget {workflow_url} -O {SCIPION_DATA_DIR}/{workflow_url.split('/')[-1]}'"
             stdout = self._execute_ssh_command(ssh_client, get_workflow_command)
             logging.debug(f"Workflow download output: {stdout}")
 
             # Step 3: Download the data set
             self.update_task_status("Downloading data")
-            data_url = self._get_data_set_url()
+            data_url = self._get_data_set_url().rstrip("/")
             logging.info(f"Downloading data from {data_url}")
             data_folder = data_url.split("/")[-1]
-            get_data_command = f"rsync -avP {data_url} {SCIPION_DATA_DIR}/{data_folder}"
+            get_data_command = f"sudo su - {SCIPION_USER} -c 'rsync -avP {data_url} {SCIPION_DATA_DIR}'"
             out = self._execute_long_ssh_command(self.ssh, ssh_client, get_data_command)
             logging.debug(f"Data download output: {out}")
 
@@ -51,10 +52,11 @@ class VREScipion(VRE):
             self.update_task_status("Executing workflow")
             workflow_file = workflow_url.split("/")[-1]
             scipion_command = (
+                f"sudo su - {SCIPION_USER} -c '"
                 f"python {SCIPION_DATA_DIR}/scipion_EMPIAR.py {data_folder} "
                 f"--template {SCIPION_DATA_DIR}/{workflow_file} "
-                f"--scipion-user-data {SCIPION_DATA_DIR}"
-                f"--container {SCIPION_CONTAINER}"
+                f"--scipion-user-data {SCIPION_DATA_DIR} "
+                f"--container {SCIPION_CONTAINER}'"
             )
             run_command = f"{scipion_command} template {workflow_file} filesPath={SCIPION_DATA_DIR}/{data_folder}"
             logging.debug(f"Run workflow with command: {run_command}")
