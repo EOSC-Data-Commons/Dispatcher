@@ -5,9 +5,12 @@ synchronous (requests-based) because Celery workers are synchronous.
 
 Users authenticate via their EGI Check-in access token (JWT auth).
 Secrets are stored at: {kv_mount}/users/{sub}/api-keys/{key_id}
+
+The user identity (``sub`` claim) is resolved by calling the EGI Check-in
+userinfo endpoint — EGI access tokens are opaque and do not carry user
+claims in the token body.
 """
 
-import json
 import logging
 from urllib.parse import quote
 
@@ -15,6 +18,7 @@ import requests
 
 from app.config import settings
 from app.exceptions import VaultError, VREAuthenticationError, VREConfigurationError
+from app.vres.utils.token_utils import TokenUser, extract_user_from_token
 
 logger = logging.getLogger(__name__)
 
@@ -22,29 +26,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
-
-
-def _decode_user_sub(access_token: str) -> str:
-    """Extract the ``sub`` claim from a JWT *without* cryptographic verification.
-
-    The token has already been validated by the OAuth2 middleware before it
-    reaches the Celery worker, so we only need to decode the payload.
-    """
-    try:
-        # JWTs are base64url-encoded "header.payload.signature"
-        payload_b64 = access_token.split(".")[1]
-        # Add padding: base64url → base64
-        payload_b64 += "=" * (4 - len(payload_b64) % 4)
-        payload = json.loads(
-            __import__("base64").urlsafe_b64decode(payload_b64).decode("utf-8")
-        )
-        sub = payload.get("sub")
-        if not sub:
-            raise VaultError("JWT payload is missing 'sub' claim")
-        logger.debug(f"user sub is {sub}")
-        return sub
-    except (IndexError, ValueError) as exc:
-        raise VaultError(f"Failed to decode JWT access token: {exc}") from exc
 
 
 def _get_vault_token(access_token: str) -> str:
@@ -98,9 +79,9 @@ def vault_get_api_key(access_token: str, key_id: str) -> str:
         VREConfigurationError: The requested secret was not found.
         VaultError: Any other vault-related error.
     """
-    user_sub = _decode_user_sub(access_token)
+    user: TokenUser = extract_user_from_token(access_token)
     vault_token = _get_vault_token(access_token)
-    path = _kv_data_path(user_sub, key_id)
+    path = _kv_data_path(user.sub, key_id)
 
     try:
         resp = requests.get(
@@ -110,7 +91,7 @@ def vault_get_api_key(access_token: str, key_id: str) -> str:
         )
         if resp.status_code == 404:
             raise VREConfigurationError(
-                f"Secret '{key_id}' not found in vault for user '{user_sub}'"
+                f"Secret '{key_id}' not found in vault for user '{user.sub}'"
             )
         if resp.status_code == 401 or resp.status_code == 403:
             raise VREAuthenticationError(
