@@ -113,7 +113,7 @@ def test_post_success(mock_session_cls, successful_session):
     mock_session_cls.return_value = successful_session
 
     result = _make_vre().post()
-    assert result == f"{MDDASH_DEFAULT_SERVICE}/user/testuser/dash/"
+    assert result == f"{MDDASH_DEFAULT_SERVICE}/user/testuser/dash/auth/create-login-token"
 
 
 # ---------------------------------------------------------------------------
