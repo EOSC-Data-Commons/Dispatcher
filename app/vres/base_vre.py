@@ -85,7 +85,7 @@ class VRE(ABC):
                     )
                 self.update_task_status(constants.KUBERNETES_SEQUENCE_STARTED)
                 try:
-                    kubernetes_client = KubernetesClient()
+                    kubernetes_client = KubernetesClient(user_token=self.token)
                     outputs = kubernetes_client.run_service(dest, chart_info)
                     self.update_task_status(constants.KUBERNETES_SEQUENCE_FINISHED)
                     if outputs is None:

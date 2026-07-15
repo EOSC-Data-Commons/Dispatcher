@@ -121,8 +121,8 @@
                 "2 vCPU"
             ],
             "storageRequirements": "200 GiB",
-            "installUrl": "https://helm.github.io/examples",
-            "chartName": "hello-world"
+            "installUrl": "https://charts.bitnami.com/bitnami",
+            "chartName": "nginx"
         },
         {
             "@id": "#author-dispatcher",

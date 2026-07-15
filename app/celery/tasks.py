@@ -30,7 +30,6 @@ def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, dict[str, bytes]], token)
     max_retries=3,
     bind=True,
 )
-
 def vre_from_rocrate(self, data: Dict, token):
     rocrate_dict = copy.deepcopy(data)
     package = RequestPackageBuilder.build(rocrate_dict)

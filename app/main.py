@@ -1,6 +1,9 @@
+import logging
 import os
+import ssl
+from contextlib import asynccontextmanager
 from typing import Optional
-from app.routers import requests, auth, anonymous_requests
+
 from fastapi import FastAPI
 from fastapi_oauth2.middleware import OAuth2Middleware
 from fastapi_oauth2.router import router as oauth2_router
@@ -9,10 +12,10 @@ from fastapi_oauth2.client import OAuth2Client
 from fastapi_oauth2.claims import Claims
 from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
 
-from app.routers import requests, auth, anonymous_requests
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware.request_logging import RequestLoggingMiddleware
+from app.routers import requests, auth, anonymous_requests
 
 # Initialize logging before anything else
 setup_logging(

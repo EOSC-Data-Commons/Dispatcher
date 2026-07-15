@@ -50,7 +50,27 @@ im:
     #site: "CESNET-MCCG2"
     #VO: vo.eosc-data-commons.eu
 
+# kubernetes:
+  # "local" – static kubeconfig, "dev" – Rancher dev with token exchange
+#   mode: "local"
+#   dev:
+#     url: ""
+#     token_exchange_url: ""
+#     client_id: ""
+#     client_secret: ""
+#     audience: ""
+
+kubernetes:
+  # "local" – static kubeconfig, "dev" – Rancher dev with token exchange
+  mode: "dev"
+  dev:
+    url: "https://rancher-dev.player.eosc-data-commons.eu"
+    token_exchange_url: "https://aai-demo.egi.eu/auth/realms/egi/protocol/openid-connect/token"
+    # client_id, client_secret, and audience are stored in secrets.yml (encrypted)
+    client_id: "{{ kubernetes.dev_secrets.client_id }}"
+    client_secret: "{{ kubernetes.dev_secrets.client_secret }}"
+    audience: "{{ kubernetes.dev_secrets.audience }}"
+
 logging:
   level: INFO
   format: text
-    

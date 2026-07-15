@@ -12,6 +12,15 @@ import os
 import re
 import shutil
 
+import requests
+import urllib3
+import yaml
+
+from app.config import settings
+
+# Suppress warnings from the dev Rancher's self-signed certificate.
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -23,15 +32,189 @@ class KubernetesDeploymentError(Exception):
 
 
 class KubernetesClient:
-    """Client for deploying services to Kubernetes clusters using Helm 3 CLI."""
+    """Client for deploying services to Kubernetes clusters using Helm 3 CLI.
 
-    def __init__(self, kubeconfig: str = None, context: str = None):
-        self.kubeconfig = "/usr/src/app/k8s-config.yaml"
-        self.context = "kuba-cluster"
+    Supports two modes via ``Settings.rancher_mode``:
+
+    * ``"local"`` — uses a static kubeconfig file (default path
+      ``/usr/src/app/k8s-config.yaml``).
+    * ``"dev"``   — exchanges the user's EGI Check-in token for a Rancher
+      token, fetches a kubeconfig from the Rancher API, and uses that
+      temporary kubeconfig for Helm operations.
+    """
+
+    def __init__(
+        self,
+        user_token: str | None = None,
+        kubeconfig: str | None = None,
+        context: str | None = None,
+    ):
+        self._temp_kubeconfig: str | None = None
+
+        if settings.rancher_mode == "dev" and user_token:
+            self._temp_kubeconfig = self._generate_rancher_kubeconfig(user_token)
+            self.kubeconfig = self._temp_kubeconfig
+            self.context = self._read_kubeconfig_context(self.kubeconfig)
+        else:
+            self.kubeconfig = kubeconfig or "/usr/src/app/k8s-config.yaml"
+            self.context = context or "kuba-cluster"
+
         self.namespace = "eosc-data-commons-ns"
         self.release_name = None
         self._setup_kubernetes_client()
         self._setup_helm_client()
+
+    # ------------------------------------------------------------------
+    # Dev Rancher helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _read_kubeconfig_context(kubeconfig_path: str) -> str:
+        """Read the first context name from a kubeconfig file."""
+        with open(kubeconfig_path) as f:
+            cfg = yaml.safe_load(f)
+        contexts = cfg.get("contexts", [])
+        if contexts:
+            return contexts[0]["name"]
+        raise KubernetesDeploymentError(
+            "No context found in Rancher-generated kubeconfig"
+        )
+
+    def _generate_rancher_kubeconfig(self, user_token: str) -> str:
+        """Exchange the EGI token for a Rancher token and download a kubeconfig.
+
+        Returns the path to a temporary kubeconfig file that MUST be cleaned
+        up by the caller (or left for the OS to reclaim).
+        """
+        logger.info("Rancher dev mode: exchanging EGI token for Rancher token")
+        exchanged = self._exchange_token(user_token)
+        rancher_token = exchanged["access_token"]
+        logger.info("Rancher dev mode: token exchange successful")
+
+        logger.info("Rancher dev mode: fetching kubeconfig from Rancher API")
+        kubeconfig_yaml = self._fetch_rancher_kubeconfig(rancher_token)
+        logger.info("Rancher dev mode: kubeconfig fetched successfully")
+
+        tf = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml", delete=False, prefix="rancher-kubeconfig-"
+        )
+        tf.write(kubeconfig_yaml)
+        tf.close()
+        logger.info(f"Rancher dev mode: kubeconfig written to {tf.name}")
+        return tf.name
+
+    def _exchange_token(self, user_token: str) -> dict:
+        """Perform OAuth2 token exchange at the EGI Check-in token endpoint."""
+        token_url = settings.rancher_dev_token_exchange_url
+        client_id = settings.rancher_dev_client_id
+        client_secret = settings.rancher_dev_client_secret
+        audience = settings.rancher_dev_audience
+
+        try:
+            resp = requests.post(
+                token_url,
+                auth=(client_id, client_secret),
+                data={
+                    "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+                    "subject_token": user_token,
+                    "subject_token_type": "urn:ietf:params:oauth:token-type:access_token",
+                    "audience": audience,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except requests.RequestException as e:
+            logger.exception("Rancher token exchange failed")
+            raise KubernetesDeploymentError(
+                f"Token exchange to Rancher dev failed: {e}"
+            )
+
+    def _fetch_rancher_kubeconfig(self, rancher_token: str) -> str:
+        """Discover first available cluster and download its kubeconfig.
+
+        Lists clusters from the Rancher API, picks the first active one,
+        and calls the ``generateKubeconfig`` action on it.
+        """
+        base = settings.rancher_dev_url.rstrip("/")
+        auth_headers = {
+            "Authorization": f"Bearer {rancher_token}",
+            "Content-Type": "application/json",
+        }
+
+        # Step 1 — list clusters and pick the first active one
+        logger.info("Rancher dev mode: listing available clusters")
+        try:
+            list_resp = requests.get(
+                f"{base}/v3/clusters",
+                headers=auth_headers,
+                verify=False,
+                timeout=30,
+            )
+            list_resp.raise_for_status()
+        except requests.RequestException as e:
+            raise KubernetesDeploymentError(f"Failed to list Rancher clusters: {e}")
+
+        clusters = list_resp.json().get("data", [])
+        if not clusters:
+            raise KubernetesDeploymentError(
+                "No clusters found in Rancher dev. "
+                "Import or create at least one cluster in the Rancher UI."
+            )
+
+        # Prefer the first active cluster
+        cluster_id = None
+        for c in clusters:
+            if c.get("state") == "active":
+                cluster_id = c["id"]
+                cluster_name = c.get("name", cluster_id)
+                logger.info(
+                    f"Rancher dev mode: using cluster '{cluster_name}' ({cluster_id})"
+                )
+                break
+
+        if not cluster_id:
+            # Fall back to the first cluster, even if not active
+            cluster_id = clusters[0]["id"]
+            logger.warning(
+                f"Rancher dev mode: no active cluster found, "
+                f"falling back to '{clusters[0].get('name', cluster_id)}'"
+            )
+
+        # Step 2 — generate kubeconfig for the selected cluster
+        kubeconfig_url = f"{base}/v3/clusters/{cluster_id}?action=generateKubeconfig"
+        logger.info(f"Rancher dev mode: generating kubeconfig for cluster {cluster_id}")
+        try:
+            resp = requests.post(
+                kubeconfig_url,
+                headers=auth_headers,
+                verify=False,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            kubeconfig = data.get("config") or data.get("kubeconfig") or ""
+            if not kubeconfig:
+                raw_yaml = resp.text
+                try:
+                    parsed = yaml.safe_load(raw_yaml)
+                    if isinstance(parsed, dict) and "apiVersion" in parsed:
+                        return raw_yaml
+                except yaml.YAMLError:
+                    pass
+                raise KubernetesDeploymentError(
+                    "Rancher API did not return a kubeconfig"
+                )
+            return (
+                kubeconfig
+                if isinstance(kubeconfig, str)
+                else yaml.safe_dump(kubeconfig)
+            )
+        except requests.RequestException as e:
+            logger.exception("Failed to fetch kubeconfig from Rancher")
+            raise KubernetesDeploymentError(
+                f"Failed to fetch kubeconfig from Rancher dev: {e}"
+            )
 
     def _setup_kubernetes_client(self) -> None:
         try:
@@ -77,6 +260,19 @@ class KubernetesClient:
                 "Helm binary not found in the container. Is it installed in your Dockerfile?"
             )
 
+    @staticmethod
+    def _sanitize_quantity(raw: str) -> str:
+        """Convert a human-readable resource quantity to Kubernetes format.
+
+        ``"4 GiB"`` → ``"4Gi"``, ``"200 GiB"`` → ``"200Gi"``.
+        """
+        if not raw:
+            return raw
+        # Remove spaces and trailing 'B' from binary prefixes (MiB → Mi, GiB → Gi, etc.)
+        sanitized = raw.replace(" ", "")
+        sanitized = re.sub(r"(\d)([KMGTPE]i)B", r"\1\2", sanitized, flags=re.IGNORECASE)
+        return sanitized
+
     def build_helm_values(self, rp: RuntimePlatform) -> Dict:
         """Build Helm values from RuntimePlatform configuration.
 
@@ -88,42 +284,119 @@ class KubernetesClient:
         """
         values = {}
 
-        # security values for rancher
-        values["extraPodConfig"] = {
-            "securityContext": {
-                "runAsNonRoot": True,
-                "fsGroupChangePolicy": "OnRootMismatch",
-                "seccompProfile": {"type": "RuntimeDefault"},
-            }
+        # Standard Helm chart keys (used by charts created via 'helm create')
+        values["podSecurityContext"] = {
+            "runAsNonRoot": True,
+            "seccompProfile": {"type": "RuntimeDefault"},
         }
-        values["containerSecurityContext"] = {
+        values["securityContext"] = {
             "allowPrivilegeEscalation": False,
             "capabilities": {"drop": ["ALL"]},
             "runAsNonRoot": True,
-            "runAsUser": 1000,
-            "runAsGroup": 1000,
-            "readOnlyRootFilesystem": True,
             "seccompProfile": {"type": "RuntimeDefault"},
         }
-        values["podSecurityContext"] = values["extraPodConfig"]["securityContext"]
-        values["securityContext"] = values["containerSecurityContext"]
 
         if rp.num_cpus > 1:
             cpu_value = str(rp.num_cpus)
-            values.setdefault("resources", {}).setdefault("requests", {})["cpu"] = cpu_value
+            values.setdefault("resources", {}).setdefault("requests", {})[
+                "cpu"
+            ] = cpu_value
             values["resources"].setdefault("limits", {})["cpu"] = cpu_value
 
         if rp.memory:
-            values.setdefault("resources", {}).setdefault("requests", {})["memory"] = rp.memory
-            values["resources"].setdefault("limits", {})["memory"] = rp.memory
+            mem = self._sanitize_quantity(rp.memory)
+            values.setdefault("resources", {}).setdefault("requests", {})[
+                "memory"
+            ] = mem
+            values["resources"].setdefault("limits", {})["memory"] = mem
 
         if rp.storage:
-            values.setdefault("persistence", {})["size"] = rp.storage
+            values.setdefault("persistence", {})["size"] = self._sanitize_quantity(
+                rp.storage
+            )
 
         if rp.input_files:
             values["inputFiles"] = [{"url": f.url} for f in rp.input_files]
 
         return values
+
+    def _find_deployment_name(self, release_name: str) -> str:
+        """Find the deployment name created by a Helm release.
+
+        Args:
+            release_name: Helm release name.
+
+        Returns:
+            Deployment name, or None if not found.
+        """
+        apps_v1 = k8s_client.AppsV1Api()
+        label_selector = f"app.kubernetes.io/instance={release_name}"
+        deployments = apps_v1.list_namespaced_deployment(
+            namespace=self.namespace, label_selector=label_selector
+        )
+        if not deployments.items:
+            return None
+        return deployments.items[0].metadata.name
+
+    def _patch_deployment_security(self, release_name: str) -> None:
+        """Patch the deployment created by Helm to enforce PodSecurity compliance.
+
+        Uses the Python Kubernetes client (AppsV1Api) instead of ``kubectl``
+        to avoid kubectl connectivity issues through Rancher proxies.
+
+        Uses proper V1 model objects (not plain dicts) to ensure correct
+        serialization when patching the deployment.
+
+        Args:
+            release_name: Name of the Helm release (used to find the deployment).
+        """
+        pod_sc = k8s_client.V1PodSecurityContext(
+            run_as_non_root=True,
+            seccomp_profile=k8s_client.V1SeccompProfile(type="RuntimeDefault"),
+        )
+        container_sc = k8s_client.V1SecurityContext(
+            allow_privilege_escalation=False,
+            capabilities=k8s_client.V1Capabilities(drop=["ALL"]),
+            run_as_non_root=True,
+            seccomp_profile=k8s_client.V1SeccompProfile(type="RuntimeDefault"),
+        )
+
+        try:
+            deployment_name = self._find_deployment_name(release_name)
+            if not deployment_name:
+                logger.warning(
+                    f"No deployment found for release {release_name}, "
+                    f"skipping security patch"
+                )
+                return
+
+            apps_v1 = k8s_client.AppsV1Api()
+            deploy = apps_v1.read_namespaced_deployment(
+                name=deployment_name, namespace=self.namespace
+            )
+
+            # Apply pod-level security context
+            deploy.spec.template.spec.security_context = pod_sc
+
+            # Apply container-level security context to every container
+            for container in deploy.spec.template.spec.containers:
+                container.security_context = container_sc
+
+            apps_v1.patch_namespaced_deployment(
+                name=deployment_name,
+                namespace=self.namespace,
+                body=deploy,
+            )
+            logger.info(
+                f"Patched deployment {deployment_name} with security context "
+                f"for release {release_name}"
+            )
+        except ApiException as e:
+            logger.warning(
+                f"Failed to patch deployment security context for "
+                f"{release_name}: {e}. The chart may already apply these "
+                f"settings or the deployment may not be ready yet."
+            )
 
     def is_github_url(self, url: str) -> bool:
         return "github.com" in url.lower()
@@ -284,9 +557,7 @@ class KubernetesClient:
                     timeout=120,
                 )
                 if update_result.returncode != 0:
-                    logger.warning(
-                        f"Helm repo update warning: {update_result.stderr}"
-                    )
+                    logger.warning(f"Helm repo update warning: {update_result.stderr}")
 
                 dep_result = subprocess.run(
                     ["helm", "dependency", "build", local_chart_path],
@@ -315,10 +586,6 @@ class KubernetesClient:
                     self.kubeconfig,
                     "--kube-context",
                     self.context,
-                    "--wait",
-                    "--atomic",
-                    "--timeout",
-                    "5m",
                 ]
             else:
                 repo_name = chart_name.replace("/", "-").lower()
@@ -341,16 +608,10 @@ class KubernetesClient:
                     self.kubeconfig,
                     "--kube-context",
                     self.context,
-                    "--wait",
-                    "--atomic",
-                    "--timeout",
-                    "5m",
                 ]
 
             if values:
-                tf = tempfile.NamedTemporaryFile(
-                    mode="w", suffix=".json", delete=False
-                )
+                tf = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
                 json.dump(values, tf)
                 tf.close()
                 temp_files.append(tf.name)
@@ -361,9 +622,7 @@ class KubernetesClient:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             logger.info(f"Helm Success: {result.stdout}")
 
-            logger.info(
-                f"Helm release installed successfully: {release_name}"
-            )
+            logger.info(f"Helm release installed successfully: {release_name}")
             self.release_name = release_name
 
         except subprocess.CalledProcessError as e:
@@ -441,6 +700,127 @@ class KubernetesClient:
         except Exception as e:
             raise KubernetesDeploymentError(f"Error getting service URL: {e}")
 
+    def _log_pod_statuses(self, deployment_name: str) -> None:
+        """Log pod statuses for a deployment to help debug readiness issues."""
+        try:
+            v1 = k8s_client.CoreV1Api()
+            label_selector = None
+            deploy = k8s_client.AppsV1Api().read_namespaced_deployment(
+                name=deployment_name,
+                namespace=self.namespace,
+            )
+            if deploy.spec.selector.match_labels:
+                labels = ",".join(
+                    f"{k}={v}" for k, v in deploy.spec.selector.match_labels.items()
+                )
+                label_selector = labels
+
+            pods = v1.list_namespaced_pod(
+                namespace=self.namespace,
+                label_selector=label_selector,
+            )
+            for pod in pods.items:
+                phase = pod.status.phase
+                conditions = []
+                if pod.status.conditions:
+                    for c in pod.status.conditions:
+                        if c.status != "True":
+                            conditions.append(f"{c.type}={c.status}:{c.reason}")
+                container_statuses = []
+                if pod.status.container_statuses:
+                    for cs in pod.status.container_statuses:
+                        waiting = getattr(cs.state, "waiting", None)
+                        if waiting:
+                            container_statuses.append(
+                                f"{cs.name}:Waiting({waiting.reason}:{waiting.message})"
+                            )
+                        terminated = getattr(cs.state, "terminated", None)
+                        if terminated:
+                            container_statuses.append(
+                                f"{cs.name}:Terminated({terminated.reason})"
+                            )
+                        if not cs.ready and not waiting and not terminated:
+                            container_statuses.append(f"{cs.name}:NotReady")
+
+                status_parts = [f"phase={phase}"]
+                if conditions:
+                    status_parts.append(f"conditions=[{', '.join(conditions)}]")
+                if container_statuses:
+                    status_parts.append(f"containers=[{', '.join(container_statuses)}]")
+
+                logger.info(f"Pod {pod.metadata.name}: {', '.join(status_parts)}")
+        except Exception as e:
+            logger.warning(f"Failed to fetch pod statuses: {e}")
+
+    def _wait_for_rollout(self, release_name: str, timeout: int = 300) -> None:
+        """Wait for the deployment matching a Helm release to become ready.
+
+        Uses the Python Kubernetes client (AppsV1Api) instead of ``kubectl``
+        to avoid connectivity issues through Rancher proxies.
+
+        Args:
+            release_name: Helm release name (used to find deployment via label).
+            timeout: Maximum seconds to wait.
+
+        Raises:
+            KubernetesDeploymentError: If rollout times out or fails.
+        """
+        poll = 10  # seconds per poll
+        deadline = time.time() + timeout
+        deployment_name = None
+
+        while time.time() < deadline:
+            remaining = int(deadline - time.time())
+            try:
+                if deployment_name is None:
+                    deployment_name = self._find_deployment_name(release_name)
+                    if not deployment_name:
+                        raise KubernetesDeploymentError(
+                            f"No deployment found for release {release_name}"
+                        )
+                    logger.info(
+                        f"Waiting for deployment {deployment_name} "
+                        f"to be ready (timeout remaining: {remaining}s)..."
+                    )
+
+                apps_v1 = k8s_client.AppsV1Api()
+                deploy = apps_v1.read_namespaced_deployment(
+                    name=deployment_name,
+                    namespace=self.namespace,
+                )
+                conditions = deploy.status.conditions or []
+                available = next((c for c in conditions if c.type == "Available"), None)
+                ready_replicas = deploy.status.ready_replicas or 0
+                replicas = deploy.status.replicas or 0
+
+                if (
+                    available
+                    and available.status == "True"
+                    and ready_replicas == replicas
+                    and replicas > 0
+                ):
+                    logger.info(
+                        f"Deployment {deployment_name} is ready "
+                        f"({ready_replicas}/{replicas} replicas)"
+                    )
+                    return
+
+                # Fetch pods to diagnose why they aren't ready
+                self._log_pod_statuses(deployment_name)
+
+                time.sleep(poll)
+
+            except Exception as e:
+                logger.warning(
+                    f"Error checking deployment status for "
+                    f"{release_name}: {e}. Retrying in {poll}s..."
+                )
+                time.sleep(poll)
+
+        raise KubernetesDeploymentError(
+            f"Deployment rollout timed out after {timeout}s for {release_name}"
+        )
+
     def run_service(self, rp: RuntimePlatform, chart_info: dict) -> Dict:
         """Deploy service to Kubernetes cluster.
 
@@ -483,6 +863,14 @@ class KubernetesClient:
                 values=values,
             )
 
+            # Patch the resulting deployment to enforce PodSecurity compliance,
+            # since many Helm charts do not template securityContext values themselves.
+            self._patch_deployment_security(release_name)
+
+            # Now wait for the rollout to complete — pods will be accepted
+            # now that the security context has been patched in.
+            self._wait_for_rollout(release_name)
+
             service_url = self.get_service_url(service_name)
 
             return {
@@ -502,11 +890,16 @@ class KubernetesClient:
             logger.info(f"Uninstalling Helm release {release_name}")
             subprocess.run(
                 [
-                    "helm", "uninstall", release_name,
-                    "--namespace", self.namespace,
+                    "helm",
+                    "uninstall",
+                    release_name,
+                    "--namespace",
+                    self.namespace,
                     "--wait",
-                    "--kubeconfig", self.kubeconfig,
-                    "--kube-context", self.context,
+                    "--kubeconfig",
+                    self.kubeconfig,
+                    "--kube-context",
+                    self.context,
                 ],
                 check=True,
             )
@@ -515,5 +908,10 @@ class KubernetesClient:
             raise KubernetesDeploymentError(f"Failed to uninstall Helm release: {e}")
 
     def cleanup_old_releases(self, chart_name):
-        cmd = f"helm list -n {self.namespace} --filter '{chart_name}-' -q | xargs -r helm uninstall -n {self.namespace}"
-        subprocess.run(cmd, shell=True)
+        cmd = (
+            f"helm list -n {self.namespace} --filter '{chart_name}-' -q "
+            f"--kubeconfig {self.kubeconfig} --kube-context {self.context} "
+            f"| xargs -r helm uninstall -n {self.namespace} "
+            f"--kubeconfig {self.kubeconfig} --kube-context {self.context}"
+        )
+        subprocess.run(cmd, shell=True, capture_output=True)

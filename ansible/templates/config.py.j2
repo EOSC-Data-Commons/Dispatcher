@@ -18,6 +18,22 @@ class Settings(BaseSettings):
 
     redis_port: int = {{ redis.port }}
 
+    rancher_mode: str = "{{ kubernetes.mode | default('local') }}"
+
+{% if kubernetes.mode == 'dev' %}
+    rancher_dev_url: str = "{{ kubernetes.dev.url }}"
+    rancher_dev_token_exchange_url: str = "{{ kubernetes.dev.token_exchange_url }}"
+    rancher_dev_client_id: str = "{{ kubernetes.dev.client_id }}"
+    rancher_dev_client_secret: str = "{{ kubernetes.dev.client_secret }}"
+    rancher_dev_audience: str = "{{ kubernetes.dev.audience }}"
+{% else %}
+    rancher_dev_url: str = ""
+    rancher_dev_token_exchange_url: str = ""
+    rancher_dev_client_id: str = ""
+    rancher_dev_client_secret: str = ""
+    rancher_dev_audience: str = ""
+{% endif %}
+
     log_level: str = "{{ logging.level | default('INFO') }}"
     log_format: str = "{{ logging.format | default('text') }}"
 
