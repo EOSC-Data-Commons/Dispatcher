@@ -28,7 +28,7 @@ jobs:
           TAG=$(git tag --points-at HEAD --list 'v*' | head -1)
           if [ -n "$TAG" ]; then
             echo "target_hosts=player.eosc-data-commons.eu" >> $GITHUB_OUTPUT
-            echo "healthcheck_urls=player.eosc-data-commons.eu" >> $GITHUB_OUTPUT
+            echo "healthcheck_urls=https://player.eosc-data-commons.eu" >> $GITHUB_OUTPUT
             echo "version=$TAG" >> $GITHUB_OUTPUT
           else
             HOSTS=dev1.player.eosc-data-commons.eu,dev2.player.eosc-data-commons.eu
