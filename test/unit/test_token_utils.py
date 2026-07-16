@@ -158,11 +158,14 @@ def test_uses_correct_url_for_dev_environment():
 
     assert m.request_history[0].url == _DEV_USERINFO
 
+
 def test_uses_correct_url_for_demo_environment():
     """When egi_checkin_env is 'demo', the prod userinfo URL is used."""
     settings.egi_checkin_env = "demo"
 
-    demo_url = "https://aai-demo.egi.eu/auth/realms/egi/protocol/openid-connect/userinfo"
+    demo_url = (
+        "https://aai-demo.egi.eu/auth/realms/egi/protocol/openid-connect/userinfo"
+    )
 
     with requests_mock.Mocker() as m:
         m.get(demo_url, json={"sub": "jdoe@example.com"})
