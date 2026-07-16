@@ -83,9 +83,10 @@ def successful_session():
 
     auth = MagicMock(status_code=200)
     create = MagicMock(status_code=200)
-
+    token = MagicMock(status_code=200)
+    token.json.return_value = {"token": "token", "expires_in": 5}
     session.get.side_effect = [login, home, user, ready, auth]
-    session.post.side_effect = [start, create]
+    session.post.side_effect = [start, create, token]
     session.cookies.get.return_value = "mock-xsrf-token"
     session.cookies.__contains__.return_value = True
     return session
@@ -114,7 +115,7 @@ def test_post_success(mock_session_cls, successful_session):
 
     result = _make_vre().post()
     assert (
-        result == f"{MDDASH_DEFAULT_SERVICE}/user/testuser/dash/auth/create-login-token"
+        result == f"{MDDASH_DEFAULT_SERVICE}/user/testuser/dash/auth/login-token?token=token"
     )
 
 
