@@ -90,21 +90,11 @@ def test_post_success(mock_post, vip_request_package, mock_vault_key):
 
 def test_vault_key_not_found(vip_request_package):
     """Test VREConfigurationError raised when vault does not contain the key."""
-    request_package = RequestPackage(
-        vre_type=VIP_PROGRAMMING_LANGUAGE,
-        programming_language=VIP_PROGRAMMING_LANGUAGE,
-        workflow=WorkflowDescriptor(
-            id="https://vip.creatis.insa-lyon.fr/rest/pipelines/CQUEST/0.6",
-            url="https://vip.creatis.insa-lyon.fr/rest/pipelines/CQUEST/0.6",
-            type="SoftwareSourceCode",
-        ),
-        raw_crate={},
-    )
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        request_package=vip_request_package,
     )
 
     with patch(
