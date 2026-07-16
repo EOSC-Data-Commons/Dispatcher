@@ -18,6 +18,12 @@ class Settings(BaseSettings):
 
     redis_port: int = {{ redis.port }}
 
+    vault_url: str = "{{ vault.url }}"
+    vault_jwt_mount: str = "{{ vault.jwt_mount }}"
+    vault_kv_mount: str = "{{ vault.kv_mount }}"
+    vault_kv_version: int = {{ vault.kv_version }}
+    vault_jwt_role: str = "{{ vault.jwt_role }}"
+
     log_level: str = "{{ logging.level | default('INFO') }}"
     log_format: str = "{{ logging.format | default('text') }}"
 

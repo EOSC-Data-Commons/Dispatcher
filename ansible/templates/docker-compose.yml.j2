@@ -4,7 +4,7 @@ services:
 
   web:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level debug --reload 
+    command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level {{ logging.level|lower | default('info') }} --reload 
     volumes:
       - ./app:/usr/src/app
       - ./nginx/certbot/conf:{{nginx.cert}}
@@ -18,7 +18,7 @@ services:
 
   worker:
     build: .
-    command: celery -A app.celery.worker.celery worker --loglevel=info 
+    command: celery -A app.celery.worker.celery worker --loglevel={{ logging.level | default('INFO') }} 
     volumes:
       - git-repos-volume:/{{git.repos}}
       - .:/usr/src

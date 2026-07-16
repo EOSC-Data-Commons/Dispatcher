@@ -8,9 +8,6 @@ from .utils import parse_zipfile, oauth2_scheme
 from celery.result import AsyncResult
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 
-from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
-from celery.result import AsyncResult
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(

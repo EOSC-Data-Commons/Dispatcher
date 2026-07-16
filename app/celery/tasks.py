@@ -10,7 +10,11 @@ import copy
     name="vre_from_zipfile",
     bind=True,
 )
-def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, dict[str, bytes]], token):
+def vre_from_zipfile(
+    self,
+    parsed_zipfile: tuple[Dict, dict[str, bytes]],
+    token,
+):
     rocrate_dict = copy.deepcopy(parsed_zipfile[0])
     file_bytes_map = parsed_zipfile[1]
     package = RequestPackageBuilder.build(rocrate_dict, file_bytes_map)
@@ -20,7 +24,8 @@ def vre_from_zipfile(self, parsed_zipfile: tuple[Dict, dict[str, bytes]], token)
         update_state=self.update_state,
         request_package=package,
     )
-    return {"url": vre_handler.post()}
+    result = vre_handler.post()
+    return {"url": result}
 
 
 @celery.task(
@@ -39,4 +44,5 @@ def vre_from_rocrate(self, data: Dict, token):
         update_state=self.update_state,
         request_package=package,
     )
-    return {"url": vre_handler.post()}
+    result = vre_handler.post()
+    return {"url": result}

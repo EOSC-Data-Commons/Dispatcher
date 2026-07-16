@@ -2,13 +2,11 @@ from .base_vre import VRE, vre_factory
 import requests
 import logging
 from app import exceptions
+from app.vres.utils.vault import vault_get_api_key
 from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
 from app.constants import VIP_DEFAULT_SERVICE, VIP_DEFAULT_RESULTS_LOCATION
 
 logger = logging.getLogger(__name__)
-
-# Hardcoded per-user API key for VIP
-VIP_API_KEY = "9pr5fpfnom57hphp06ee9co70f"
 
 
 class VREVIP(VRE):
@@ -16,9 +14,11 @@ class VREVIP(VRE):
         return VIP_DEFAULT_SERVICE
 
     def post(self) -> str:
+        api_key = vault_get_api_key(self.token, "vip")
+
         payload = self._build_payload()
         headers = {
-            "apikey": VIP_API_KEY,
+            "apikey": api_key,
             "Content-Type": "application/json",
         }
         url = f"{self.svc_url}/rest/executions"
