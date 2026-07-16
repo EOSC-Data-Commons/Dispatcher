@@ -30,7 +30,7 @@ jobs:
             echo "target_host=player.eosc-data-commons.eu" >> $GITHUB_OUTPUT
             echo "version=$TAG" >> $GITHUB_OUTPUT
           else
-            echo "target_host=${{ secrets.DISPATCHER_HOST }}" >> $GITHUB_OUTPUT
+            echo "target_host=dev1.player.eosc-data-commons.eu,dev2.player.eosc-data-commons.eu" >> $GITHUB_OUTPUT
             echo "version=master" >> $GITHUB_OUTPUT
           fi
 
@@ -45,7 +45,9 @@ jobs:
 
       - name: Test SSH Connection
         run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ steps.vars.outputs.target_host }}
+          for h in $(echo ${{ steps.vars.outputs.target_host }} | tr , ' '); do
+            ssh -o StrictHostKeyChecking=no ubuntu@${{ steps.vars.outputs.target_host }} || exit 1
+          done
 
       - name: Run Ansible Playbook
         run: |
