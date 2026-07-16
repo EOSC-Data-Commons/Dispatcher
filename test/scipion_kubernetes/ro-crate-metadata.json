@@ -116,13 +116,13 @@
             "@id": "#destination",
             "@type": "RuntimePlatform",
             "name": "Kubernetes",
-            "memoryRequirements": "4 GiB",
+            "memoryRequirements": "128 MiB",
             "processorRequirements": [
-                "2 vCPU"
+                "1 vCPU"
             ],
-            "storageRequirements": "200 GiB",
-            "installUrl": "https://charts.bitnami.com/bitnami",
-            "chartName": "nginx"
+            "storageRequirements": "1 GiB",
+            "installUrl": "https://github.com/stefanprodan/podinfo/tree/master/charts/podinfo",
+            "chartName": "podinfo"
         },
         {
             "@id": "#author-dispatcher",

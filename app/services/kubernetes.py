@@ -284,6 +284,21 @@ class KubernetesClient:
         """
         values = {}
 
+        # Allow scheduling on control-plane nodes in small/dev clusters
+        # (supports both the legacy "master" and the newer "control-plane" taint).
+        values["tolerations"] = [
+            {
+                "key": "node-role.kubernetes.io/control-plane",
+                "operator": "Exists",
+                "effect": "NoSchedule",
+            },
+            {
+                "key": "node-role.kubernetes.io/master",
+                "operator": "Exists",
+                "effect": "NoSchedule",
+            },
+        ]
+
         # Standard Helm chart keys (used by charts created via 'helm create')
         values["podSecurityContext"] = {
             "runAsNonRoot": True,
@@ -592,9 +607,16 @@ class KubernetesClient:
                 logger.info(f"Adding helm repo: {repo_name} {repo_url}")
                 subprocess.run(
                     ["helm", "repo", "add", repo_name, repo_url, "--force-update"],
+                    capture_output=True,
+                    text=True,
                     check=True,
                 )
-                subprocess.run(["helm", "repo", "update"], check=True)
+                subprocess.run(
+                    ["helm", "repo", "update"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
 
                 cmd = [
                     "helm",
@@ -626,7 +648,8 @@ class KubernetesClient:
             self.release_name = release_name
 
         except subprocess.CalledProcessError as e:
-            raise KubernetesDeploymentError(f"Helm failed: {e.stderr}")
+            detail = e.stderr or e.stdout or str(e)
+            raise KubernetesDeploymentError(f"Helm failed: {detail}")
         finally:
             for f in temp_files:
                 if os.path.exists(f):
