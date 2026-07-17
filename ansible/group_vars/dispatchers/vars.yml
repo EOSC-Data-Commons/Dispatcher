@@ -29,7 +29,7 @@ redis:
 
 api:
   port: 8000
-  environment: demo
+  environment: demo # dev, demo, prod
 
 vault:
   url: https://secrets.egi.eu

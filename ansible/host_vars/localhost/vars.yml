@@ -1,0 +1,25 @@
+# Overrides for group_vars/dispatchers/vars.yml
+dispatcher:
+  dir: "{{ ansible_env.HOME }}/edc-dispatcher"
+
+oauth2:
+  client_id: "abc"
+  client_secret: "abcd"
+
+nginx:
+  cert: /etc/ssl/nginx
+
+api:
+  port: 8005
+  environment: dev
+
+# Disable IM for local development
+im:
+  endpoint: ""
+  cloud_provider:
+    type: ""
+    host: ""
+    username: ""
+    auth_version: ""
+    tenant: ""
+    domain: ""

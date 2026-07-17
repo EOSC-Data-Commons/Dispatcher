@@ -1,0 +1,5 @@
+---
+- name: Run generate certificates
+  community.docker.docker_compose_v2_run:
+    project_src: "{{ dispatcher.dir }}"
+    service: "certgen"
