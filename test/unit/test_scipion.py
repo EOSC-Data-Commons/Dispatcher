@@ -18,121 +18,7 @@ EXPECTED_WORKFLOW_URL = (
 )
 
 
-def make_scipion_rocrate():
-    """Build the Scipion RO-Crate metadata fixture used by vre_rocrate."""
-    return {
-        "@context": "https://w3id.org/ro/crate/1.1/context",
-        "@graph": [
-            {
-                "@id": "ro-crate-metadata.json",
-                "@type": "CreativeWork",
-                "about": {"@id": "./"},
-                "conformsTo": {"@id": "https://w3id.org/ro/crate/1.1"},
-            },
-            {
-                "@id": "./",
-                "@type": "Dataset",
-                "name": "Scipion Example Workflow",
-                "description": "This is an example of a workflow using the Scipion platform with TOSCA.",
-                "datePublished": "2025-05-06T14:35:47+00:00",
-                "license": {"@id": "https://spdx.org/licenses/GPL-3.0"},
-                "creator": {"@id": "#author-dispatcher"},
-                "mainEntity": {"@id": EXPECTED_WORKFLOW_URL},
-                "hasPart": [
-                    {"@id": EXPECTED_WORKFLOW_URL},
-                    {"@id": EXPECTED_DATASET_URL},
-                ],
-            },
-            {
-                "@id": EXPECTED_WORKFLOW_URL,
-                "@type": ["File", "SoftwareSourceCode", "ComputationalWorkflow"],
-                "conformsTo": {
-                    "@id": "https://bioschemas.org/profiles/ComputationalWorkflow/0.5-DRAFT-2020_07_21/"
-                },
-                "name": "Example scipion workflow",
-                "description": "A simple Scipion workflow for demonstration purposes.",
-                "programmingLanguage": {"@id": "#scipion-lang"},
-                "creator": {"@id": "#author-dispatcher"},
-                "dateCreated": "2025-05-06",
-                "license": {"@id": "https://spdx.org/licenses/GPL-3.0"},
-                "sdPublisher": {"@id": "#workflow-hub"},
-                "version": "1.0.0",
-                "runtimePlatform": {"@id": "#destination"},
-                "input": [{"@id": "#input-empiar-dataset"}],
-                "output": [{"@id": "#output-result"}],
-            },
-            {
-                "@id": "#input-empiar-dataset",
-                "@type": "FormalParameter",
-                "conformsTo": {
-                    "@id": "https://bioschemas.org/profiles/FormalParameter/0.1-DRAFT-2020_07_21/"
-                },
-                "name": "empiar_dataset",
-                "defaultValue": {"@id": EXPECTED_DATASET_URL},
-            },
-            {
-                "@id": "#output-result",
-                "@type": "FormalParameter",
-                "conformsTo": {
-                    "@id": "https://bioschemas.org/profiles/FormalParameter/0.1-DRAFT-2020_07_21/"
-                },
-                "name": "result",
-                "additionalType": {"@id": "http://edamontology.org/data_3671"},
-                "encodingFormat": {"@id": "http://edamontology.org/format_2330"},
-            },
-            {
-                "@id": "#scipion-lang",
-                "@type": "ComputerLanguage",
-                "identifier": SCIPION_PROGRAMMING_LANGUAGE,
-                "name": "Scipion",
-                "url": SCIPION_PROGRAMMING_LANGUAGE,
-            },
-            {
-                "@id": EXPECTED_DATASET_URL,
-                "@type": "Dataset",
-                "name": "empiar_dataset",
-            },
-            {
-                "@id": "#destination",
-                "@type": "RuntimePlatform",
-                "name": "Infrastructure Manager",
-                "memoryRequirements": "4 GiB",
-                "processorRequirements": ["2 vCPU"],
-                "storageRequirements": "200 GiB",
-                "installUrl": "https://raw.githubusercontent.com/grycap/tosca/refs/heads/eosc_beyond/templates/scipion.yaml",
-            },
-            {
-                "@id": "#author-dispatcher",
-                "@type": "Person",
-                "name": "Dispatcher System",
-            },
-            {
-                "@id": "#workflow-hub",
-                "@type": "Organization",
-                "name": "Example Workflow Hub",
-                "url": "http://example.com/workflows/",
-            },
-            {
-                "@id": "https://spdx.org/licenses/GPL-3.0",
-                "@type": "CreativeWork",
-                "name": "GNU General Public License v3.0",
-                "alternateName": "GPL-3.0",
-            },
-            {
-                "@id": "http://edamontology.org/data_3671",
-                "@type": "Thing",
-                "name": "Text",
-            },
-            {
-                "@id": "http://edamontology.org/format_2330",
-                "@type": "Thing",
-                "name": "Plain text format",
-            },
-        ],
-    }
-
-
-def make_scipion_request_package(files=None, raw_crate=None):
+def make_scipion_request_package(files=None):
     return RequestPackage(
         vre_type=SCIPION_PROGRAMMING_LANGUAGE,
         programming_language=SCIPION_PROGRAMMING_LANGUAGE,
@@ -143,7 +29,7 @@ def make_scipion_request_package(files=None, raw_crate=None):
             programming_language_id=SCIPION_PROGRAMMING_LANGUAGE,
         ),
         files=[] if files is None else files,
-        raw_crate={} if raw_crate is None else raw_crate,
+        raw_crate={},
     )
 
 
@@ -156,19 +42,13 @@ def scipion_vre():
                 name="empiar_dataset",
                 url=EXPECTED_DATASET_URL,
             )
-        ],
-        raw_crate=make_scipion_rocrate(),
+        ]
     )
-
-    class DummyIMClient:
-        def run_service(self, _dest):
-            return {"url": "https://scipion.example.org"}
 
     vre = VREScipion(
         token="test-token",
         request_id=0,
         update_state=lambda **_kwargs: None,
-        im_factory=lambda _token: DummyIMClient(),
         request_package=request_package,
     )
     vre.ssh = {
@@ -286,15 +166,10 @@ def test_get_data_set_url_reads_request_package_input_file():
         ]
     )
 
-    class DummyIMClient:
-        def run_service(self, _dest):
-            return {"url": "https://scipion.example.org"}
-
     vre = VREScipion(
         token="test-token",
         request_id=0,
         update_state=lambda **_kwargs: None,
-        im_factory=lambda _token: DummyIMClient(),
         request_package=request_package,
     )
 
