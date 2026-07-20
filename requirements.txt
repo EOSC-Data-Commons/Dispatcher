@@ -25,3 +25,4 @@ requests-mock>=1.12.1
 vre-rocrate @ git+https://github.com/EOSC-Data-Commons/vre_rocrate.git@master
 kubernetes>=25.3.0
 pyhelm>=1.2.1
+PyYAML>=6.0

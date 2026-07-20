@@ -1,12 +1,12 @@
 import sys
-from app import constants
 from app.services.im import IM
 from vre_rocrate import RuntimePlatform
-from app.services.kubernetes import KubernetesClient
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 from app.exceptions import VREConfigurationError
 import logging
+from app.services.kubernetes import KubernetesClient
+from app import constants
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,9 @@ class VRE(ABC):
         pass
 
     def setup_service(self) -> str:
+        k8s_dest = self._get_kubernetes_destination()
+        if k8s_dest is not None:
+            return self._deploy_kubernetes_destination(k8s_dest)
         rp = self._get_runtime_platform()
         return self._resolve_service_url(rp)
 
@@ -55,6 +58,108 @@ class VRE(ABC):
             return self.request_package.workflow.runtime_platform
         return None
 
+    def _find_destination_entity(self) -> dict | None:
+        """Resolve the deployment destination entity from the crate.
+
+        Accepts either link property, checked in order:
+          1. the root dataset's ``runsOn``;
+          2. the workflow's ``runtimePlatform`` (the raw reference is preserved
+             in ``workflow.properties`` even though the builder also exposes it
+             as a ``RuntimePlatform`` object).
+        Returns the raw destination entity dict, or None.
+        """
+        if self.request_package is None:
+            return None
+        ref = None
+        root = self.request_package.get_entity("./")
+        if isinstance(root, dict):
+            ref = root.get("runsOn")
+        if ref is None:
+            ref = self.request_package.workflow.properties.get("runtimePlatform")
+        entity_id = ref.get("@id") if isinstance(ref, dict) else ref
+        if not isinstance(entity_id, str) or not entity_id:
+            return None
+        entity = self.request_package.get_entity(entity_id)
+        return entity if isinstance(entity, dict) else None
+
+    def _is_kubernetes_rocrate_destination(self, dest: dict) -> bool:
+        """Whether *dest* is an InterLink/RO-Crate Kubernetes destination.
+
+        True for a Service whose ``serviceType`` is ``Kubernetes`` or any
+        destination that lists Helm/manifest Repos (``chartType``) in
+        ``hasPart``. A plain ``RuntimePlatform`` (name/installUrl/chartName with
+        no ``hasPart``) is False, so it takes the generic object path instead.
+        """
+        if dest.get("serviceType") == "Kubernetes":
+            return True
+        parts = dest.get("hasPart", [])
+        if isinstance(parts, dict):
+            parts = [parts]
+        for part in parts:
+            if isinstance(part, dict) and "@id" in part:
+                part = self.request_package.get_entity(part["@id"]) or {}
+            if isinstance(part, dict) and part.get("chartType"):
+                return True
+        return False
+
+    def _get_kubernetes_destination(self) -> dict | None:
+        """Return the fully-resolved InterLink Kubernetes destination, or None.
+
+        Discovers the destination via ``runsOn`` or ``runtimePlatform`` and,
+        when it is InterLink-shaped, returns it with ``hasPart`` ``@id``
+        references expanded to the actual Repo entities. Returns None for
+        non-Kubernetes or generic ``RuntimePlatform`` destinations so the
+        standard flow runs.
+        """
+        dest = self._find_destination_entity()
+        if dest is None or not self._is_kubernetes_rocrate_destination(dest):
+            return None
+        return self._expand_has_part(dest)
+
+    def _expand_has_part(self, dest: dict) -> dict:
+        """Return a copy of *dest* with ``hasPart`` @id references resolved.
+
+        RO-Crate lists ``hasPart`` as reference objects (``{"@id": "#x"}``); the
+        KubernetesClient's RO-Crate flow expects the concrete Repo entities, so
+        resolve each one against the graph here.
+        """
+        resolved = dict(dest)
+        parts = dest.get("hasPart", [])
+        if isinstance(parts, dict):
+            parts = [parts]
+        expanded: list = []
+        for part in parts:
+            if isinstance(part, dict) and "@id" in part:
+                entity = self.request_package.get_entity(part["@id"])
+                expanded.append(entity if isinstance(entity, dict) else part)
+            else:
+                expanded.append(part)
+        resolved["hasPart"] = expanded
+        return resolved
+
+    def _deploy_kubernetes_destination(self, dest: dict) -> str:
+        """Deploy the InterLink/Helm charts described by a Kubernetes destination.
+
+        Passes the destination as a dict so ``KubernetesClient.run_service``
+        routes to the RO-Crate flow (``_run_rocrate_service``): install each
+        chart in ``hasPart``, wait for the InterLink virtual node, and apply
+        any manifests.
+        """
+        self.update_task_status(constants.KUBERNETES_SEQUENCE_STARTED)
+        try:
+            client = KubernetesClient(user_token=self.token)
+            outputs = client.run_service(dest)
+            self.update_task_status(constants.KUBERNETES_SEQUENCE_FINISHED)
+        except Exception as exc:
+            logger.error(f"Kubernetes deployment failed: {exc}")
+            raise VREConfigurationError(
+                f"Failed to deploy service to Kubernetes: {exc}"
+            ) from exc
+        if not outputs:
+            raise VREConfigurationError("Failed to deploy service to Kubernetes")
+        self.update_task_status(constants.KUBERNETES_SEQUENCE_SUCCESSFUL)
+        return outputs.get("url", self.get_default_service())
+
     def _resolve_service_url(self, dest: str | RuntimePlatform | None) -> str:
         if dest is None:
             return self.get_default_service()
@@ -63,7 +168,7 @@ class VRE(ABC):
         if isinstance(dest, str):
             return dest
 
-        # RuntimePlatform with installUrl – delegate to Infrastructure Manager or Kubernetes.
+        # RuntimePlatform with installUrl – delegate to Infrastructure Manager.
         if dest.install_url is not None:
             if dest.name == "Infrastructure Manager":
                 logger.error(f"IM dest {dest}")
