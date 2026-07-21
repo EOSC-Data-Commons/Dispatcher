@@ -80,8 +80,9 @@ def vault_get_api_key(access_token: str, key_id: str) -> str:
         VaultError: Any other vault-related error.
     """
     user: TokenUser = extract_user_from_token(access_token)
+    email = user.email
     vault_token = _get_vault_token(access_token)
-    path = _kv_data_path(user.sub, key_id)
+    path = _kv_data_path(email, key_id)
 
     try:
         resp = requests.get(
@@ -91,7 +92,7 @@ def vault_get_api_key(access_token: str, key_id: str) -> str:
         )
         if resp.status_code == 404:
             raise VREConfigurationError(
-                f"Secret '{key_id}' not found in vault for user '{user.sub}'"
+                f"Secret '{key_id}' not found in vault for user '{email}'"
             )
         if resp.status_code == 401 or resp.status_code == 403:
             raise VREAuthenticationError(

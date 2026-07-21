@@ -12,9 +12,12 @@ Examples:
 
 import sys
 import os
+from pathlib import Path
 
-# Ensure the project root is on the import path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Ensure the project root (parent of test/) is on the import path
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+print(PROJECT_ROOT)
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.config import settings
 from app.vres.utils.vault import vault_get_api_key
@@ -27,6 +30,7 @@ settings.vault_jwt_mount = os.environ.get("VAULT_JWT_MOUNT", "jwt")
 settings.vault_kv_mount = os.environ.get("VAULT_KV_MOUNT", "secrets")
 settings.vault_kv_version = int(os.environ.get("VAULT_KV_VERSION", "1"))
 settings.vault_jwt_role = os.environ.get("VAULT_JWT_ROLE", "")
+settings.egi_checkin_env = "prod"
 
 
 def main() -> None:
