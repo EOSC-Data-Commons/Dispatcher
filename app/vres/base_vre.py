@@ -35,6 +35,7 @@ class VRE(ABC):
         self._update_state = update_state
         self._request_id = request_id
         self._im_factory = im_factory or self._default_im_factory
+        self.ssh = None
         self.svc_url = self.setup_service().rstrip("/")
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -72,6 +73,8 @@ class VRE(ABC):
             outputs = im_client.run_service(dest)
             if outputs is None:
                 raise VREConfigurationError("Failed to deploy service via IM")
+            # Get also SSH information if available, for example to connect to a remote Scipion instance.
+            self.ssh = outputs.get("ssh")
             return outputs.get("url", self.get_default_service())
 
         raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
