@@ -152,17 +152,11 @@ class VREBinder(VRE):
         if not remote_files:
             return
 
-        # Determine target directory from each remote file's id (e.g. "data/file.csv" → "data/")
         download_lines: list[str] = []
         for fref in remote_files:
             if not fref.url:
                 continue
-            target_dir = os.path.dirname(fref.id)
-            if target_dir and not target_dir.endswith("/"):
-                target_dir += "/"
-            download_lines.append(
-                f'./datahugger download "{fref.url}" --to "{target_dir}"'
-            )
+            download_lines.append(f'./datahugger download "{fref.url}" --to "data/"')
 
         if not download_lines:
             return
