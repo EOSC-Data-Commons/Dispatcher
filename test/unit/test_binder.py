@@ -202,78 +202,28 @@ def test_post_repository_only_zenodo(binder_vre_zenodo_url):
     assert result == "https://mybinder.org/v2/zenodo/10.5281/zenodo.12345678/"
 
 
-def test_clone_remote_files_none_url_does_nothing(tmpdir):
+def test_clone_remote_files_none_url_does_nothing(binder_vre_no_url, tmpdir):
     """Test that _clone_remote_files does nothing when URL is None."""
-    from vre_rocrate import (
-        BINDER_PROGRAMMING_LANGUAGE,
-        RequestPackage,
-        WorkflowDescriptor,
-    )
-    from app.vres.binder import VREBinder
-
-    workflow = WorkflowDescriptor(
-        id="notebook.ipynb",
-        type="SoftwareSourceCode",
-        url=None,
-        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
-    )
-    package = RequestPackage(
-        vre_type=BINDER_PROGRAMMING_LANGUAGE,
-        programming_language=BINDER_PROGRAMMING_LANGUAGE,
-        workflow=workflow,
-        files=[],
-        raw_crate={},
-    )
-    vre = VREBinder(
-        token="test-token",
-        request_id=0,
-        update_state=None,
-        request_package=package,
-    )
-
     repo_path = str(tmpdir / "test_repo")
     os.makedirs(repo_path)
 
     # Should not raise any exception
-    vre._clone_remote_files(None, repo_path)
+    binder_vre_no_url._clone_remote_files(None, repo_path)
 
     # Directory should be unchanged (empty except for what we created)
     assert os.path.isdir(repo_path)
 
 
-def test_clone_remote_files_non_github_logs_warning(caplog, tmpdir):
+def test_clone_remote_files_non_github_logs_warning(
+    binder_vre_gitlab_only, caplog, tmpdir
+):
     """Test that non-GitHub URLs log a warning and do nothing."""
-    from vre_rocrate import (
-        BINDER_PROGRAMMING_LANGUAGE,
-        RequestPackage,
-        WorkflowDescriptor,
-    )
-    from app.vres.binder import VREBinder
-
-    workflow = WorkflowDescriptor(
-        id="notebook.ipynb",
-        type="SoftwareSourceCode",
-        url="https://gitlab.com/example/repo",
-        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
-    )
-    package = RequestPackage(
-        vre_type=BINDER_PROGRAMMING_LANGUAGE,
-        programming_language=BINDER_PROGRAMMING_LANGUAGE,
-        workflow=workflow,
-        files=[],
-        raw_crate={},
-    )
-    vre = VREBinder(
-        token="test-token",
-        request_id=0,
-        update_state=None,
-        request_package=package,
-    )
-
     repo_path = str(tmpdir / "test_repo")
     os.makedirs(repo_path)
 
-    vre._clone_remote_files("https://gitlab.com/example/repo", repo_path)
+    binder_vre_gitlab_only._clone_remote_files(
+        "https://gitlab.com/example/repo", repo_path
+    )
 
     # Check that warning was logged
     assert any("non-GitHub" in record.message for record in caplog.records)
@@ -284,46 +234,21 @@ def test_clone_remote_files_non_github_logs_warning(caplog, tmpdir):
 # =============================================================================
 
 
-def test_write_start_script_preserves_existing(tmpdir):
-    """Existing 'start' from cloned repo is renamed and sourced by the new one."""
-    from app.vres.binder import VREBinder
-    from vre_rocrate import (
-        BINDER_PROGRAMMING_LANGUAGE,
-        RequestPackage,
-        WorkflowDescriptor,
-    )
+EXISTING_START_CONTENT = "#!/bin/bash\necho 'original start'\n"
 
+
+def test_write_start_script_preserves_existing(binder_vre_not_repo_only, tmpdir):
+    """Existing 'start' from cloned repo is renamed and sourced by the new one."""
     repo_path = str(tmpdir / "test_repo")
     os.makedirs(repo_path)
 
     # Simulate a cloned repo that already has a start script
     existing_start = os.path.join(repo_path, "start")
     with open(existing_start, "w") as f:
-        f.write("#!/bin/bash\necho 'original start'\n")
+        f.write(EXISTING_START_CONTENT)
     os.chmod(existing_start, 0o755)
 
-    # Build a VRE with no remote files
-    workflow = WorkflowDescriptor(
-        id="notebook.ipynb",
-        type="SoftwareSourceCode",
-        url="https://github.com/example/repo",
-        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
-    )
-    package = RequestPackage(
-        vre_type=BINDER_PROGRAMMING_LANGUAGE,
-        programming_language=BINDER_PROGRAMMING_LANGUAGE,
-        workflow=workflow,
-        files=[],
-        raw_crate={},
-    )
-    vre = VREBinder(
-        token="test-token",
-        request_id=0,
-        update_state=None,
-        request_package=package,
-    )
-
-    vre._write_start_script(repo_path)
+    binder_vre_not_repo_only._write_start_script(repo_path)
 
     # New start should exist, be executable, and source the preserved one
     new_start = os.path.join(repo_path, "start")
@@ -335,98 +260,40 @@ def test_write_start_script_preserves_existing(tmpdir):
     assert "source ./start." in content
     assert 'exec "$@"' in content
 
-    # The preserved script should still be on disk and executable
+    # The preserved script should still be on disk, executable, with original content
     preserved_files = [f for f in os.listdir(repo_path) if f.startswith("start.")]
     assert len(preserved_files) == 1
     preserved_path = os.path.join(repo_path, preserved_files[0])
     assert os.access(preserved_path, os.X_OK)
+    with open(preserved_path) as f:
+        assert f.read() == EXISTING_START_CONTENT
 
 
-def test_write_start_script_no_existing_no_remote(tmpdir):
+def test_write_start_script_no_existing_no_remote(binder_vre_not_repo_only, tmpdir):
     """No existing start and no remote files: no start script is created."""
-    from app.vres.binder import VREBinder
-    from vre_rocrate import (
-        BINDER_PROGRAMMING_LANGUAGE,
-        RequestPackage,
-        WorkflowDescriptor,
-    )
-
     repo_path = str(tmpdir / "test_repo")
     os.makedirs(repo_path)
 
-    workflow = WorkflowDescriptor(
-        id="notebook.ipynb",
-        type="SoftwareSourceCode",
-        url="https://github.com/example/repo",
-        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
-    )
-    package = RequestPackage(
-        vre_type=BINDER_PROGRAMMING_LANGUAGE,
-        programming_language=BINDER_PROGRAMMING_LANGUAGE,
-        workflow=workflow,
-        files=[],
-        raw_crate={},
-    )
-    vre = VREBinder(
-        token="test-token",
-        request_id=0,
-        update_state=None,
-        request_package=package,
-    )
-
-    vre._write_start_script(repo_path)
+    binder_vre_not_repo_only._write_start_script(repo_path)
 
     # No start script should have been created
     assert not os.path.isfile(os.path.join(repo_path, "start"))
 
 
-def test_write_start_script_existing_plus_remote_files(tmpdir):
+def test_write_start_script_existing_plus_remote_files(
+    binder_vre_not_repo_only_with_remote, tmpdir
+):
     """Existing start + remote files: datahugger lines come first, then source."""
-    from app.vres.binder import VREBinder
-    from vre_rocrate import (
-        BINDER_PROGRAMMING_LANGUAGE,
-        RequestPackage,
-        WorkflowDescriptor,
-        FileReference,
-    )
-
     repo_path = str(tmpdir / "test_repo")
     os.makedirs(repo_path)
 
     # Simulate a cloned repo that already has a start script
     existing_start = os.path.join(repo_path, "start")
     with open(existing_start, "w") as f:
-        f.write("#!/bin/bash\necho 'original start'\n")
+        f.write(EXISTING_START_CONTENT)
     os.chmod(existing_start, 0o755)
 
-    # Build a VRE with remote files
-    workflow = WorkflowDescriptor(
-        id="notebook.ipynb",
-        type="SoftwareSourceCode",
-        url="https://github.com/example/repo",
-        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
-    )
-    remote_file = FileReference(
-        id="https://example.org/data/file.csv",
-        name="file.csv",
-        url="https://example.org/data/file.csv",
-        properties={},
-    )
-    package = RequestPackage(
-        vre_type=BINDER_PROGRAMMING_LANGUAGE,
-        programming_language=BINDER_PROGRAMMING_LANGUAGE,
-        workflow=workflow,
-        files=[remote_file],
-        raw_crate={},
-    )
-    vre = VREBinder(
-        token="test-token",
-        request_id=0,
-        update_state=None,
-        request_package=package,
-    )
-
-    vre._write_start_script(repo_path)
+    binder_vre_not_repo_only_with_remote._write_start_script(repo_path)
 
     # New start should exist and contain both datahugger and source lines
     new_start = os.path.join(repo_path, "start")
@@ -444,6 +311,9 @@ def test_write_start_script_existing_plus_remote_files(tmpdir):
     idx_exec = content.index('exec "$@"')
     assert idx_dh < idx_source < idx_exec
 
-    # Preserved script should exist
+    # Preserved script should exist with original content
     preserved_files = [f for f in os.listdir(repo_path) if f.startswith("start.")]
     assert len(preserved_files) == 1
+    preserved_path = os.path.join(repo_path, preserved_files[0])
+    with open(preserved_path) as f:
+        assert f.read() == EXISTING_START_CONTENT
