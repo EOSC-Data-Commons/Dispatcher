@@ -317,3 +317,67 @@ def test_write_start_script_existing_plus_remote_files(
     preserved_path = os.path.join(repo_path, preserved_files[0])
     with open(preserved_path) as f:
         assert f.read() == EXISTING_START_CONTENT
+
+
+# =============================================================================
+# Tests for _ensure_start_in_dockerfile
+# =============================================================================
+
+
+def test_ensure_dockerfile_absent_does_nothing(binder_vre_not_repo_only, tmpdir):
+    """Dockerfile is not created when it doesn't already exist."""
+    repo_path = str(tmpdir / "test_repo")
+    os.makedirs(repo_path)
+
+    # Create a start script so the guard passes
+    start_path = os.path.join(repo_path, "start")
+    with open(start_path, "w") as f:
+        f.write("#!/bin/bash\necho ok\n")
+    os.chmod(start_path, 0o755)
+
+    binder_vre_not_repo_only._ensure_start_in_dockerfile(repo_path)
+
+    assert not os.path.isfile(os.path.join(repo_path, "Dockerfile"))
+
+
+def test_ensure_dockerfile_present_no_start_does_nothing(
+    binder_vre_not_repo_only, tmpdir
+):
+    """Dockerfile is left unchanged when no start script exists."""
+    repo_path = str(tmpdir / "test_repo")
+    os.makedirs(repo_path)
+
+    dockerfile_path = os.path.join(repo_path, "Dockerfile")
+    original = "FROM ubuntu:latest\n"
+    with open(dockerfile_path, "w") as f:
+        f.write(original)
+
+    binder_vre_not_repo_only._ensure_start_in_dockerfile(repo_path)
+
+    with open(dockerfile_path) as f:
+        assert f.read() == original
+
+
+def test_ensure_dockerfile_present_with_start_patches(binder_vre_not_repo_only, tmpdir):
+    """Dockerfile is patched to invoke start when both exist."""
+    repo_path = str(tmpdir / "test_repo")
+    os.makedirs(repo_path)
+
+    # Create both Dockerfile and start
+    dockerfile_path = os.path.join(repo_path, "Dockerfile")
+    with open(dockerfile_path, "w") as f:
+        f.write("FROM ubuntu:latest\n")
+
+    start_path = os.path.join(repo_path, "start")
+    with open(start_path, "w") as f:
+        f.write("#!/bin/bash\necho ok\n")
+    os.chmod(start_path, 0o755)
+
+    binder_vre_not_repo_only._ensure_start_in_dockerfile(repo_path)
+
+    with open(dockerfile_path) as f:
+        content = f.read()
+
+    assert 'ENTRYPOINT ["/usr/local/bin/dispatcher-start"]' in content
+    assert "COPY start /usr/local/bin/dispatcher-start" in content
+    assert "RUN chmod +x /usr/local/bin/dispatcher-start" in content

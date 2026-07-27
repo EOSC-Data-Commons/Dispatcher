@@ -91,6 +91,7 @@ class VREBinder(VRE):
         self._write_source_files(repo)
         self._clone_remote_files(self.request_package.workflow.url, repo)
         self._write_start_script(repo)
+        self._ensure_start_in_dockerfile(repo)
         self._initialize_temporary_git_repo(repo)
         self._write_example_file(repo)
         url = self.svc_url.rstrip("/")
@@ -206,6 +207,31 @@ class VREBinder(VRE):
 
         # Make the script executable
         os.chmod(script_path, 0o755)
+
+    def _ensure_start_in_dockerfile(self, repo: str) -> None:
+        """Patch Dockerfile to invoke the generated start script if both exist.
+
+        When a cloned repository contains a Dockerfile, Binder/repo2docker uses
+        it verbatim and ignores the repo-root ``start`` script.  Appending
+        ``COPY``, ``RUN chmod`` and ``ENTRYPOINT`` ensures the generated
+        ``start`` is executed inside the container.
+        """
+        dockerfile_path = os.path.join(repo, "Dockerfile")
+        start_path = os.path.join(repo, "start")
+
+        if not os.path.isfile(dockerfile_path):
+            return
+        if not os.path.isfile(start_path):
+            return
+
+        container_path = "/usr/local/bin/dispatcher-start"
+        with open(dockerfile_path, "a") as f:
+            f.write("\n# Added by dispatcher - start script integration\n")
+            f.write(f"COPY start {container_path}\n")
+            f.write(f"RUN chmod +x {container_path}\n")
+            f.write(f'ENTRYPOINT ["{container_path}"]\n')
+
+        logger.debug(f"{__class__.__name__}: patched Dockerfile to invoke start script")
 
     def _clone_remote_files(self, url: Optional[str], repo_path: str) -> None:
         """Clone remote repository working tree into repo_path.
