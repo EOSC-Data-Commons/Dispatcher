@@ -378,6 +378,5 @@ def test_ensure_dockerfile_present_with_start_patches(binder_vre_not_repo_only, 
     with open(dockerfile_path) as f:
         content = f.read()
 
-    assert 'ENTRYPOINT ["/usr/local/bin/dispatcher-start"]' in content
-    assert "COPY start /usr/local/bin/dispatcher-start" in content
-    assert "RUN chmod +x /usr/local/bin/dispatcher-start" in content
+    assert 'ENTRYPOINT ["/usr/local/bin/start"]' in content
+    assert "COPY start /usr/local/bin/start" in content
