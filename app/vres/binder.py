@@ -3,6 +3,7 @@ from __future__ import annotations
 from .base_vre import VRE, vre_factory
 import os
 import urllib.parse
+import uuid
 from app.config import settings
 from vre_rocrate import BINDER_PROGRAMMING_LANGUAGE
 from app.constants import BINDER_DEFAULT_SERVICE
@@ -88,8 +89,8 @@ class VREBinder(VRE):
         repo = self._generate_repository_name(self._request_id)
         self._create(repo)
         self._write_source_files(repo)
-        self._write_start_script(repo)
         self._clone_remote_files(self.request_package.workflow.url, repo)
+        self._write_start_script(repo)
         self._initialize_temporary_git_repo(repo)
         self._write_example_file(repo)
         url = self.svc_url.rstrip("/")
@@ -142,37 +143,64 @@ class VREBinder(VRE):
                     f.write(content if isinstance(content, bytes) else content.encode())
 
     def _write_start_script(self, repo: str) -> None:
-        """Write Binder start script that stages remote files via datahugger.
+        """Write Binder start script that stages data and sources an existing start.
+
+        If a ``start`` script already exists in the repository (e.g. cloned from
+        a remote repo), it is renamed to a unique name and sourced by the newly
+        generated script so the original startup logic is preserved.
 
         For each remote file in the request package, generates a datahugger
         download command.  The script hands control back to Binder via ``exec "$@"``
         so Jupyter starts normally after the files are staged.
         """
+        existing_start = os.path.join(repo, "start")
+        renamed_start: str | None = None
+
+        # Preserve a pre-existing start script from a cloned repository
+        if os.path.isfile(existing_start):
+            unique_name = f"start.{uuid.uuid4().hex[:8]}"
+            renamed_start = os.path.join(repo, unique_name)
+            os.rename(existing_start, renamed_start)
+            os.chmod(renamed_start, 0o755)
+            logger.debug(
+                f"{__class__.__name__}: preserved existing start as {unique_name}"
+            )
+
         remote_files = self.request_package.remote_files
-        if not remote_files:
-            return
-
         download_lines: list[str] = []
-        for fref in remote_files:
-            if not fref.url:
-                continue
-            download_lines.append(f'./datahugger download "{fref.url}" --to "data/"')
+        if remote_files:
+            for fref in remote_files:
+                if not fref.url:
+                    continue
+                download_lines.append(
+                    f'./datahugger download "{fref.url}" --to "data/"'
+                )
 
-        if not download_lines:
+        if not download_lines and renamed_start is None:
             return
 
         script_path = os.path.join(repo, "start")
         logger.debug(
-            f"{__class__.__name__}: writing start script with {len(download_lines)} datahugger commands"
+            f"{__class__.__name__}: writing start script "
+            f"(downloads={len(download_lines)}, sourced={renamed_start is not None})"
         )
         with open(script_path, "w") as f:
             f.write("#!/bin/bash\n")
             f.write("set -e\n")
             f.write("\n")
-            f.write("# Data staging via datahugger\n")
-            for line in download_lines:
-                f.write(f"{line}\n")
-            f.write("\n")
+
+            if download_lines:
+                f.write("# Data staging via datahugger\n")
+                for line in download_lines:
+                    f.write(f"{line}\n")
+                f.write("\n")
+
+            if renamed_start is not None:
+                f.write("# Source original start script from repository\n")
+                f.write("# (renamed from 'start' to avoid overwrite)\n")
+                f.write(f"source ./{os.path.basename(renamed_start)}\n")
+                f.write("\n")
+
             f.write("# Hand control back to Binder so Jupyter actually starts\n")
             f.write('exec "$@"\n')
 

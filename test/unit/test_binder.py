@@ -277,3 +277,173 @@ def test_clone_remote_files_non_github_logs_warning(caplog, tmpdir):
 
     # Check that warning was logged
     assert any("non-GitHub" in record.message for record in caplog.records)
+
+
+# =============================================================================
+# Tests for _write_start_script with cloned start script preservation
+# =============================================================================
+
+
+def test_write_start_script_preserves_existing(tmpdir):
+    """Existing 'start' from cloned repo is renamed and sourced by the new one."""
+    from app.vres.binder import VREBinder
+    from vre_rocrate import (
+        BINDER_PROGRAMMING_LANGUAGE,
+        RequestPackage,
+        WorkflowDescriptor,
+    )
+
+    repo_path = str(tmpdir / "test_repo")
+    os.makedirs(repo_path)
+
+    # Simulate a cloned repo that already has a start script
+    existing_start = os.path.join(repo_path, "start")
+    with open(existing_start, "w") as f:
+        f.write("#!/bin/bash\necho 'original start'\n")
+    os.chmod(existing_start, 0o755)
+
+    # Build a VRE with no remote files
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url="https://github.com/example/repo",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[],
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+
+    vre._write_start_script(repo_path)
+
+    # New start should exist, be executable, and source the preserved one
+    new_start = os.path.join(repo_path, "start")
+    assert os.path.isfile(new_start)
+    assert os.access(new_start, os.X_OK)
+
+    with open(new_start) as f:
+        content = f.read()
+    assert "source ./start." in content
+    assert 'exec "$@"' in content
+
+    # The preserved script should still be on disk and executable
+    preserved_files = [f for f in os.listdir(repo_path) if f.startswith("start.")]
+    assert len(preserved_files) == 1
+    preserved_path = os.path.join(repo_path, preserved_files[0])
+    assert os.access(preserved_path, os.X_OK)
+
+
+def test_write_start_script_no_existing_no_remote(tmpdir):
+    """No existing start and no remote files: no start script is created."""
+    from app.vres.binder import VREBinder
+    from vre_rocrate import (
+        BINDER_PROGRAMMING_LANGUAGE,
+        RequestPackage,
+        WorkflowDescriptor,
+    )
+
+    repo_path = str(tmpdir / "test_repo")
+    os.makedirs(repo_path)
+
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url="https://github.com/example/repo",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[],
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+
+    vre._write_start_script(repo_path)
+
+    # No start script should have been created
+    assert not os.path.isfile(os.path.join(repo_path, "start"))
+
+
+def test_write_start_script_existing_plus_remote_files(tmpdir):
+    """Existing start + remote files: datahugger lines come first, then source."""
+    from app.vres.binder import VREBinder
+    from vre_rocrate import (
+        BINDER_PROGRAMMING_LANGUAGE,
+        RequestPackage,
+        WorkflowDescriptor,
+        FileReference,
+    )
+
+    repo_path = str(tmpdir / "test_repo")
+    os.makedirs(repo_path)
+
+    # Simulate a cloned repo that already has a start script
+    existing_start = os.path.join(repo_path, "start")
+    with open(existing_start, "w") as f:
+        f.write("#!/bin/bash\necho 'original start'\n")
+    os.chmod(existing_start, 0o755)
+
+    # Build a VRE with remote files
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url="https://github.com/example/repo",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    remote_file = FileReference(
+        id="https://example.org/data/file.csv",
+        name="file.csv",
+        url="https://example.org/data/file.csv",
+        properties={},
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[remote_file],
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+
+    vre._write_start_script(repo_path)
+
+    # New start should exist and contain both datahugger and source lines
+    new_start = os.path.join(repo_path, "start")
+    assert os.path.isfile(new_start)
+    with open(new_start) as f:
+        content = f.read()
+
+    # datahugger download should appear before the source line
+    assert "datahugger download" in content
+    assert "source ./start." in content
+    assert 'exec "$@"' in content
+
+    idx_dh = content.index("datahugger")
+    idx_source = content.index("source ./start.")
+    idx_exec = content.index('exec "$@"')
+    assert idx_dh < idx_source < idx_exec
+
+    # Preserved script should exist
+    preserved_files = [f for f in os.listdir(repo_path) if f.startswith("start.")]
+    assert len(preserved_files) == 1
