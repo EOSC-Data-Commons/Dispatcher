@@ -224,11 +224,10 @@ class VREBinder(VRE):
         if not os.path.isfile(start_path):
             return
 
-        container_path = "/usr/local/bin/dispatcher-start"
+        container_path = "/usr/local/bin/start"
         with open(dockerfile_path, "a") as f:
             f.write("\n# Added by dispatcher - start script integration\n")
             f.write(f"COPY start {container_path}\n")
-            f.write(f"RUN chmod +x {container_path}\n")
             f.write(f'ENTRYPOINT ["{container_path}"]\n')
 
         logger.debug(f"{__class__.__name__}: patched Dockerfile to invoke start script")
