@@ -258,7 +258,8 @@ def test_write_start_script_preserves_existing(binder_vre_not_repo_only, tmpdir)
     with open(new_start) as f:
         content = f.read()
     assert "source ./start." in content
-    assert 'exec "$@"' in content
+    # Original start already execs "$@", so our wrapper must not
+    assert 'exec "$@"' not in content
 
     # The preserved script should still be on disk, executable, with original content
     preserved_files = [f for f in os.listdir(repo_path) if f.startswith("start.")]
@@ -304,12 +305,12 @@ def test_write_start_script_existing_plus_remote_files(
     # datahugger download should appear before the source line
     assert "datahugger download" in content
     assert "source ./start." in content
-    assert 'exec "$@"' in content
+    # Original start already execs "$@", so our wrapper must not
+    assert 'exec "$@"' not in content
 
     idx_dh = content.index("datahugger")
     idx_source = content.index("source ./start.")
-    idx_exec = content.index('exec "$@"')
-    assert idx_dh < idx_source < idx_exec
+    assert idx_dh < idx_source
 
     # Preserved script should exist with original content
     preserved_files = [f for f in os.listdir(repo_path) if f.startswith("start.")]

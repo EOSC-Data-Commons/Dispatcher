@@ -200,10 +200,10 @@ class VREBinder(VRE):
                 f.write("# Source original start script from repository\n")
                 f.write("# (renamed from 'start' to avoid overwrite)\n")
                 f.write(f"source ./{os.path.basename(renamed_start)}\n")
-                f.write("\n")
-
-            f.write("# Hand control back to Binder so Jupyter actually starts\n")
-            f.write('exec "$@"\n')
+                f.write("# Original start hands control back to Binder\n")
+            else:
+                f.write("# Hand control back to Binder so Jupyter starts\n")
+                f.write('exec "$@"\n')
 
         # Make the script executable
         os.chmod(script_path, 0o755)
