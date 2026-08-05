@@ -30,6 +30,7 @@ redis:
 api:
   port: 8000
   environment: demo # dev, demo, prod
+  anonymous_requests: true
 
 vault:
   url: https://secrets.egi.eu

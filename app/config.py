@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     host: str = ""
     git_repos: str = ""
     git_url_prefix: str = "/git"
+    # Anonymous (unauthenticated) request endpoints /anon_requests/
+    anonymous_requests_enabled: bool = True
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
 
