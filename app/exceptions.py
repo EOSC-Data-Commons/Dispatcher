@@ -37,6 +37,10 @@ class FileProcessingError(VREError):
     pass
 
 
+class UnsupportedBinderSource(WorkflowConfigurationError):
+    pass
+
+
 class ExternalServiceError(VREError):
     """Raised when external service (Galaxy, Binder, etc.) fails"""
 

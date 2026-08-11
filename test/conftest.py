@@ -205,16 +205,216 @@ def binder_vre(dummy_binder_crate):
 
 @pytest.fixture
 def binder_vre_with_doi():
-    """Binder VRE with a Zenodo DOI as the workflow @id."""
+    """Binder VRE with a Zenodo DOI as the workflow @id (repository-only mode)."""
     workflow = WorkflowDescriptor(
         id="https://doi.org/10.5281/zenodo.12345678",
         type="SoftwareSourceCode",
+        url="https://doi.org/10.5281/zenodo.12345678",  # Added for repository-only mode
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
     package = RequestPackage(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
+        files=[],  # No local files for repository-only mode
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+    vre.svc_url = "https://mybinder.org"
+    return vre
+
+
+@pytest.fixture
+def binder_vre_github_only():
+    """Binder VRE with GitHub URL only (no local files) - repository-only mode."""
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url="https://github.com/example/notebook-repo",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[],  # No local files
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+    vre.svc_url = "https://mybinder.org"
+    return vre
+
+
+@pytest.fixture
+def binder_vre_github_with_branch():
+    """Binder VRE with GitHub URL including branch specification."""
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url="https://github.com/example/notebook-repo/tree/main",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[],  # No local files
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+    vre.svc_url = "https://mybinder.org"
+    return vre
+
+
+@pytest.fixture
+def binder_vre_not_repo_only():
+    """Binder VRE with a local file so _build_local_git_repo path is taken."""
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url="https://github.com/example/repo",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    local_file = FileReference(
+        id="notebook.ipynb",
+        name="notebook.ipynb",
+        properties={"content": b"print('hello')"},
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[local_file],
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+    vre.svc_url = "https://mybinder.org"
+    return vre
+
+
+@pytest.fixture
+def binder_vre_not_repo_only_with_remote():
+    """Binder VRE with a local file and a remote file (is_repository_only=False)."""
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url="https://github.com/example/repo",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    local_file = FileReference(
+        id="notebook.ipynb",
+        name="notebook.ipynb",
+        properties={"content": b"print('hello')"},
+    )
+    remote_file = FileReference(
+        id="https://example.org/data/file.csv",
+        name="file.csv",
+        url="https://example.org/data/file.csv",
+        properties={},
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[local_file, remote_file],
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+    vre.svc_url = "https://mybinder.org"
+    return vre
+
+
+@pytest.fixture
+def binder_vre_no_url():
+    """Binder VRE with url=None (is_repository_only=False)."""
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url=None,
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[],
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+    vre.svc_url = "https://mybinder.org"
+    return vre
+
+
+@pytest.fixture
+def binder_vre_gitlab_only():
+    """Binder VRE with a GitLab URL (non-GitHub, non-Zenodo)."""
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url="https://gitlab.com/example/repo",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[],
+        raw_crate={},
+    )
+    vre = VREBinder(
+        token="test-token",
+        request_id=0,
+        update_state=None,
+        request_package=package,
+    )
+    vre.svc_url = "https://mybinder.org"
+    return vre
+
+
+@pytest.fixture
+def binder_vre_zenodo_url():
+    """Binder VRE with Zenodo DOI URL (repository-only mode)."""
+    workflow = WorkflowDescriptor(
+        id="notebook.ipynb",
+        type="SoftwareSourceCode",
+        url="https://doi.org/10.5281/zenodo.12345678",
+        programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
+    )
+    package = RequestPackage(
+        vre_type=BINDER_PROGRAMMING_LANGUAGE,
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
+        workflow=workflow,
+        files=[],  # No local files
         raw_crate={},
     )
     vre = VREBinder(
