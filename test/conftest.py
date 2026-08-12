@@ -66,6 +66,7 @@ def _build_request_package(crate: DummyCrate, lang_id: str) -> RequestPackage:
 def dummy_galaxy_crate():
     workflow = DummyEntity(
         _type="Dataset",
+        **{"@id": WORKFLOW_URL},
         url=WORKFLOW_URL,
         name="myworkflow.ga",
         programmingLanguage={
@@ -82,7 +83,9 @@ def dummy_galaxy_crate():
 
 @pytest.fixture
 def dummy_galaxy_crate_onedata():
-    workflow = DummyEntity(_type="Dataset", url=WORKFLOW_URL, name="myworkflow.ga")
+    workflow = DummyEntity(
+        _type="Dataset", **{"@id": WORKFLOW_URL}, url=WORKFLOW_URL, name="myworkflow.ga"
+    )
     file1 = DummyEntity(_type="File", **FILE_1)
     file2 = DummyEntity(_type="File", **FILE_2)
     file3 = DummyEntity(_type="File", **ONE_DATA_FILE)
@@ -96,6 +99,7 @@ def dummy_galaxy_crate_onedata():
 def dummy_binder_crate():
     main = DummyEntity(
         _type="SoftwareSourceCode",
+        **{"@id": "https://github.com/example/notebook-repo"},
         url="https://github.com/example/notebook-repo",
         name="notebook-repo",
         programmingLanguage={
@@ -121,6 +125,7 @@ def dummy_binder_crate():
 def dummy_oscar_crate():
     main = DummyEntity(
         _type="SoftwareSourceCode",
+        **{"@id": "https://oscar.example.org/workflow.json"},
         programmingLanguage={
             "identifier": OSCAR_PROGRAMMING_LANGUAGE,
         },
@@ -132,6 +137,7 @@ def dummy_oscar_crate():
 def dummy_crate_with_unkown_vre_type():
     main = DummyEntity(
         _type="SoftwareSourceCode",
+        **{"@id": "https://example.org/unknown-workflow"},
         programmingLanguage={
             "identifier": "random programming language",
         },
@@ -143,6 +149,7 @@ def dummy_crate_with_unkown_vre_type():
 def dummy_sciencemesh_crate():
     main = DummyEntity(
         _type="Dataset",
+        **{"@id": "https://example.org/somefile.txt"},
         url="https://example.org/somefile.txt",
         name="somefile.txt",
         encodingFormat="text/plain",
@@ -433,22 +440,33 @@ SCIENCEMESH_SENDER_NAME = "Rasmus Oscar Welander"
 
 @pytest.fixture
 def sciencemesh_vre():
-    from vre_rocrate import OCMData
+    from vre_rocrate import FormalParameter
 
     package = RequestPackage(
-        vre_type="https://qa.cernbox.cern.ch",
-        programming_language="https://qa.cernbox.cern.ch",
+        vre_type="https://eosc.cernbox.cern.ch",
+        programming_language="https://eosc.cernbox.cern.ch",
         workflow=WorkflowDescriptor(
             id="#workflow",
             type="ComputationalWorkflow",
-            programming_language_id="https://qa.cernbox.cern.ch",
+            programming_language_id="https://eosc.cernbox.cern.ch",
         ),
-        ocm_data=OCMData(
-            receiver_userid="rwelande@cernbox.cern.ch",
-            root_name="ScienceMesh Research Data Package",
-            root_description="A research data package for sharing through ScienceMesh",
-        ),
-        raw_crate={"@graph": []},
+        workflow_inputs=[
+            FormalParameter(
+                id="#input-Shared With",
+                name="Shared With",
+                default_value="rwelande@cernbox.cern.ch",
+            ),
+        ],
+        raw_crate={
+            "@graph": [
+                {
+                    "@id": "./",
+                    "@type": "Dataset",
+                    "name": "ScienceMesh Research Data Package",
+                    "description": "A research data package for sharing through ScienceMesh",
+                }
+            ]
+        },
     )
     vre = VREScienceMesh(
         token="test-access-token",
@@ -463,12 +481,13 @@ def sciencemesh_vre():
 @pytest.fixture
 def ocm_share_request(sciencemesh_vre):
     pkg = sciencemesh_vre.request_package
-    ocm = pkg.ocm_data
+    slot = pkg.input_by_name("Shared With")
+    root = pkg.get_entity("./")
 
     ocm_share_request = {
-        "shareWith": ocm.receiver_userid,
-        "name": ocm.root_name or "",
-        "description": ocm.root_description or "",
+        "shareWith": slot.default_value,
+        "name": root.get("name", ""),
+        "description": root.get("description", ""),
         "providerId": "n/a",
         "resourceId": "n/a",
         "owner": SCIENCEMESH_SENDER_EMAIL,

@@ -9,14 +9,14 @@ from app.exceptions import (
 
 
 def test_post_errors_with_empty_rocrate(sciencemesh_vre, mock_token_user):
-    sciencemesh_vre.request_package.ocm_data = None
+    sciencemesh_vre.request_package.workflow_inputs = []
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_receiver_entity(sciencemesh_vre, mock_token_user):
-    sciencemesh_vre.request_package.ocm_data.receiver_userid = None
+    sciencemesh_vre.request_package.workflow_inputs[0].default_value = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()

@@ -21,3 +21,8 @@ JUPYTER_DEFAULT_SERVICE = "https://notebooks-dev.egi.zcu.cz"
 
 MDDASH_DEFAULT_SERVICE = "https://mddash-edc.dyn.cloud.e-infra.cz"
 MDDASH_DEFAULT_PROTOCOL = "https://github.com/sb-ncbr/mddash-notebooks.git"
+# MDDash experiment input: scalar PDB accession carried by an input slot
+MDDASH_PDB_SLOT = "pdb_id"
+
+# ScienceMesh share parties travel as input slots (no OCMData/#receiver entity)
+SCM_SHARE_WITH_SLOT = "Shared With"

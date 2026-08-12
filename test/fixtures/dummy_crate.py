@@ -17,6 +17,7 @@ FILE_2 = {
 
 
 ONE_DATA_FILE = {
+    "@id": "https://onedata.example.org/file.tiff",
     "name": "onedata_file",
     "encodingFormat": "image/tiff",
     "onedata:onezoneDomain": "demo.onedata.org",

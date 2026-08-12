@@ -8,6 +8,7 @@ from vre_rocrate import MDDASH_PROGRAMMING_LANGUAGE
 from app.constants import (
     MDDASH_DEFAULT_SERVICE,
     MDDASH_DEFAULT_PROTOCOL,
+    MDDASH_PDB_SLOT,
 )
 
 logger = logging.getLogger(__name__)
@@ -157,15 +158,19 @@ class VREMDDash(VRE):
         if "mddash-auth" not in ctx.session.cookies:
             raise exceptions.VREAuthenticationError("mddash-auth cookie not set")
 
+    def _pdb_id(self) -> str:
+        """Read the scalar PDB accession from the pdb_id input slot."""
+        param = self.request_package.input_by_name(MDDASH_PDB_SLOT)
+        if param is None or not isinstance(param.default_value, str):
+            raise exceptions.VREConfigurationError(
+                "Missing 'pdb_id' scalar input in MDDash request"
+            )
+        return param.default_value
+
     def _create_experiment(self, ctx: MDDashContext) -> None:
         url = self.svc_url
 
-        pdb_files = self.request_package.input_files
-        if not pdb_files:
-            raise exceptions.VREConfigurationError(
-                "No PDB file found in request package"
-            )
-        pdb = pdb_files[0].name
+        pdb = self._pdb_id()
 
         notebooks_repo = self.request_package.workflow.url or MDDASH_DEFAULT_PROTOCOL
 

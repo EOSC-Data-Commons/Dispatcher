@@ -14,12 +14,12 @@ from app.exceptions import (
 from vre_rocrate import (
     RequestPackage,
     WorkflowDescriptor,
-    FileReference,
+    FormalParameter,
 )
 
 
-def _build_package(pdb_name="1L2Y"):
-    """Build a minimal RequestPackage for MDDash tests."""
+def _build_package(pdb_id="1L2Y"):
+    """Build a minimal RequestPackage for MDDash tests (scalar pdb_id slot)."""
     return RequestPackage(
         vre_type=MDDASH_PROGRAMMING_LANGUAGE,
         programming_language=MDDASH_PROGRAMMING_LANGUAGE,
@@ -28,12 +28,11 @@ def _build_package(pdb_name="1L2Y"):
             type="ComputationalWorkflow",
             url="https://github.com/sb-ncbr/mddash-notebooks.git",
         ),
-        files=[
-            FileReference(
-                id="https://www.ebi.ac.uk/pdbe/entry-files/download/pdb1l2y.ent",
-                name=pdb_name,
-                encoding_format="chemical/x-pdb",
-                url="https://www.ebi.ac.uk/pdbe/entry-files/download/pdb1l2y.ent",
+        workflow_inputs=[
+            FormalParameter(
+                id="#input-pdb_id",
+                name="pdb_id",
+                default_value=pdb_id,
             ),
         ],
     )
@@ -129,8 +128,8 @@ def test_post_success(mock_session_cls, successful_session):
 @patch("app.vres.mddash.VREMDDash._wait_for_server")
 @patch("app.vres.mddash.VREMDDash._start_server")
 @patch("app.vres.mddash.VREMDDash._login")
-def test_post_missing_pdb_file(*_):
-    """post raises VREConfigurationError when no PDB file is present."""
+def test_post_missing_pdb_id(*_):
+    """post raises VREConfigurationError when the pdb_id input slot is absent."""
     package = RequestPackage(
         vre_type=MDDASH_PROGRAMMING_LANGUAGE,
         programming_language=MDDASH_PROGRAMMING_LANGUAGE,
@@ -143,7 +142,7 @@ def test_post_missing_pdb_file(*_):
     vre = _make_vre(package=package)
     with pytest.raises(VREConfigurationError) as exc:
         vre.post()
-    assert "No PDB file" in str(exc.value)
+    assert "pdb_id" in str(exc.value)
 
 
 def test_create_experiment_request_failure():

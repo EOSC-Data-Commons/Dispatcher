@@ -3,7 +3,7 @@ import requests
 import logging
 import uuid
 from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
-from app.constants import SCIENCEMESH_DEFAULT_SERVICE
+from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCM_SHARE_WITH_SLOT
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 from .utils.token_utils import extract_user_from_token
@@ -35,31 +35,30 @@ class VREScienceMesh(VRE):
 
     def create_ocm_share_request(self):
         pkg = self.request_package
-        ocm = pkg.ocm_data
-        if ocm is None:
+        receiver_param = pkg.input_by_name(SCM_SHARE_WITH_SLOT)
+        receiver = receiver_param.default_value if receiver_param else None
+        if not isinstance(receiver, str) or not receiver:
             raise MissingOCMParameters(
-                "Missing OCM data to dispatch via OCM to a ScienceMesh VRE"
+                f"Missing required parameter '{SCM_SHARE_WITH_SLOT}' to dispatch via OCM to a ScienceMesh VRE"
             )
-        receiver = ocm.receiver_userid
-        if not receiver:
-            raise MissingOCMParameters(
-                "Missing required parameter 'receiver' to dispatch via OCM to a ScienceMesh VRE"
-            )
+
+        root = pkg.get_entity("./") or {}
+        identifier = pkg.get_entity("#identifier") or {}
 
         # Extract sender/owner from access token (EGI Check-in federation backend)
         token_user = extract_user_from_token(self.token)
         sender_userid = token_user.email
         sender_name = token_user.name or token_user.email
 
-        resid = ocm.resource_id
+        resid = identifier.get("userid")
         if resid is None:
             # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
             resid = str(uuid.uuid4())
 
         ocm_share_request = {
             "shareWith": receiver,
-            "name": ocm.root_name or "",
-            "description": ocm.root_description or "",
+            "name": root.get("name", ""),
+            "description": root.get("description", ""),
             "providerId": str(uuid.uuid4()),  # must be unique for each share
             "resourceId": resid,
             "owner": sender_userid,
