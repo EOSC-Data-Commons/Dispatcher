@@ -42,25 +42,20 @@ class VREScienceMesh(VRE):
                 f"Missing required parameter '{SCM_SHARE_WITH_SLOT}' to dispatch via OCM to a ScienceMesh VRE"
             )
 
-        root = pkg.get_entity("./") or {}
-        identifier = pkg.get_entity("#identifier") or {}
-
         # Extract sender/owner from access token (EGI Check-in federation backend)
         token_user = extract_user_from_token(self.token)
         sender_userid = token_user.email
         sender_name = token_user.name or token_user.email
 
-        resid = identifier.get("userid")
-        if resid is None:
-            # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
-            resid = str(uuid.uuid4())
+        # TODO derive a share-stable resource ID from crate content (currently a fresh UUID)
+        resource_id = str(uuid.uuid4())
 
         ocm_share_request = {
             "shareWith": receiver,
-            "name": root.get("name", ""),
-            "description": root.get("description", ""),
+            "name": pkg.root_name,
+            "description": pkg.root_description,
             "providerId": str(uuid.uuid4()),  # must be unique for each share
-            "resourceId": resid,
+            "resourceId": resource_id,
             "owner": sender_userid,
             "senderDisplayName": sender_name,
             "sender": self._generate_ocm_address(sender_userid),
