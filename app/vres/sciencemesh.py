@@ -1,4 +1,6 @@
 from .base_vre import VRE, vre_factory
+import hashlib
+import json
 import requests
 import logging
 import uuid
@@ -47,8 +49,7 @@ class VREScienceMesh(VRE):
         sender_userid = token_user.email
         sender_name = token_user.name or token_user.email
 
-        # TODO derive a share-stable resource ID from crate content (currently a fresh UUID)
-        resource_id = str(uuid.uuid4())
+        resource_id = self._resource_id()
 
         ocm_share_request = {
             "shareWith": receiver,
@@ -68,6 +69,18 @@ class VREScienceMesh(VRE):
         }
         logger.info(f"OCM share request {ocm_share_request}")
         return ocm_share_request
+
+    def _resource_id(self) -> str:
+        """Deterministic share ID: uuid-shaped SHA-256 of the canonicalized raw crate.
+
+        Re-sharing the identical crate yields the identical resourceId, so
+        repeated dispatch of the same RO-Crate maps to the same OCM resource.
+        """
+        canonical = json.dumps(
+            self.request_package.raw_crate, sort_keys=True, separators=(",", ":")
+        )
+        digest = hashlib.sha256(canonical.encode("utf-8")).digest()
+        return str(uuid.UUID(bytes=digest[:16]))
 
     def _generate_ocm_address(self, sender_userid: str | None):
         # Generate an OCM address out of the sender user ID, that is ensure the host matches the dispatcher's public FQDN

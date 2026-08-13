@@ -82,6 +82,34 @@ def test_post_sends_correct_ocm_share_request(
     assert actual == ocm_share_request
 
 
+def test_resource_id_is_deterministic_from_crate(sciencemesh_vre, mock_token_user):
+    """Same crate → same resourceId; different crate → different resourceId."""
+    from app.vres.sciencemesh import VREScienceMesh
+    import copy
+
+    vre = sciencemesh_vre
+    rid1 = vre.create_ocm_share_request()["resourceId"]
+    rid2 = vre.create_ocm_share_request()["resourceId"]
+    assert rid1 == rid2
+    assert uuid.UUID(rid1)  # still uuid-formatted
+
+    mutated = copy.deepcopy(vre.request_package.raw_crate)
+    mutated["@graph"][0]["name"] = "different title"
+    other = VREScienceMesh(
+        token="test-access-token",
+        request_id=0,
+        update_state=None,
+        request_package=type(vre.request_package)(
+            vre_type=vre.request_package.vre_type,
+            programming_language=vre.request_package.programming_language,
+            workflow=vre.request_package.workflow,
+            workflow_inputs=vre.request_package.workflow_inputs,
+            raw_crate=mutated,
+        ),
+    )
+    assert other.create_ocm_share_request()["resourceId"] != rid1
+
+
 def test_create_ocm_share_uses_token_claims_for_owner_and_sender(
     sciencemesh_vre, mock_token_user
 ):
