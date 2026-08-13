@@ -10,6 +10,7 @@ from vre_rocrate import (
     RequestPackage,
     WorkflowDescriptor,
     FileReference,
+    FormalParameter,
 )
 
 
@@ -41,6 +42,29 @@ def vip_request_package():
                 name="zipped_folder",
                 encoding_format="application/zip",
                 url="https://www.creatis.insa-lyon.fr/~abonnet/basis_11_7.zip",
+            ),
+        ],
+        workflow_inputs=[
+            FormalParameter(
+                id="#input-parameter_file",
+                name="parameter_file",
+                default_value={
+                    "@id": "https://www.creatis.insa-lyon.fr/~abonnet/quest_param_117T_A.txt"
+                },
+            ),
+            FormalParameter(
+                id="#input-data_file",
+                name="data_file",
+                default_value={
+                    "@id": "https://www.creatis.insa-lyon.fr/~abonnet/Rec003_Vox1.mrui"
+                },
+            ),
+            FormalParameter(
+                id="#input-zipped_folder",
+                name="zipped_folder",
+                default_value={
+                    "@id": "https://www.creatis.insa-lyon.fr/~abonnet/basis_11_7.zip"
+                },
             ),
         ],
         raw_crate={},
@@ -176,7 +200,7 @@ def test_input_values_mapping(vip_request_package):
 
 
 def test_input_values_fallback_to_id():
-    """Test _map_input_values falls back to file id when url is None."""
+    """Slot-bound file with url=None resolves to the file's id."""
     request_package = RequestPackage(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
@@ -193,6 +217,13 @@ def test_input_values_fallback_to_id():
                 url=None,
             ),
         ],
+        workflow_inputs=[
+            FormalParameter(
+                id="#input-local",
+                name="local_file",
+                default_value={"@id": "local-file-id"},
+            ),
+        ],
         raw_crate={},
     )
     vrevip = VREVIP(
@@ -204,3 +235,105 @@ def test_input_values_fallback_to_id():
 
     result = vrevip._map_input_values()
     assert result == {"local_file": "local-file-id"}
+
+
+def test_slot_name_wins_over_file_name():
+    """Payload key is the slot name, never the file's own name."""
+    request_package = RequestPackage(
+        vre_type=VIP_PROGRAMMING_LANGUAGE,
+        programming_language=VIP_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="SoftwareSourceCode",
+            url="CQUEST/0.6",
+        ),
+        files=[
+            FileReference(
+                id="https://data.example.org/reads_1.fastq",
+                name="sample_1",
+                encoding_format="application/fastq",
+                url="https://data.example.org/reads_1.fastq",
+            ),
+        ],
+        workflow_inputs=[
+            FormalParameter(
+                id="#input-reads",
+                name="reads",
+                default_value={"@id": "https://data.example.org/reads_1.fastq"},
+            ),
+        ],
+        raw_crate={},
+    )
+    vrevip = VREVIP(
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
+    )
+
+    assert vrevip._map_input_values() == {
+        "reads": "https://data.example.org/reads_1.fastq"
+    }
+
+
+def test_scalar_slot_included():
+    """Scalar input slots pass their literal value into the VIP payload."""
+    request_package = RequestPackage(
+        vre_type=VIP_PROGRAMMING_LANGUAGE,
+        programming_language=VIP_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="SoftwareSourceCode",
+            url="CQUEST/0.6",
+        ),
+        workflow_inputs=[
+            FormalParameter(
+                id="#input-mode",
+                name="mode",
+                default_value="qual",
+            ),
+            FormalParameter(
+                id="#input-iterations",
+                name="iterations",
+                default_value=1000,
+            ),
+        ],
+        raw_crate={},
+    )
+    vrevip = VREVIP(
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
+    )
+
+    assert vrevip._map_input_values() == {"mode": "qual", "iterations": 1000}
+
+
+def test_unresolvable_slot_is_skipped():
+    """@id reference to a file not in the package is dropped, not passed as-is."""
+    request_package = RequestPackage(
+        vre_type=VIP_PROGRAMMING_LANGUAGE,
+        programming_language=VIP_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="SoftwareSourceCode",
+            url="CQUEST/0.6",
+        ),
+        workflow_inputs=[
+            FormalParameter(
+                id="#input-ghost",
+                name="ghost_file",
+                default_value={"@id": "https://nowhere.example/ghost.bin"},
+            ),
+        ],
+        raw_crate={},
+    )
+    vrevip = VREVIP(
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        request_package=request_package,
+    )
+
+    assert vrevip._map_input_values() == {}

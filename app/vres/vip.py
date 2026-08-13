@@ -77,11 +77,24 @@ class VREVIP(VRE):
         )
 
     def _map_input_values(self) -> dict:
-        result = {}
-        for f in self.request_package.input_files:
-            file_url = f.url or f.id
-            result[f.name] = file_url
-        return result
+        """Map input slots to VIP pipeline values.
+
+        File slots resolve to their payload URL via ``file_for_input``;
+        scalar slots (strings/numbers as default_value) pass through
+        literally. Slots are keyed by their own names — the file's
+        own name is never the key.
+        """
+        mapped = {}
+        pkg = self.request_package
+        for param in pkg.workflow_inputs:
+            bound = pkg.file_for_input(param)
+            if bound is not None:
+                mapped[param.name] = bound.url or bound.id
+            elif isinstance(param.default_value, (str, int, float, bool)):
+                mapped[param.name] = param.default_value
+            else:
+                logger.warning("dropping unresolvable VIP input slot %r", param.name)
+        return mapped
 
 
 vre_factory.register(VIP_PROGRAMMING_LANGUAGE, VREVIP)

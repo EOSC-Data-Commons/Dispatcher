@@ -24,19 +24,31 @@ class VREGalaxy(VRE):
 
     def _prepare_workflow_data(self):
         """Prepare the workflow data for the API request."""
-        files = self._get_workflow_files()
+        slot_files = self._get_workflow_files()
         workflow_url = self._get_workflow_url()
 
         return {
             "public": GALAXY_PUBLIC_DEFAULT,
-            "request_state": self._modify_for_api_data_input(files),
+            "request_state": self._modify_for_api_data_input(slot_files),
             "workflow_id": workflow_url,
             "workflow_target_type": GALAXY_WORKFLOW_TARGET_TYPE,
         }
 
     def _get_workflow_files(self):
-        """Extract file references from the request package."""
-        return self.request_package.input_files
+        """Resolve slot-bound input files from the request package.
+
+        Returns (slot name, FileReference) pairs for each input slot
+        whose default value binds a file. Scalar-only crates give an
+        empty list — there is nothing to upload.
+        """
+        if not self.request_package:
+            return []
+        pkg = self.request_package
+        return [
+            (param.name, f)
+            for param in pkg.workflow_inputs
+            if (f := pkg.file_for_input(param)) is not None
+        ]
 
     def _get_workflow_url(self):
         """Extract workflow URL from the request package."""
@@ -47,10 +59,10 @@ class VREGalaxy(VRE):
             raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
-    def _modify_for_api_data_input(self, files):
-        """Convert file references to API-compatible format."""
+    def _modify_for_api_data_input(self, slot_files):
+        """Convert (slot name, file) pairs to API-compatible request_state."""
         result = {}
-        for f in files:
+        for name, f in slot_files:
             file_meta = {
                 "class": "File",
                 "filetype": (
@@ -65,7 +77,9 @@ class VREGalaxy(VRE):
             else:
                 file_meta["location"] = f.url or f.id
 
-            result[f.name] = file_meta
+            # request_state keys are the slot names Galaxy references,
+            # never the file's own name
+            result[name] = file_meta
 
         return result
 

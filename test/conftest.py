@@ -22,6 +22,7 @@ from vre_rocrate import (
     RequestPackage,
     WorkflowDescriptor,
     FileReference,
+    FormalParameter,
 )
 from app.services.im import IM
 
@@ -40,6 +41,7 @@ def _build_request_package(crate: DummyCrate, lang_id: str) -> RequestPackage:
         properties=main.properties,
     )
     files = []
+    workflow_inputs = []
     for e in crate.get_entities():
         if e.type == "File":
             files.append(
@@ -53,11 +55,23 @@ def _build_request_package(crate: DummyCrate, lang_id: str) -> RequestPackage:
                     properties=e.properties,
                 )
             )
+        elif e.type == "FormalParameter":
+            workflow_inputs.append(
+                FormalParameter(
+                    id=e.id,
+                    name=e.get("name", e.id),
+                    additional_type=e.get("additionalType"),
+                    encoding_format=e.get("encodingFormat"),
+                    default_value=e.get("defaultValue"),
+                    properties=e.properties,
+                )
+            )
     return RequestPackage(
         vre_type=lang_id,
         programming_language=lang_id,
         workflow=workflow,
         files=files,
+        workflow_inputs=workflow_inputs,
         raw_crate={},
     )
 
@@ -75,9 +89,27 @@ def dummy_galaxy_crate():
     )
     file1 = DummyEntity(_type="File", **FILE_1)
     file2 = DummyEntity(_type="File", **FILE_2)
+    slot1 = DummyEntity(
+        _type="FormalParameter",
+        **{
+            "@id": "#input-sample1",
+            "name": "sample1.fastq",
+            "defaultValue": {"@id": FILE_1["@id"]},
+        },
+    )
+    slot2 = DummyEntity(
+        _type="FormalParameter",
+        **{
+            "@id": "#input-sample2",
+            "name": "sample2.fastq",
+            "defaultValue": {"@id": FILE_2["@id"]},
+        },
+    )
 
     return DummyCrate(
-        main_entity=workflow, other_entities=[file1, file2], root_dataset={}
+        main_entity=workflow,
+        other_entities=[file1, file2, slot1, slot2],
+        root_dataset={},
     )
 
 
@@ -89,9 +121,19 @@ def dummy_galaxy_crate_onedata():
     file1 = DummyEntity(_type="File", **FILE_1)
     file2 = DummyEntity(_type="File", **FILE_2)
     file3 = DummyEntity(_type="File", **ONE_DATA_FILE)
+    slot = DummyEntity(
+        _type="FormalParameter",
+        **{
+            "@id": "#input-onedata",
+            "name": "onedata_file",
+            "defaultValue": {"@id": ONE_DATA_FILE["@id"]},
+        },
+    )
 
     return DummyCrate(
-        main_entity=workflow, other_entities=[file1, file2, file3], root_dataset={}
+        main_entity=workflow,
+        other_entities=[file1, file2, file3, slot],
+        root_dataset={},
     )
 
 
