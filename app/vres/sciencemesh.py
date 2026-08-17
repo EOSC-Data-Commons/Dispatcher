@@ -5,7 +5,7 @@ import requests
 import logging
 import uuid
 from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
-from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCM_SHARE_WITH_SLOT
+from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCM_SHARE_WITH_INPUT_PARAM
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 from .utils.token_utils import extract_user_from_token
@@ -37,11 +37,11 @@ class VREScienceMesh(VRE):
 
     def create_ocm_share_request(self):
         pkg = self.request_package
-        receiver_param = pkg.input_by_name(SCM_SHARE_WITH_SLOT)
+        receiver_param = pkg.input_by_name(SCM_SHARE_WITH_INPUT_PARAM)
         receiver = receiver_param.default_value if receiver_param else None
         if not isinstance(receiver, str) or not receiver:
             raise MissingOCMParameters(
-                f"Missing required parameter '{SCM_SHARE_WITH_SLOT}' to dispatch via OCM to a ScienceMesh VRE"
+                f"Missing required parameter '{SCM_SHARE_WITH_INPUT_PARAM}' to dispatch via OCM to a ScienceMesh VRE"
             )
 
         # Extract sender/owner from access token (EGI Check-in federation backend)

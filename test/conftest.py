@@ -89,7 +89,7 @@ def dummy_galaxy_crate():
     )
     file1 = DummyEntity(_type="File", **FILE_1)
     file2 = DummyEntity(_type="File", **FILE_2)
-    slot1 = DummyEntity(
+    input1 = DummyEntity(
         _type="FormalParameter",
         **{
             "@id": "#input-sample1",
@@ -97,7 +97,7 @@ def dummy_galaxy_crate():
             "defaultValue": {"@id": FILE_1["@id"]},
         },
     )
-    slot2 = DummyEntity(
+    input2 = DummyEntity(
         _type="FormalParameter",
         **{
             "@id": "#input-sample2",
@@ -108,7 +108,7 @@ def dummy_galaxy_crate():
 
     return DummyCrate(
         main_entity=workflow,
-        other_entities=[file1, file2, slot1, slot2],
+        other_entities=[file1, file2, input1, input2],
         root_dataset={},
     )
 
@@ -121,7 +121,7 @@ def dummy_galaxy_crate_onedata():
     file1 = DummyEntity(_type="File", **FILE_1)
     file2 = DummyEntity(_type="File", **FILE_2)
     file3 = DummyEntity(_type="File", **ONE_DATA_FILE)
-    slot = DummyEntity(
+    onedata_input = DummyEntity(
         _type="FormalParameter",
         **{
             "@id": "#input-onedata",
@@ -132,7 +132,7 @@ def dummy_galaxy_crate_onedata():
 
     return DummyCrate(
         main_entity=workflow,
-        other_entities=[file1, file2, file3, slot],
+        other_entities=[file1, file2, file3, onedata_input],
         root_dataset={},
     )
 
@@ -523,11 +523,11 @@ def sciencemesh_vre():
 @pytest.fixture
 def ocm_share_request(sciencemesh_vre):
     pkg = sciencemesh_vre.request_package
-    slot = pkg.input_by_name("Shared With")
+    receiver_input = pkg.input_by_name("Shared With")
     root = pkg.get_entity("./")
 
     ocm_share_request = {
-        "shareWith": slot.default_value,
+        "shareWith": receiver_input.default_value,
         "name": root.get("name", ""),
         "description": root.get("description", ""),
         "providerId": "n/a",

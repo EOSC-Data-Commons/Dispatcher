@@ -24,22 +24,23 @@ class VREGalaxy(VRE):
 
     def _prepare_workflow_data(self):
         """Prepare the workflow data for the API request."""
-        slot_files = self._get_workflow_files()
+        bound_inputs = self._get_workflow_files()
         workflow_url = self._get_workflow_url()
 
         return {
             "public": GALAXY_PUBLIC_DEFAULT,
-            "request_state": self._modify_for_api_data_input(slot_files),
+            "request_state": self._modify_for_api_data_input(bound_inputs),
             "workflow_id": workflow_url,
             "workflow_target_type": GALAXY_WORKFLOW_TARGET_TYPE,
         }
 
     def _get_workflow_files(self):
-        """Resolve slot-bound input files from the request package.
+        """Resolve bound input files from the request package.
 
-        Returns (slot name, FileReference) pairs for each input slot
-        whose default value binds a file. Scalar-only crates give an
-        empty list — there is nothing to upload.
+        Returns (input parameter name, FileReference) pairs for each
+        workflow input parameter whose default value binds a file.
+        Crates without file-bound inputs give an empty list — there is
+        nothing to upload.
         """
         if not self.request_package:
             return []
@@ -59,10 +60,10 @@ class VREGalaxy(VRE):
             raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
-    def _modify_for_api_data_input(self, slot_files):
-        """Convert (slot name, file) pairs to API-compatible request_state."""
+    def _modify_for_api_data_input(self, bound_inputs):
+        """Convert (input parameter name, file) pairs to API-compatible request_state."""
         result = {}
-        for name, f in slot_files:
+        for name, f in bound_inputs:
             file_meta = {
                 "class": "File",
                 "filetype": (
@@ -77,8 +78,8 @@ class VREGalaxy(VRE):
             else:
                 file_meta["location"] = f.url or f.id
 
-            # request_state keys are the slot names Galaxy references,
-            # never the file's own name
+            # request_state keys are the workflow input names Galaxy
+            # references, never the file's own name
             result[name] = file_meta
 
         return result

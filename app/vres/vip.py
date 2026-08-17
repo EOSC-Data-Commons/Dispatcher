@@ -77,12 +77,12 @@ class VREVIP(VRE):
         )
 
     def _map_input_values(self) -> dict:
-        """Map input slots to VIP pipeline values.
+        """Map workflow input parameters to VIP pipeline values.
 
-        File slots resolve to their payload URL via ``file_for_input``;
-        scalar slots (strings/numbers as default_value) pass through
-        literally. Slots are keyed by their own names — the file's
-        own name is never the key.
+        File-bound inputs resolve to their payload URL via
+        ``file_for_input``; scalar inputs (strings/numbers as
+        default_value) pass through literally. Inputs are keyed by their
+        own names — the file's own name is never the key.
         """
         mapped = {}
         pkg = self.request_package
@@ -93,7 +93,7 @@ class VREVIP(VRE):
             elif isinstance(param.default_value, (str, int, float, bool)):
                 mapped[param.name] = param.default_value
             else:
-                logger.warning("dropping unresolvable VIP input slot %r", param.name)
+                logger.warning("dropping unresolvable VIP input %r", param.name)
         return mapped
 
 

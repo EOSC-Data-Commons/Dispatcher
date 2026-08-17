@@ -8,7 +8,7 @@ from vre_rocrate import MDDASH_PROGRAMMING_LANGUAGE
 from app.constants import (
     MDDASH_DEFAULT_SERVICE,
     MDDASH_DEFAULT_PROTOCOL,
-    MDDASH_PDB_SLOT,
+    MDDASH_PDB_INPUT_PARAM,
 )
 
 logger = logging.getLogger(__name__)
@@ -159,8 +159,8 @@ class VREMDDash(VRE):
             raise exceptions.VREAuthenticationError("mddash-auth cookie not set")
 
     def _pdb_id(self) -> str:
-        """Read the scalar PDB accession from the pdb_id input slot."""
-        param = self.request_package.input_by_name(MDDASH_PDB_SLOT)
+        """Read the scalar PDB accession from the pdb_id workflow input."""
+        param = self.request_package.input_by_name(MDDASH_PDB_INPUT_PARAM)
         if param is None or not isinstance(param.default_value, str):
             raise exceptions.VREConfigurationError(
                 "Missing 'pdb_id' scalar input in MDDash request"

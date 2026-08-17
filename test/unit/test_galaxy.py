@@ -8,8 +8,8 @@ from app.exceptions import WorkflowURLError
 
 
 # TODO FILE1, FILE2 move somewhere else, split to 2 tests
-def test_request_state_keys_are_slot_names():
-    """request_state keys must be workflow slot names, never file names."""
+def test_request_state_keys_are_workflow_input_names():
+    """request_state keys must be workflow input names, never file names."""
     from vre_rocrate import (
         RequestPackage,
         WorkflowDescriptor,

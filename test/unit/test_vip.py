@@ -200,7 +200,7 @@ def test_input_values_mapping(vip_request_package):
 
 
 def test_input_values_fallback_to_id():
-    """Slot-bound file with url=None resolves to the file's id."""
+    """Input-bound file with url=None resolves to the file's id."""
     request_package = RequestPackage(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
@@ -237,8 +237,8 @@ def test_input_values_fallback_to_id():
     assert result == {"local_file": "local-file-id"}
 
 
-def test_slot_name_wins_over_file_name():
-    """Payload key is the slot name, never the file's own name."""
+def test_input_name_wins_over_file_name():
+    """Payload key is the input parameter name, never the file's own name."""
     request_package = RequestPackage(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
@@ -276,8 +276,8 @@ def test_slot_name_wins_over_file_name():
     }
 
 
-def test_scalar_slot_included():
-    """Scalar input slots pass their literal value into the VIP payload."""
+def test_scalar_input_included():
+    """Scalar input parameters pass their literal value into the VIP payload."""
     request_package = RequestPackage(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
@@ -310,7 +310,7 @@ def test_scalar_slot_included():
     assert vrevip._map_input_values() == {"mode": "qual", "iterations": 1000}
 
 
-def test_unresolvable_slot_is_skipped():
+def test_unresolvable_input_is_skipped():
     """@id reference to a file not in the package is dropped, not passed as-is."""
     request_package = RequestPackage(
         vre_type=VIP_PROGRAMMING_LANGUAGE,

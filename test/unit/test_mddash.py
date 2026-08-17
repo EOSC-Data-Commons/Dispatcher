@@ -19,7 +19,7 @@ from vre_rocrate import (
 
 
 def _build_package(pdb_id="1L2Y"):
-    """Build a minimal RequestPackage for MDDash tests (scalar pdb_id slot)."""
+    """Build a minimal RequestPackage for MDDash tests (scalar pdb_id input)."""
     return RequestPackage(
         vre_type=MDDASH_PROGRAMMING_LANGUAGE,
         programming_language=MDDASH_PROGRAMMING_LANGUAGE,
@@ -129,7 +129,7 @@ def test_post_success(mock_session_cls, successful_session):
 @patch("app.vres.mddash.VREMDDash._start_server")
 @patch("app.vres.mddash.VREMDDash._login")
 def test_post_missing_pdb_id(*_):
-    """post raises VREConfigurationError when the pdb_id input slot is absent."""
+    """post raises VREConfigurationError when the pdb_id input parameter is absent."""
     package = RequestPackage(
         vre_type=MDDASH_PROGRAMMING_LANGUAGE,
         programming_language=MDDASH_PROGRAMMING_LANGUAGE,

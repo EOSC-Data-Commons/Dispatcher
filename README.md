@@ -107,9 +107,9 @@ Testing notebook stolen from our other project, which takls to our service to fi
 Again, zip the alphafind-notebook fixture from [vre-rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate) (`tests/fixtures/alphafind-notebook/`) and post the file to `/requests/zip_rocrate/`
 
 ### ScienceMesh
-Dispatches an RO-Crate as an embedded OCM (Open Cloud Mesh) share to a ScienceMesh node (default: CERNBox). The `sender` and `owner` of the share are resolved from the authenticated user's EGI Check-in identity, while the `receiver` is read from the crate's `"Shared With"` input slot. For local testing, run the `test/sciencemesh/sciencemesh_vre_stub.py` server stub and POST `test/sciencemesh/ro-crate-metadata.json`.
+Dispatches an RO-Crate as an embedded OCM (Open Cloud Mesh) share to a ScienceMesh node (default: CERNBox). The `sender` and `owner` of the share are resolved from the authenticated user's EGI Check-in identity, while the `receiver` is read from the crate's `"Shared With"` input parameter. For local testing, run the `test/sciencemesh/sciencemesh_vre_stub.py` server stub and POST `test/sciencemesh/ro-crate-metadata.json`.
 
-1. `POST /requests/metadata_rocrate`. Use the ScienceMesh fixture from [vre-rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate) (`tests/fixtures/sciencemesh/ro-crate-metadata.json`) as payload. Only the `"Shared With"` slot's receiver needs to be modified in the RO-Crate
+1. `POST /requests/metadata_rocrate`. Use the ScienceMesh fixture from [vre-rocrate](https://github.com/EOSC-Data-Commons/vre_rocrate) (`tests/fixtures/sciencemesh/ro-crate-metadata.json`) as payload. Only the `"Shared With"` input parameter's receiver needs to be modified in the RO-Crate
 2. `GET /requests/REQUEST-UUID` to retrieve the target URL to access ScienceMesh. The UUID is returned by the POST request above
 
 ---
