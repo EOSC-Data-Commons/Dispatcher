@@ -65,6 +65,6 @@ im:
     #VO: vo.eosc-data-commons.eu
 
 logging:
-  level: INFO
+  level: "{{ 'INFO' if api.environment == 'prod' else 'DEBUG' }}"
   format: text
     
