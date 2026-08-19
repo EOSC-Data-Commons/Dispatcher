@@ -44,7 +44,12 @@ class VREMDDash(VRE):
         self.update_task_status("creating MDDash experiment")
         self._create_experiment(ctx)
 
-        return f"{self.svc_url}{ctx.singleuser}dash/"
+        self.update_task_status("requesting MDDash login token")
+        mddash_token = self._request_token(ctx)
+
+        return (
+            f"{self.svc_url}{ctx.singleuser}dash/auth/login-token?token={mddash_token}"
+        )
 
     def _login(self) -> MDDashContext:
         url = self.svc_url
@@ -180,6 +185,25 @@ class VREMDDash(VRE):
             raise exceptions.ExternalServiceError(
                 f"Failed to create MDDash experiment: {e}"
             ) from e
+
+    def _request_token(self, ctx: MDDashContext) -> str:
+        url = self.svc_url
+
+        try:
+            resp = ctx.session.post(
+                f"{url}{ctx.singleuser}dash/auth/create-login-token"
+            )
+            resp.raise_for_status()
+
+        except requests.RequestException as e:
+            logger.error(f"Failed to request MDDash token: {e}")
+            raise exceptions.ExternalServiceError(
+                f"Failed to request MDDash token: {e}"
+            ) from e
+
+        t = resp.json()
+        logger.info(f"Token retrieved, valid for {t['expires_in']} seconds")
+        return t["token"]
 
 
 vre_factory.register(MDDASH_PROGRAMMING_LANGUAGE, VREMDDash)
