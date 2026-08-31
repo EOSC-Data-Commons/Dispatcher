@@ -1,6 +1,7 @@
 api:
   port: 8000
   environment: prod
+  anonymous_requests: false
 
 im:
   endpoint: https://im.egi.eu/im/

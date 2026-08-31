@@ -56,7 +56,8 @@ app.add_middleware(RequestLoggingMiddleware)
 app.include_router(oauth2_router)
 app.include_router(requests.router)
 app.include_router(auth.router)
-app.include_router(anonymous_requests.router)
+if settings.anonymous_requests_enabled:
+    app.include_router(anonymous_requests.router)
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_key_file)
