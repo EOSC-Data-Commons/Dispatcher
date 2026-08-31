@@ -10,7 +10,7 @@ SCIPION_DEFAULT_SERVICE = "https://scipion.i2pc.es/"
 
 OSCAR_DEFAULT_SERVICE = "https://oscar.vre.eosc-data-commons.eu"
 
-VIP_DEFAULT_SERVICE = "https://vip.creatis.insa-lyon.fr/test"
+VIP_DEFAULT_SERVICE = "https://vip.creatis.insa-lyon.fr"
 VIP_DEFAULT_RESULTS_LOCATION = "/vip/Home"
 
 IM_SEQUENCE_STARTED = "IM sequence started"
