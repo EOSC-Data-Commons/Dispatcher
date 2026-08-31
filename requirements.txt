@@ -22,4 +22,6 @@ pytest-asyncio>=0.20.0
 black>=25.1.0
 GitPython>=3.1.46
 requests-mock>=1.12.1
-vre-rocrate @ git+https://github.com/EOSC-Data-Commons/vre_rocrate.git@master
+# Pin to a version tag of vre_rocrate (never @master).
+# Bump when bumping the dispatcher release; develop against lib master via editable install.
+vre-rocrate @ git+https://github.com/EOSC-Data-Commons/vre_rocrate.git@v0.0.2
