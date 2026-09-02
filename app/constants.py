@@ -1,6 +1,7 @@
 GALAXY_DEFAULT_SERVICE = "https://usegalaxy.eu/"
 GALAXY_WORKFLOW_TARGET_TYPE = "trs_url"
 GALAXY_PUBLIC_DEFAULT = False
+WORKFLOWHUB_TRS_API = "https://workflowhub.eu/ga4gh/trs/v2"
 
 BINDER_DEFAULT_SERVICE = "https://mybinder.org"
 
