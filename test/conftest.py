@@ -19,7 +19,7 @@ from vre_rocrate import (
     SCIENCEMESH_PROGRAMMING_LANGUAGE,
     GALAXY_PROGRAMMING_LANGUAGE,
     OSCAR_PROGRAMMING_LANGUAGE,
-    RequestPackage,
+    VREPayload,
     WorkflowDescriptor,
     FileReference,
     FormalParameter,
@@ -29,8 +29,8 @@ from app.services.im import IM
 pytest_plugins = ["pytest_asyncio"]
 
 
-def _build_request_package(crate: DummyCrate, lang_id: str) -> RequestPackage:
-    """Build a RequestPackage from a DummyCrate for tests."""
+def _build_payload(crate: DummyCrate, lang_id: str) -> VREPayload:
+    """Build a VREPayload from a DummyCrate for tests."""
     main = crate.main_entity
     workflow = WorkflowDescriptor(
         id=main.id,
@@ -66,7 +66,7 @@ def _build_request_package(crate: DummyCrate, lang_id: str) -> RequestPackage:
                     properties=e.properties,
                 )
             )
-    return RequestPackage(
+    return VREPayload(
         vre_type=lang_id,
         programming_language=lang_id,
         workflow=workflow,
@@ -208,7 +208,7 @@ def galaxy_vre(dummy_galaxy_crate):
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=_build_request_package(
+        payload=_build_payload(
             dummy_galaxy_crate, GALAXY_PROGRAMMING_LANGUAGE
         ),
     )
@@ -222,7 +222,7 @@ def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=_build_request_package(
+        payload=_build_payload(
             dummy_galaxy_crate_onedata, GALAXY_PROGRAMMING_LANGUAGE
         ),
     )
@@ -244,7 +244,7 @@ def binder_vre(dummy_binder_crate):
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=_build_request_package(
+        payload=_build_payload(
             dummy_binder_crate, BINDER_PROGRAMMING_LANGUAGE
         ),
     )
@@ -261,7 +261,7 @@ def binder_vre_with_doi():
         url="https://doi.org/10.5281/zenodo.12345678",  # Added for repository-only mode
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -272,7 +272,7 @@ def binder_vre_with_doi():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=package,
     )
     vre.svc_url = "https://mybinder.org"
     return vre
@@ -287,7 +287,7 @@ def binder_vre_github_only():
         url="https://github.com/example/notebook-repo",
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -298,7 +298,7 @@ def binder_vre_github_only():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=package,
     )
     vre.svc_url = "https://mybinder.org"
     return vre
@@ -313,7 +313,7 @@ def binder_vre_github_with_branch():
         url="https://github.com/example/notebook-repo/tree/main",
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -324,7 +324,7 @@ def binder_vre_github_with_branch():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=package,
     )
     vre.svc_url = "https://mybinder.org"
     return vre
@@ -344,7 +344,7 @@ def binder_vre_not_repo_only():
         name="notebook.ipynb",
         properties={"content": b"print('hello')"},
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -355,7 +355,7 @@ def binder_vre_not_repo_only():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=package,
     )
     vre.svc_url = "https://mybinder.org"
     return vre
@@ -381,7 +381,7 @@ def binder_vre_not_repo_only_with_remote():
         url="https://example.org/data/file.csv",
         properties={},
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -392,7 +392,7 @@ def binder_vre_not_repo_only_with_remote():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=package,
     )
     vre.svc_url = "https://mybinder.org"
     return vre
@@ -407,7 +407,7 @@ def binder_vre_no_url():
         url=None,
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -418,7 +418,7 @@ def binder_vre_no_url():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=package,
     )
     vre.svc_url = "https://mybinder.org"
     return vre
@@ -433,7 +433,7 @@ def binder_vre_gitlab_only():
         url="https://gitlab.com/example/repo",
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -444,7 +444,7 @@ def binder_vre_gitlab_only():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=package,
     )
     vre.svc_url = "https://mybinder.org"
     return vre
@@ -459,7 +459,7 @@ def binder_vre_zenodo_url():
         url="https://doi.org/10.5281/zenodo.12345678",
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -470,7 +470,7 @@ def binder_vre_zenodo_url():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=package,
     )
     vre.svc_url = "https://mybinder.org"
     return vre
@@ -484,7 +484,7 @@ SCIENCEMESH_SENDER_NAME = "Rasmus Oscar Welander"
 def sciencemesh_vre():
     from vre_rocrate import FormalParameter
 
-    package = RequestPackage(
+    package = VREPayload(
         vre_type="https://eosc.cernbox.cern.ch",
         programming_language="https://eosc.cernbox.cern.ch",
         workflow=WorkflowDescriptor(
@@ -514,7 +514,7 @@ def sciencemesh_vre():
         token="test-access-token",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=package,
     )
     vre.svc_url = "https://sciencemesh.example.org"
     return vre
@@ -522,7 +522,7 @@ def sciencemesh_vre():
 
 @pytest.fixture
 def ocm_share_request(sciencemesh_vre):
-    pkg = sciencemesh_vre.request_package
+    pkg = sciencemesh_vre.payload
     receiver_input = pkg.input_by_name("Shared With")
     root = pkg.get_entity("./")
 

@@ -36,7 +36,7 @@ class VREScienceMesh(VRE):
         return self.svc_url
 
     def create_ocm_share_request(self):
-        pkg = self.request_package
+        pkg = self.payload
         receiver_param = pkg.input_by_name(SCM_SHARE_WITH_INPUT_PARAM)
         receiver = receiver_param.default_value if receiver_param else None
         if not isinstance(receiver, str) or not receiver:
@@ -77,7 +77,7 @@ class VREScienceMesh(VRE):
         repeated dispatch of the same RO-Crate maps to the same OCM resource.
         """
         canonical = json.dumps(
-            self.request_package.raw_crate, sort_keys=True, separators=(",", ":")
+            self.payload.raw_crate, sort_keys=True, separators=(",", ":")
         )
         digest = hashlib.sha256(canonical.encode("utf-8")).digest()
         return str(uuid.UUID(bytes=digest[:16]))

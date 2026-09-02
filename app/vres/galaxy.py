@@ -35,16 +35,16 @@ class VREGalaxy(VRE):
         }
 
     def _get_workflow_files(self):
-        """Resolve bound input files from the request package.
+        """Resolve bound input files from the VRE payload.
 
         Returns (input parameter name, FileReference) pairs for each
         workflow input parameter whose default value binds a file.
         Crates without file-bound inputs give an empty list — there is
         nothing to upload.
         """
-        if not self.request_package:
+        if not self.payload:
             return []
-        pkg = self.request_package
+        pkg = self.payload
         return [
             (param.name, f)
             for param in pkg.workflow_inputs
@@ -52,8 +52,8 @@ class VREGalaxy(VRE):
         ]
 
     def _get_workflow_url(self):
-        """Extract workflow URL from the request package."""
-        workflow_url = self.request_package.workflow_url
+        """Extract workflow URL from the VRE payload."""
+        workflow_url = self.payload.workflow_url
         if workflow_url is None:
             # checked here, as some other vres might be actual files
             logger.error(f"{self.__class__.__name__}: Missing url in workflow entity")

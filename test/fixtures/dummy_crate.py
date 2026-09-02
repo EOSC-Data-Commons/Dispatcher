@@ -40,7 +40,7 @@ class DummyEntity:
 
 
 class DummyCrate:
-    """In‑memory representation of a crate for building RequestPackage fixtures."""
+    """In‑memory representation of a crate for building VREPayload fixtures."""
 
     def __init__(
         self,

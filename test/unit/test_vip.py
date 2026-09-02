@@ -7,7 +7,7 @@ from app.constants import VIP_DEFAULT_SERVICE
 from app.vres.vip import VREVIP
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from vre_rocrate import (
-    RequestPackage,
+    VREPayload,
     WorkflowDescriptor,
     FileReference,
     FormalParameter,
@@ -15,8 +15,8 @@ from vre_rocrate import (
 
 
 @pytest.fixture
-def vip_request_package():
-    return RequestPackage(
+def vip_payload():
+    return VREPayload(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -79,7 +79,7 @@ def mock_vault_key():
 
 
 @patch("app.vres.vip.requests.post")
-def test_post_success(mock_post, vip_request_package, mock_vault_key):
+def test_post_success(mock_post, vip_payload, mock_vault_key):
     """Test VIP VRE post function returns /home on success."""
     mock_post.return_value.status_code = 200
 
@@ -87,7 +87,7 @@ def test_post_success(mock_post, vip_request_package, mock_vault_key):
         token="dummy_token",
         request_id=42,
         update_state=None,
-        request_package=vip_request_package,
+        payload=vip_payload,
     )
 
     result = vrevip.post()
@@ -112,13 +112,13 @@ def test_post_success(mock_post, vip_request_package, mock_vault_key):
     }
 
 
-def test_vault_key_not_found(vip_request_package):
+def test_vault_key_not_found(vip_payload):
     """Test VREConfigurationError raised when vault does not contain the key."""
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=vip_request_package,
+        payload=vip_payload,
     )
 
     with patch(
@@ -132,7 +132,7 @@ def test_vault_key_not_found(vip_request_package):
 
 def test_missing_pipeline_identifier():
     """Test VREConfigurationError raised when workflow URL is missing."""
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
@@ -142,7 +142,7 @@ def test_missing_pipeline_identifier():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
 
     with pytest.raises(VREConfigurationError) as exc:
@@ -151,7 +151,7 @@ def test_missing_pipeline_identifier():
 
 
 @patch("app.vres.vip.requests.post")
-def test_api_error(mock_post, vip_request_package, mock_vault_key):
+def test_api_error(mock_post, vip_payload, mock_vault_key):
     """Test ExternalServiceError raised when VIP API returns an error."""
     mock_post.return_value.status_code = 500
     mock_post.return_value.text = "Internal Server Error"
@@ -163,7 +163,7 @@ def test_api_error(mock_post, vip_request_package, mock_vault_key):
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=vip_request_package,
+        payload=vip_payload,
     )
 
     with pytest.raises(ExternalServiceError) as exc:
@@ -177,18 +177,18 @@ def test_get_default_service():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=None,
+        payload=None,
     )
     assert vrevip.get_default_service() == VIP_DEFAULT_SERVICE
 
 
-def test_input_values_mapping(vip_request_package):
+def test_input_values_mapping(vip_payload):
     """Test _map_input_values correctly maps file names to URLs."""
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=vip_request_package,
+        payload=vip_payload,
     )
 
     result = vrevip._map_input_values()
@@ -201,7 +201,7 @@ def test_input_values_mapping(vip_request_package):
 
 def test_input_values_fallback_to_id():
     """Input-bound file with url=None resolves to the file's id."""
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -230,7 +230,7 @@ def test_input_values_fallback_to_id():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
 
     result = vrevip._map_input_values()
@@ -239,7 +239,7 @@ def test_input_values_fallback_to_id():
 
 def test_input_name_wins_over_file_name():
     """Payload key is the input parameter name, never the file's own name."""
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -268,7 +268,7 @@ def test_input_name_wins_over_file_name():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
 
     assert vrevip._map_input_values() == {
@@ -278,7 +278,7 @@ def test_input_name_wins_over_file_name():
 
 def test_scalar_input_included():
     """Scalar input parameters pass their literal value into the VIP payload."""
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -304,7 +304,7 @@ def test_scalar_input_included():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
 
     assert vrevip._map_input_values() == {"mode": "qual", "iterations": 1000}
@@ -312,7 +312,7 @@ def test_scalar_input_included():
 
 def test_unresolvable_input_is_skipped():
     """@id reference to a file not in the package is dropped, not passed as-is."""
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=VIP_PROGRAMMING_LANGUAGE,
         programming_language=VIP_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -333,7 +333,7 @@ def test_unresolvable_input_is_skipped():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
 
     assert vrevip._map_input_values() == {}

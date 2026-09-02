@@ -73,7 +73,7 @@ class VREJupyter(VRE):
             raise exceptions.ExternalServiceError(f"Token creation failed: {e}")
 
     def _get_notebook_from_crate(self):
-        for fref in self.request_package.files:
+        for fref in self.payload.files:
             if fref.id.endswith(".ipynb"):
                 content = fref.properties.get("content")
                 if content is not None:

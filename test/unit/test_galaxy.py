@@ -11,14 +11,14 @@ from app.exceptions import WorkflowURLError
 def test_request_state_keys_are_workflow_input_names():
     """request_state keys must be workflow input names, never file names."""
     from vre_rocrate import (
-        RequestPackage,
+        VREPayload,
         WorkflowDescriptor,
         FileReference,
         FormalParameter,
     )
     from app.vres.galaxy import VREGalaxy
 
-    package = RequestPackage(
+    package = VREPayload(
         vre_type="galaxy",
         programming_language="galaxy",
         workflow=WorkflowDescriptor(
@@ -43,7 +43,7 @@ def test_request_state_keys_are_workflow_input_names():
         ],
         raw_crate={},
     )
-    vre = VREGalaxy(token="t", request_id=0, update_state=None, request_package=package)
+    vre = VREGalaxy(token="t", request_id=0, update_state=None, payload=package)
 
     request_state = vre._prepare_workflow_data()["request_state"]
     assert set(request_state.keys()) == {"reads"}
@@ -97,9 +97,9 @@ def test_post_happy_path(galaxy_vre, requests_mock):
 
 
 def test_missing_workflow_url_causes_exception(galaxy_vre):
-    from vre_rocrate import RequestPackage, WorkflowDescriptor
+    from vre_rocrate import VREPayload, WorkflowDescriptor
 
-    galaxy_vre.request_package = RequestPackage(
+    galaxy_vre.payload = VREPayload(
         vre_type="galaxy",
         programming_language="galaxy",
         workflow=WorkflowDescriptor(id="#wf", type="Dataset"),

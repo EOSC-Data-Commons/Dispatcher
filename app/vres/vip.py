@@ -50,7 +50,7 @@ class VREVIP(VRE):
         return f"vip-execution-{self._request_id}"
 
     def _get_pipeline_identifier(self) -> str:
-        pipeline = self.request_package.workflow_url
+        pipeline = self.payload.workflow_url
         if pipeline is None:
             raise exceptions.VREConfigurationError(
                 "Missing pipelineIdentifier (workflow URL) in VIP request"
@@ -85,7 +85,7 @@ class VREVIP(VRE):
         own names — the file's own name is never the key.
         """
         mapped = {}
-        pkg = self.request_package
+        pkg = self.payload
         for param in pkg.workflow_inputs:
             bound = pkg.file_for_input(param)
             if bound is not None:

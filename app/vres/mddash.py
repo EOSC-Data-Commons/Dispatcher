@@ -160,7 +160,7 @@ class VREMDDash(VRE):
 
     def _pdb_id(self) -> str:
         """Read the scalar PDB accession from the pdb_id workflow input."""
-        param = self.request_package.input_by_name(MDDASH_PDB_INPUT_PARAM)
+        param = self.payload.input_by_name(MDDASH_PDB_INPUT_PARAM)
         if param is None or not isinstance(param.default_value, str):
             raise exceptions.VREConfigurationError(
                 "Missing 'pdb_id' scalar input in MDDash request"
@@ -172,7 +172,7 @@ class VREMDDash(VRE):
 
         pdb = self._pdb_id()
 
-        notebooks_repo = self.request_package.workflow.url or MDDASH_DEFAULT_PROTOCOL
+        notebooks_repo = self.payload.workflow.url or MDDASH_DEFAULT_PROTOCOL
 
         try:
             resp = ctx.session.post(

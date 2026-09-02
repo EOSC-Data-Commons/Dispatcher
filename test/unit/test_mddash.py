@@ -12,15 +12,15 @@ from app.exceptions import (
     ExternalServiceError,
 )
 from vre_rocrate import (
-    RequestPackage,
+    VREPayload,
     WorkflowDescriptor,
     FormalParameter,
 )
 
 
 def _build_package(pdb_id="1L2Y"):
-    """Build a minimal RequestPackage for MDDash tests (scalar pdb_id input)."""
-    return RequestPackage(
+    """Build a minimal VREPayload for MDDash tests (scalar pdb_id input)."""
+    return VREPayload(
         vre_type=MDDASH_PROGRAMMING_LANGUAGE,
         programming_language=MDDASH_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -44,7 +44,7 @@ def _make_vre(package=None):
         token="dummy_token",
         request_id=42,
         update_state=MagicMock(),
-        request_package=package or _build_package(),
+        payload=package or _build_package(),
     )
 
 
@@ -102,7 +102,7 @@ def test_get_default_service():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=None,
+        payload=None,
     )
     assert vre.get_default_service() == MDDASH_DEFAULT_SERVICE
 
@@ -130,7 +130,7 @@ def test_post_success(mock_session_cls, successful_session):
 @patch("app.vres.mddash.VREMDDash._login")
 def test_post_missing_pdb_id(*_):
     """post raises VREConfigurationError when the pdb_id input parameter is absent."""
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=MDDASH_PROGRAMMING_LANGUAGE,
         programming_language=MDDASH_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
