@@ -208,9 +208,7 @@ def galaxy_vre(dummy_galaxy_crate):
         token="test-token",
         request_id=0,
         update_state=None,
-        payload=_build_payload(
-            dummy_galaxy_crate, GALAXY_PROGRAMMING_LANGUAGE
-        ),
+        payload=_build_payload(dummy_galaxy_crate, GALAXY_PROGRAMMING_LANGUAGE),
     )
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
@@ -222,9 +220,7 @@ def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
         token="test-token",
         request_id=0,
         update_state=None,
-        payload=_build_payload(
-            dummy_galaxy_crate_onedata, GALAXY_PROGRAMMING_LANGUAGE
-        ),
+        payload=_build_payload(dummy_galaxy_crate_onedata, GALAXY_PROGRAMMING_LANGUAGE),
     )
     vre.svc_url = "https://usegalaxy.eu/"
     return vre
@@ -244,9 +240,7 @@ def binder_vre(dummy_binder_crate):
         token="test-token",
         request_id=0,
         update_state=None,
-        payload=_build_payload(
-            dummy_binder_crate, BINDER_PROGRAMMING_LANGUAGE
-        ),
+        payload=_build_payload(dummy_binder_crate, BINDER_PROGRAMMING_LANGUAGE),
     )
     vre.svc_url = "https://mybinder.org"
     return vre
