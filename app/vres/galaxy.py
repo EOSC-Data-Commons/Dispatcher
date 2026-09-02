@@ -24,12 +24,12 @@ class VREGalaxy(VRE):
 
     def _prepare_workflow_data(self):
         """Prepare the workflow data for the API request."""
-        bound_inputs = self._get_workflow_files()
+        workflow_files = self._get_workflow_files()
         workflow_url = self._get_workflow_url()
 
         return {
             "public": GALAXY_PUBLIC_DEFAULT,
-            "request_state": self._modify_for_api_data_input(bound_inputs),
+            "request_state": self._modify_for_api_data_input(workflow_files),
             "workflow_id": workflow_url,
             "workflow_target_type": GALAXY_WORKFLOW_TARGET_TYPE,
         }
@@ -42,13 +42,10 @@ class VREGalaxy(VRE):
         Crates without file-bound inputs give an empty list — there is
         nothing to upload.
         """
-        if not self.payload:
-            return []
-        pkg = self.payload
         return [
             (param.name, f)
-            for param in pkg.workflow_inputs
-            if (f := pkg.file_for_input(param)) is not None
+            for param in self.payload.workflow_inputs
+            if (f := self.payload.file_for_input(param)) is not None
         ]
 
     def _get_workflow_url(self):
@@ -60,10 +57,10 @@ class VREGalaxy(VRE):
             raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
-    def _modify_for_api_data_input(self, bound_inputs):
+    def _modify_for_api_data_input(self, workflow_files):
         """Convert (input parameter name, file) pairs to API-compatible request_state."""
         result = {}
-        for name, f in bound_inputs:
+        for name, f in workflow_files:
             file_meta = {
                 "class": "File",
                 "filetype": (
