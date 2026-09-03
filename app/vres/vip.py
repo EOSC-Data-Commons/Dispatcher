@@ -3,7 +3,7 @@ import requests
 import logging
 from app import exceptions
 from app.vres.utils.vault import vault_get_api_key
-from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
+from vre_rocrate import FileReference, VIP_PROGRAMMING_LANGUAGE
 from app.constants import VIP_DEFAULT_SERVICE, VIP_DEFAULT_RESULTS_LOCATION
 
 logger = logging.getLogger(__name__)
@@ -79,21 +79,18 @@ class VREVIP(VRE):
     def _map_input_values(self) -> dict:
         """Map workflow input parameters to VIP pipeline values.
 
-        File-bound inputs resolve to their payload URL via
-        ``file_for_input``; scalar inputs (strings/numbers as
-        default_value) pass through literally. Inputs are keyed by their
-        own names — the file's own name is never the key.
+        File-bound inputs resolve to their fetch URL via
+        ``input_value_bindings``; scalar values pass through literally.
+        Inputs are keyed by their own names — the file's own name is
+        never the key; duplicate input names collapse onto the last
+        occurrence.
         """
         mapped = {}
-        pkg = self.payload
-        for param in pkg.workflow_inputs:
-            bound = pkg.file_for_input(param)
-            if bound is not None:
-                mapped[param.name] = bound.url or bound.id
-            elif isinstance(param.default_value, (str, int, float, bool)):
-                mapped[param.name] = param.default_value
+        for name, value in self.payload.input_value_bindings():
+            if isinstance(value, FileReference):
+                mapped[name] = value.url or value.id
             else:
-                logger.warning("dropping unresolvable VIP input %r", param.name)
+                mapped[name] = value
         return mapped
 
 

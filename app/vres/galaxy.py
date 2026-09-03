@@ -42,11 +42,7 @@ class VREGalaxy(VRE):
         Crates without file-bound inputs give an empty list — there is
         nothing to upload.
         """
-        return [
-            (param.name, f)
-            for param in self.payload.workflow_inputs
-            if (f := self.payload.file_for_input(param)) is not None
-        ]
+        return self.payload.input_file_bindings()
 
     def _get_workflow_url(self):
         """Extract workflow URL from the VRE payload."""
