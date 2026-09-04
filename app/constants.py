@@ -21,3 +21,8 @@ JUPYTER_DEFAULT_SERVICE = "https://notebooks-dev.egi.zcu.cz"
 
 MDDASH_DEFAULT_SERVICE = "https://mddash-edc.dyn.cloud.e-infra.cz"
 MDDASH_DEFAULT_PROTOCOL = "https://github.com/sb-ncbr/mddash-notebooks.git"
+# MDDash experiment input: scalar PDB accession carried by a workflow input parameter
+MDDASH_PDB_INPUT_PARAM = "pdb_id"
+
+# ScienceMesh share parties travel as workflow input parameters
+SCM_SHARE_WITH_INPUT_PARAM = "Shared With"

@@ -17,6 +17,7 @@ FILE_2 = {
 
 
 ONE_DATA_FILE = {
+    "@id": "https://onedata.example.org/file.tiff",
     "name": "onedata_file",
     "encodingFormat": "image/tiff",
     "onedata:onezoneDomain": "demo.onedata.org",
@@ -39,7 +40,7 @@ class DummyEntity:
 
 
 class DummyCrate:
-    """In‑memory representation of a crate for building RequestPackage fixtures."""
+    """In‑memory representation of a crate for building VREPayload fixtures."""
 
     def __init__(
         self,

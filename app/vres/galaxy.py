@@ -24,33 +24,39 @@ class VREGalaxy(VRE):
 
     def _prepare_workflow_data(self):
         """Prepare the workflow data for the API request."""
-        files = self._get_workflow_files()
+        workflow_files = self._get_workflow_files()
         workflow_url = self._get_workflow_url()
 
         return {
             "public": GALAXY_PUBLIC_DEFAULT,
-            "request_state": self._modify_for_api_data_input(files),
+            "request_state": self._modify_for_api_data_input(workflow_files),
             "workflow_id": workflow_url,
             "workflow_target_type": GALAXY_WORKFLOW_TARGET_TYPE,
         }
 
     def _get_workflow_files(self):
-        """Extract file references from the request package."""
-        return self.request_package.input_files
+        """Resolve bound input files from the VRE payload.
+
+        Returns (input parameter name, FileReference) pairs for each
+        workflow input parameter whose default value binds a file.
+        Crates without file-bound inputs give an empty list — there is
+        nothing to upload.
+        """
+        return self.payload.input_file_bindings()
 
     def _get_workflow_url(self):
-        """Extract workflow URL from the request package."""
-        workflow_url = self.request_package.workflow_url
+        """Extract workflow URL from the VRE payload."""
+        workflow_url = self.payload.workflow_url
         if workflow_url is None:
             # checked here, as some other vres might be actual files
             logger.error(f"{self.__class__.__name__}: Missing url in workflow entity")
             raise exceptions.WorkflowURLError("Missing url in workflow entity")
         return workflow_url
 
-    def _modify_for_api_data_input(self, files):
-        """Convert file references to API-compatible format."""
+    def _modify_for_api_data_input(self, workflow_files):
+        """Convert (input parameter name, file) pairs to API-compatible request_state."""
         result = {}
-        for f in files:
+        for name, f in workflow_files:
             file_meta = {
                 "class": "File",
                 "filetype": (
@@ -65,7 +71,9 @@ class VREGalaxy(VRE):
             else:
                 file_meta["location"] = f.url or f.id
 
-            result[f.name] = file_meta
+            # request_state keys are the workflow input names Galaxy
+            # references, never the file's own name
+            result[name] = file_meta
 
         return result
 

@@ -22,8 +22,8 @@ class VREBinder(VRE):
         return BINDER_DEFAULT_SERVICE
 
     def post(self) -> str:
-        if self.request_package.is_repository_only:
-            workflow_url = self.request_package.workflow.url
+        if self.payload.is_repository_only:
+            workflow_url = self.payload.workflow.url
             return self._build_binder_url(workflow_url)
         return self._build_local_git_repo()
 
@@ -89,7 +89,7 @@ class VREBinder(VRE):
         repo = self._generate_repository_name(self._request_id)
         self._create(repo)
         self._write_source_files(repo)
-        self._clone_remote_files(self.request_package.workflow.url, repo)
+        self._clone_remote_files(self.payload.workflow.url, repo)
         self._write_start_script(repo)
         self._ensure_start_in_dockerfile(repo)
         self._initialize_temporary_git_repo(repo)
@@ -125,12 +125,12 @@ class VREBinder(VRE):
         return f"{gitrepos}/{request_id}"
 
     def _write_source_files(self, repo: str) -> None:
-        """Write local files from request package to repo directory.
+        """Write local files from VRE payload to repo directory.
 
         Validates that filenames do not contain path traversal sequences (..).
         """
-        logger.debug(f"{__class__.__name__}: writing source files from request package")
-        for fref in self.request_package.local_files:
+        logger.debug(f"{__class__.__name__}: writing source files from VRE payload")
+        for fref in self.payload.local_files:
             filename = fref.id
             # Reject filenames with path traversal attempts
             if ".." in filename:
@@ -150,7 +150,7 @@ class VREBinder(VRE):
         a remote repo), it is renamed to a unique name and sourced by the newly
         generated script so the original startup logic is preserved.
 
-        For each remote file in the request package, generates a datahugger
+        For each remote file in the VRE payload, generates a datahugger
         download command.  The script hands control back to Binder via ``exec "$@"``
         so Jupyter starts normally after the files are staged.
         """
@@ -167,7 +167,7 @@ class VREBinder(VRE):
                 f"{__class__.__name__}: preserved existing start as {unique_name}"
             )
 
-        remote_files = self.request_package.remote_files
+        remote_files = self.payload.remote_files
         download_lines: list[str] = []
         if remote_files:
             for fref in remote_files:
