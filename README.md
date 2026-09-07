@@ -70,6 +70,18 @@ oauth2:
 9. `cd ansible`
 10. `ansible-playbook dispatcher.yml`
 
+### Deployments without EGI Secret Store access
+
+VIP API keys are normally resolved per-user from the EGI Secret Store (vault). On dev instances
+whose users cannot authenticate against that vault, a static key can be configured instead —
+it then overrides the vault lookup entirely (pass your personal VIP key):
+
+- Ansible deploy: `ansible-playbook dispatcher.yml -l DISPATCHER_HOSTNAME --extra-vars "vip_api_key=YOUR_KEY"`
+- Local run: `export VIP_API_KEY=YOUR_KEY`
+
+Note the playbook must be re-run with the extra variable every time — redeploying without it
+reverts to vault lookup. Never commit the key value anywhere in the repository.
+
 
 ## Example API Calls
 
