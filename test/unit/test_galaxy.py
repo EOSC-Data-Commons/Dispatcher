@@ -170,7 +170,9 @@ def _galaxy_vre_for_url(url, tool_version=None):
             vre_type="galaxy",
             programming_language="galaxy",
             workflow=WorkflowDescriptor(
-                id=url, type="ComputationalWorkflow", url=url,
+                id=url,
+                type="ComputationalWorkflow",
+                url=url,
                 tool_version=tool_version,
             ),
             raw_crate={},
@@ -210,8 +212,9 @@ def test_non_workflowhub_url_passes_through_untouched(requests_mock):
 
     (requests_mock intercepts everything, so any unregistered GET would fail
     the test; nothing is registered here on purpose.)"""
-    vre = _galaxy_vre_for_url("https://workflow.example.org/myworkflow.ga",
-                              tool_version="1.0")
+    vre = _galaxy_vre_for_url(
+        "https://workflow.example.org/myworkflow.ga", tool_version="1.0"
+    )
 
     payload = vre._prepare_workflow_data()
 
