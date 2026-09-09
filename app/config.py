@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     vault_kv_version: int = 1
     vault_jwt_role: str = ""
 
+    # VRE provider healthcheck (fail-fast when a provider is down)
+    vre_healthcheck_enabled: bool = True
+    vre_healthcheck_timeout: float = 3.0
+
     # Logging configuration
     log_level: str = "INFO"
     log_format: str = "text"  # 'text' or 'json' for future expansion

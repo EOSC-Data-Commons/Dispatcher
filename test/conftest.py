@@ -189,6 +189,18 @@ def tmp_dir_setup(tmpdir):
     yield
 
 
+@pytest.fixture(autouse=True)
+def disable_vre_healthcheck():
+    """Disable the VRE provider healthcheck so tests never hit the network.
+
+    Healthcheck-specific tests re-enable it explicitly.
+    """
+    original = settings.vre_healthcheck_enabled
+    settings.vre_healthcheck_enabled = False
+    yield
+    settings.vre_healthcheck_enabled = original
+
+
 @pytest.fixture
 def binder_vre(dummy_binder_crate):
     vre = VREBinder(

@@ -16,6 +16,10 @@ class VREGalaxy(VRE):
     def get_default_service(self):
         return GALAXY_DEFAULT_SERVICE
 
+    def get_healthcheck_url(self) -> str:
+        # Galaxy exposes an unauthenticated lightweight version endpoint
+        return f"{self.svc_url}/api/version"
+
     def post(self):
         data = self._prepare_workflow_data()
         response_data = self._send_workflow_request(data)

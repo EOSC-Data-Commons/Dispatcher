@@ -13,6 +13,10 @@ class VREVIP(VRE):
     def get_default_service(self) -> str:
         return VIP_DEFAULT_SERVICE
 
+    def get_healthcheck_url(self) -> str:
+        # VIP REST API lists public pipelines without authentication
+        return f"{self.svc_url}/rest/pipelines?public"
+
     def post(self) -> str:
         api_key = vault_get_api_key(self.token, "vip")
 
