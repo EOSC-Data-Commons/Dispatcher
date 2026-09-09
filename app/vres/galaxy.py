@@ -97,7 +97,7 @@ class VREGalaxy(VRE):
             raise exceptions.WorkflowConfigurationError(
                 f"WorkflowHub tool {tool_id} has no versions"
             )
-        wanted = self.request_package.workflow.tool_version
+        wanted = self.payload.workflow.tool_version
         if wanted is not None:
             for version in versions:
                 if version.get("name") == wanted:

@@ -160,13 +160,13 @@ WORKFLOWHUB_VERSIONS = [
 def _galaxy_vre_for_url(url, tool_version=None):
     """A VREGalaxy whose workflow entity carries the given URL and tool version."""
     from app.vres.galaxy import VREGalaxy
-    from vre_rocrate import RequestPackage, WorkflowDescriptor
+    from vre_rocrate import VREPayload, WorkflowDescriptor
 
     vre = VREGalaxy(
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=RequestPackage(
+        payload=VREPayload(
             vre_type="galaxy",
             programming_language="galaxy",
             workflow=WorkflowDescriptor(
