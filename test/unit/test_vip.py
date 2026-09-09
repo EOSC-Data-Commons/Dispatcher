@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import patch
 from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
+from app.config import settings
 from app.constants import VIP_DEFAULT_SERVICE
 from app.vres.vip import VREVIP
 from app.exceptions import VREConfigurationError, ExternalServiceError
@@ -78,6 +79,15 @@ def mock_vault_key():
         yield m
 
 
+@pytest.fixture
+def static_api_key():
+    """Set a static VIP API key and restore the setting afterwards."""
+    original = settings.vip_api_key
+    settings.vip_api_key = "static-test-key"
+    yield
+    settings.vip_api_key = original
+
+
 @patch("app.vres.vip.requests.post")
 def test_post_success(mock_post, vip_payload, mock_vault_key):
     """Test VIP VRE post function returns /home on success."""
@@ -110,6 +120,26 @@ def test_post_success(mock_post, vip_payload, mock_vault_key):
         "data_file": "https://www.creatis.insa-lyon.fr/~abonnet/Rec003_Vox1.mrui",
         "zipped_folder": "https://www.creatis.insa-lyon.fr/~abonnet/basis_11_7.zip",
     }
+
+
+@patch("app.vres.vip.requests.post")
+def test_static_api_key_overrides_vault(mock_post, vip_payload, static_api_key):
+    """A configured static VIP API key skips the vault lookup entirely."""
+    mock_post.return_value.status_code = 200
+
+    vrevip = VREVIP(
+        token="dummy_token",
+        request_id=42,
+        update_state=None,
+        payload=vip_payload,
+    )
+
+    with patch("app.vres.vip.vault_get_api_key") as m_vault:
+        result = vrevip.post()
+
+    assert result == f"{VIP_DEFAULT_SERVICE}/home.html"
+    m_vault.assert_not_called()
+    assert mock_post.call_args[1]["headers"]["apikey"] == "static-test-key"
 
 
 def test_vault_key_not_found(vip_payload):

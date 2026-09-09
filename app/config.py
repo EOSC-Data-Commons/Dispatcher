@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     vault_kv_version: int = 1
     vault_jwt_role: str = ""
 
+    # Static VIP API key override for dev instances without vault access.
+    # Empty means per-user vault lookup (production behavior).
+    vip_api_key: str = ""
+
     # Logging configuration
     log_level: str = "INFO"
     log_format: str = "text"  # 'text' or 'json' for future expansion
