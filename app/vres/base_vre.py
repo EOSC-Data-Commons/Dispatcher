@@ -1,6 +1,6 @@
 import sys
 from app.services.im import IM
-from vre_rocrate import RuntimePlatform
+from vre_rocrate import RuntimePlatform, VREPayload
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 from app.exceptions import VREConfigurationError
@@ -27,10 +27,10 @@ class VRE(ABC):
         request_id: int,
         update_state: Callable,
         im_factory: Callable[[str | None], IMClientProtocol] | None = None,
-        request_package: Any | None = None,
+        payload: VREPayload | None = None,
         **kwargs,
     ) -> None:
-        self.request_package = request_package
+        self.payload = payload
         self.token = token
         self._update_state = update_state
         self._request_id = request_id
@@ -48,9 +48,9 @@ class VRE(ABC):
         return self._resolve_service_url(rp)
 
     def _get_runtime_platform(self) -> str | RuntimePlatform | None:
-        """Read runtimePlatform from the request package workflow descriptor."""
-        if self.request_package is not None:
-            return self.request_package.workflow.runtime_platform
+        """Read runtimePlatform from the VRE payload workflow descriptor."""
+        if self.payload is not None:
+            return self.payload.workflow.runtime_platform
         return None
 
     def _resolve_service_url(self, dest: str | RuntimePlatform | None) -> str:
@@ -112,12 +112,12 @@ class VREFactory:
         token: str,
         request_id: int,
         update_state: Callable,
-        request_package: Any | None = None,
+        payload: VREPayload | None = None,
         **kwargs,
     ):
-        if request_package is None:
-            raise ValueError("request_package is required")
-        elang = request_package.programming_language
+        if payload is None:
+            raise ValueError("payload is required")
+        elang = payload.programming_language
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
         logger.debug(f"elang {elang}")
@@ -126,7 +126,7 @@ class VREFactory:
             token=token,
             request_id=request_id,
             update_state=update_state,
-            request_package=request_package,
+            payload=payload,
             **kwargs,
         )
 

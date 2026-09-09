@@ -8,6 +8,48 @@ from app.exceptions import WorkflowURLError
 
 
 # TODO FILE1, FILE2 move somewhere else, split to 2 tests
+def test_request_state_keys_are_workflow_input_names():
+    """request_state keys must be workflow input names, never file names."""
+    from vre_rocrate import (
+        VREPayload,
+        WorkflowDescriptor,
+        FileReference,
+        FormalParameter,
+    )
+    from app.vres.galaxy import VREGalaxy
+
+    package = VREPayload(
+        vre_type="galaxy",
+        programming_language="galaxy",
+        workflow=WorkflowDescriptor(
+            id="https://workflow.example.org/wf.ga",
+            type="Dataset",
+            url="https://workflow.example.org/wf.ga",
+        ),
+        files=[
+            FileReference(
+                id="https://data.example.org/reads_1.fastq",
+                name="sample_1",
+                encoding_format="application/fastq",
+                url="https://data.example.org/reads_1.fastq",
+            ),
+        ],
+        workflow_inputs=[
+            FormalParameter(
+                id="#input-reads",
+                name="reads",
+                default_value={"@id": "https://data.example.org/reads_1.fastq"},
+            ),
+        ],
+        raw_crate={},
+    )
+    vre = VREGalaxy(token="t", request_id=0, update_state=None, payload=package)
+
+    request_state = vre._prepare_workflow_data()["request_state"]
+    assert set(request_state.keys()) == {"reads"}
+    assert request_state["reads"]["location"].endswith(".fastq")
+
+
 def test_prepare_workflow_data_success(galaxy_vre):
     """_prepare_workflow_data must return the exact dict that Galaxy expects."""
     payload = galaxy_vre._prepare_workflow_data()
@@ -55,9 +97,9 @@ def test_post_happy_path(galaxy_vre, requests_mock):
 
 
 def test_missing_workflow_url_causes_exception(galaxy_vre):
-    from vre_rocrate import RequestPackage, WorkflowDescriptor
+    from vre_rocrate import VREPayload, WorkflowDescriptor
 
-    galaxy_vre.request_package = RequestPackage(
+    galaxy_vre.payload = VREPayload(
         vre_type="galaxy",
         programming_language="galaxy",
         workflow=WorkflowDescriptor(id="#wf", type="Dataset"),

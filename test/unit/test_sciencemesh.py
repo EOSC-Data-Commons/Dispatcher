@@ -9,14 +9,14 @@ from app.exceptions import (
 
 
 def test_post_errors_with_empty_rocrate(sciencemesh_vre, mock_token_user):
-    sciencemesh_vre.request_package.ocm_data = None
+    sciencemesh_vre.payload.workflow_inputs = []
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
 
 
 def test_post_errors_without_receiver_entity(sciencemesh_vre, mock_token_user):
-    sciencemesh_vre.request_package.ocm_data.receiver_userid = None
+    sciencemesh_vre.payload.workflow_inputs[0].default_value = None
 
     with pytest.raises(MissingOCMParameters):
         sciencemesh_vre.post()
@@ -80,6 +80,34 @@ def test_post_sends_correct_ocm_share_request(
         ocm_share_request.pop(key, None)
 
     assert actual == ocm_share_request
+
+
+def test_resource_id_is_deterministic_from_crate(sciencemesh_vre, mock_token_user):
+    """Same crate → same resourceId; different crate → different resourceId."""
+    from app.vres.sciencemesh import VREScienceMesh
+    import copy
+
+    vre = sciencemesh_vre
+    rid1 = vre.create_ocm_share_request()["resourceId"]
+    rid2 = vre.create_ocm_share_request()["resourceId"]
+    assert rid1 == rid2
+    assert uuid.UUID(rid1)  # still uuid-formatted
+
+    mutated = copy.deepcopy(vre.payload.raw_crate)
+    mutated["@graph"][0]["name"] = "different title"
+    other = VREScienceMesh(
+        token="test-access-token",
+        request_id=0,
+        update_state=None,
+        payload=type(vre.payload)(
+            vre_type=vre.payload.vre_type,
+            programming_language=vre.payload.programming_language,
+            workflow=vre.payload.workflow,
+            workflow_inputs=vre.payload.workflow_inputs,
+            raw_crate=mutated,
+        ),
+    )
+    assert other.create_ocm_share_request()["resourceId"] != rid1
 
 
 def test_create_ocm_share_uses_token_claims_for_owner_and_sender(

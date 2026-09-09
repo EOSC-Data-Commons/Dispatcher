@@ -61,8 +61,13 @@
                 "@id": "#workflow-hub"
             },
             "version": "1.0.0",
-            "runtimePlatform": "https://qa.cernbox.cern.ch",
-            "encodingFormat": "application/x-ipynb+json"
+            "runtimePlatform": "https://eosc.cernbox.cern.ch",
+            "encodingFormat": "application/x-ipynb+json",
+            "input": [
+                {
+                    "@id": "#input-Shared With"
+                }
+            ]
         },
         {
             "@id": "https://raw.githubusercontent.com/dpiparo/swanExamples/master/notebooks/MuRun2010B.csv",
@@ -77,7 +82,7 @@
         {
             "@id": "#sciencemesh-lang",
             "@type": "ComputerLanguage",
-            "identifier": "https://qa.cernbox.cern.ch",
+            "identifier": "https://eosc.cernbox.cern.ch",
             "name": "Jupyter Notebook",
             "url": "https://jupyter.org/"
         },
@@ -99,9 +104,11 @@
             "userid": "rasmus.oscar.welander@egi.eu"
         },
         {
-            "@id": "#receiver",
-            "@type": "Person",
-            "userid": "rwelande@cernbox.cern.ch"
+            "@id": "#input-Shared With",
+            "@type": "FormalParameter",
+            "name": "Shared With",
+            "additionalType": "string",
+            "defaultValue": "rwelande@cernbox.cern.ch"
         },
         {
             "@id": "#workflow-hub",
