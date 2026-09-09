@@ -76,7 +76,7 @@ def test_is_repository_only_true_when_url_and_no_local_files():
     """Verify is_repository_only returns True when workflow has URL but no local files."""
     from vre_rocrate import (
         BINDER_PROGRAMMING_LANGUAGE,
-        RequestPackage,
+        VREPayload,
         WorkflowDescriptor,
     )
 
@@ -86,7 +86,7 @@ def test_is_repository_only_true_when_url_and_no_local_files():
         url="https://github.com/example/repo",
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -101,7 +101,7 @@ def test_is_repository_only_false_when_has_local_files():
     """Verify is_repository_only returns False when local files are present."""
     from vre_rocrate import (
         BINDER_PROGRAMMING_LANGUAGE,
-        RequestPackage,
+        VREPayload,
         WorkflowDescriptor,
         FileReference,
     )
@@ -112,7 +112,7 @@ def test_is_repository_only_false_when_has_local_files():
         url="https://github.com/example/repo",
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,
@@ -129,7 +129,7 @@ def test_is_repository_only_false_when_no_url():
     """Verify is_repository_only returns False when workflow has no URL."""
     from vre_rocrate import (
         BINDER_PROGRAMMING_LANGUAGE,
-        RequestPackage,
+        VREPayload,
         WorkflowDescriptor,
     )
 
@@ -139,7 +139,7 @@ def test_is_repository_only_false_when_no_url():
         url=None,  # No URL
         programming_language_id=BINDER_PROGRAMMING_LANGUAGE,
     )
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=BINDER_PROGRAMMING_LANGUAGE,
         programming_language=BINDER_PROGRAMMING_LANGUAGE,
         workflow=workflow,

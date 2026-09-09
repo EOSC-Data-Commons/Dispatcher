@@ -3,7 +3,7 @@ import requests
 import logging
 from app import exceptions
 from app.vres.utils.vault import vault_get_api_key
-from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
+from vre_rocrate import FileReference, VIP_PROGRAMMING_LANGUAGE
 from app.constants import VIP_DEFAULT_SERVICE, VIP_DEFAULT_RESULTS_LOCATION
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class VREVIP(VRE):
         return f"vip-execution-{self._request_id}"
 
     def _get_pipeline_identifier(self) -> str:
-        pipeline = self.request_package.workflow_url
+        pipeline = self.payload.workflow_url
         if pipeline is None:
             raise exceptions.VREConfigurationError(
                 "Missing pipelineIdentifier (workflow URL) in VIP request"
@@ -77,11 +77,21 @@ class VREVIP(VRE):
         )
 
     def _map_input_values(self) -> dict:
-        result = {}
-        for f in self.request_package.input_files:
-            file_url = f.url or f.id
-            result[f.name] = file_url
-        return result
+        """Map workflow input parameters to VIP pipeline values.
+
+        File-bound inputs resolve to their fetch URL via
+        ``input_value_bindings``; scalar values pass through literally.
+        Inputs are keyed by their own names — the file's own name is
+        never the key; duplicate input names collapse onto the last
+        occurrence.
+        """
+        mapped = {}
+        for name, value in self.payload.input_value_bindings():
+            if isinstance(value, FileReference):
+                mapped[name] = value.url or value.id
+            else:
+                mapped[name] = value
+        return mapped
 
 
 vre_factory.register(VIP_PROGRAMMING_LANGUAGE, VREVIP)

@@ -26,7 +26,7 @@ class VREOSCAR(VRE):
         if self.fld_json:
             return self.fld_json
 
-        fdl_url = self.request_package.workflow_url
+        fdl_url = self.payload.workflow_url
         if not fdl_url:
             raise VREConfigurationError("Missing FDL URL in workflow entity")
         fdl_json = self._fetch_file(fdl_url, True)
@@ -63,7 +63,7 @@ class VREOSCAR(VRE):
 
         service_url = f"{url}/system/services/{service_name}"
 
-        self._invoke_service(url, service_name, self.request_package.oscar_input_files)
+        self._invoke_service(url, service_name, self.payload.oscar_input_files)
 
         return service_url
 
