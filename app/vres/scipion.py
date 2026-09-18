@@ -160,16 +160,16 @@ class VREScipion(VRE):
         return output
 
     def _get_data_set_url(self):
-        """Extract data set URL from the request package."""
-        for file_ref in self.request_package.input_files:
+        """Extract data set URL from the VRE payload."""
+        for file_ref in self.payload.files:
             data_url = file_ref.url or file_ref.id
             if data_url:
                 return data_url
-        raise VREConfigurationError("No data file with URL found in request package")
+        raise VREConfigurationError("No data file with URL found in VRE payload")
 
     def _get_workflow_url(self):
-        """Extract workflow URL from the request package."""
-        workflow_url = self.request_package.workflow_url
+        """Extract workflow URL from the VRE payload."""
+        workflow_url = self.payload.workflow.url
         if workflow_url is None:
             # checked here, as some other vres might be actual files
             logging.error(f"{self.__class__.__name__}: Missing url in workflow entity")

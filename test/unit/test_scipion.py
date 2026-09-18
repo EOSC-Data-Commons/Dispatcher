@@ -3,7 +3,7 @@ import shlex
 from unittest.mock import MagicMock, patch
 from vre_rocrate import (
     FileReference,
-    RequestPackage,
+    VREPayload,
     SCIPION_PROGRAMMING_LANGUAGE,
     WorkflowDescriptor,
 )
@@ -18,8 +18,8 @@ EXPECTED_WORKFLOW_URL = (
 )
 
 
-def make_scipion_request_package(files=None):
-    return RequestPackage(
+def make_scipion_payload(files=None):
+    return VREPayload(
         vre_type=SCIPION_PROGRAMMING_LANGUAGE,
         programming_language=SCIPION_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -35,7 +35,7 @@ def make_scipion_request_package(files=None):
 
 @pytest.fixture
 def scipion_vre():
-    request_package = make_scipion_request_package(
+    payload = make_scipion_payload(
         files=[
             FileReference(
                 id=EXPECTED_DATASET_URL,
@@ -49,7 +49,7 @@ def scipion_vre():
         token="test-token",
         request_id=0,
         update_state=lambda **_kwargs: None,
-        request_package=request_package,
+        payload=payload,
     )
     vre.ssh = {
         "node_ip": {"value": "worker.example.org"},
@@ -155,8 +155,8 @@ def test_post_happy_path(scipion_vre):
     ssh_client.close.assert_called_once()
 
 
-def test_get_data_set_url_reads_request_package_input_file():
-    request_package = make_scipion_request_package(
+def test_get_data_set_url_reads_payload_input_file():
+    payload = make_scipion_payload(
         files=[
             FileReference(
                 id=EXPECTED_DATASET_URL,
@@ -170,14 +170,14 @@ def test_get_data_set_url_reads_request_package_input_file():
         token="test-token",
         request_id=0,
         update_state=lambda **_kwargs: None,
-        request_package=request_package,
+        payload=payload,
     )
 
     assert vre._get_data_set_url() == EXPECTED_DATASET_URL
 
 
 def test_get_data_set_url_errors_without_input_files(scipion_vre):
-    scipion_vre.request_package = make_scipion_request_package()
+    scipion_vre.payload = make_scipion_payload()
 
     with pytest.raises(VREConfigurationError, match="No data file with URL found"):
         scipion_vre._get_data_set_url()
