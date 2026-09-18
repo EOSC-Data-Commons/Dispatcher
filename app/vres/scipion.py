@@ -45,8 +45,18 @@ class VREScipion(VRE):
             logging.info(f"Downloading data from {data_url}")
             data_folder = data_url.split("/")[-1]
             get_data_command = f"sudo su - {SCIPION_USER} -c 'rsync -avP {data_url} {SCIPION_DATA_DIR}'"
-            out = self._execute_long_ssh_command(self.ssh, ssh_client, get_data_command)
-            logging.debug(f"Data download output: {out}")
+            if self._get_streaming_parameter():
+                launch_data_command = (
+                    f"nohup bash -lc {shlex.quote(get_data_command)} "
+                    "</dev/null >/tmp/scipion-download.log 2>&1 & echo $!"
+                )
+                pid = self._execute_ssh_command(ssh_client, launch_data_command).strip()
+                logging.info(f"Data download launched in background with PID {pid}")
+            else:
+                out = self._execute_long_ssh_command(
+                    self.ssh, ssh_client, get_data_command
+                )
+                logging.debug(f"Data download output: {out}")
 
             # Step 4: Run the workflow with the data
             self.update_task_status("Executing workflow")
@@ -166,6 +176,11 @@ class VREScipion(VRE):
             if data_url:
                 return data_url
         raise VREConfigurationError("No data file with URL found in VRE payload")
+
+    def _get_streaming_parameter(self):
+        """Extract the streaming parameter from the VRE payload."""
+        streaming_param = self.payload.input_by_name("streaming")
+        return streaming_param.default_value if streaming_param else False
 
     def _get_workflow_url(self):
         """Extract workflow URL from the VRE payload."""

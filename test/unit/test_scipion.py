@@ -3,6 +3,7 @@ import shlex
 from unittest.mock import MagicMock, patch
 from vre_rocrate import (
     FileReference,
+    FormalParameter,
     VREPayload,
     SCIPION_PROGRAMMING_LANGUAGE,
     WorkflowDescriptor,
@@ -112,19 +113,25 @@ def test_execute_long_ssh_command_recovers_after_disconnect(scipion_vre):
     scipion_vre._get_ssh_client.assert_called_once_with(scipion_vre.ssh)
 
 
-def test_post_happy_path(scipion_vre):
+@pytest.mark.parametrize("streaming", [None, False, True])
+def test_post_happy_path(scipion_vre, streaming):
+    if streaming is not None:
+        scipion_vre.payload.workflow_inputs.append(
+            FormalParameter(id="#streaming", name="streaming", default_value=streaming)
+        )
     data_folder = EXPECTED_DATASET_URL.split("/")[-1]
     ssh_client = MagicMock()
     scipion_vre._get_ssh_client = MagicMock(return_value=ssh_client)
-    scipion_vre._execute_ssh_command = MagicMock(side_effect=["ok", "12345"])
+    scipion_vre._execute_ssh_command = MagicMock(
+        side_effect=["ok", "67890", "12345"] if streaming else ["ok", "12345"]
+    )
     scipion_vre._execute_long_ssh_command = MagicMock(return_value="sync-ok")
 
     final_url = scipion_vre.post()
 
     assert final_url == scipion_vre.svc_url
     scipion_vre._get_ssh_client.assert_called_once_with(scipion_vre.ssh)
-    assert scipion_vre._execute_ssh_command.call_count == 2
-    assert scipion_vre._execute_long_ssh_command.call_count == 1
+    assert scipion_vre._execute_ssh_command.call_count == (3 if streaming else 2)
 
     workflow_url = scipion_vre._get_workflow_url()
     wget_command = scipion_vre._execute_ssh_command.call_args_list[0][0][1]
@@ -133,13 +140,21 @@ def test_post_happy_path(scipion_vre):
         == f"sudo su - {SCIPION_USER} -c 'wget {workflow_url} -O {SCIPION_DATA_DIR}/{workflow_url.split('/')[-1]}'"
     )
 
-    first_long_command = scipion_vre._execute_long_ssh_command.call_args[0][2]
-    assert (
-        first_long_command
-        == f"sudo su - {SCIPION_USER} -c 'rsync -avP {EXPECTED_DATASET_URL} {SCIPION_DATA_DIR}'"
-    )
+    expected_data_command = f"sudo su - {SCIPION_USER} -c 'rsync -avP {EXPECTED_DATASET_URL} {SCIPION_DATA_DIR}'"
+    if streaming:
+        scipion_vre._execute_long_ssh_command.assert_not_called()
+        download_command = scipion_vre._execute_ssh_command.call_args_list[1][0][1]
+        assert shlex.split(download_command)[:3] == ["nohup", "bash", "-lc"]
+        assert shlex.split(download_command)[3] == expected_data_command
+        assert (
+            "</dev/null >/tmp/scipion-download.log 2>&1 & echo $!" in download_command
+        )
+    else:
+        scipion_vre._execute_long_ssh_command.assert_called_once_with(
+            scipion_vre.ssh, ssh_client, expected_data_command
+        )
 
-    launch_command = scipion_vre._execute_ssh_command.call_args_list[1][0][1]
+    launch_command = scipion_vre._execute_ssh_command.call_args_list[-1][0][1]
     expected_run_command = (
         f"sudo su - {SCIPION_USER} -c '"
         f"python {SCIPION_DATA_DIR}/scipion_EMPIAR.py {data_folder} "
