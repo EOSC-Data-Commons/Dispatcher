@@ -1,0 +1,12 @@
+---
+- hosts: localhost
+  roles:
+    - source_local
+    - role: app_config
+      vars:
+        compose_template: "docker-compose-local.yml.j2"
+        compose_init: false
+    - certgen
+    - role: app_compose
+      vars:
+        compose_init: false

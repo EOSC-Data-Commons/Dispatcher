@@ -4,7 +4,7 @@ GALAXY_PUBLIC_DEFAULT = False
 
 BINDER_DEFAULT_SERVICE = "https://mybinder.org"
 
-SCIENCEMESH_DEFAULT_SERVICE = "https://qa.cernbox.cern.ch"
+SCIENCEMESH_DEFAULT_SERVICE = "https://eosc.cernbox.cern.ch"
 
 SCIPION_DEFAULT_SERVICE = "https://scipion.i2pc.es/"
 SCIPION_MAX_EXECUTION_TIME_SECONDS = 3600 * 24  # 24 hours
@@ -14,7 +14,7 @@ SCIPION_USER = "scipionuser"
 
 OSCAR_DEFAULT_SERVICE = "https://oscar.vre.eosc-data-commons.eu"
 
-VIP_DEFAULT_SERVICE = "https://vip.creatis.insa-lyon.fr/test"
+VIP_DEFAULT_SERVICE = "https://vip.creatis.insa-lyon.fr"
 VIP_DEFAULT_RESULTS_LOCATION = "/vip/Home"
 
 IM_SEQUENCE_STARTED = "IM sequence started"
@@ -22,3 +22,11 @@ IM_SEQUENCE_FINISHED = "IM sequence finished"
 IM_SEQUENCE_SUCCESSFUL = "IM sequence successful"
 
 JUPYTER_DEFAULT_SERVICE = "https://notebooks-dev.egi.zcu.cz"
+
+MDDASH_DEFAULT_SERVICE = "https://mddash-edc.dyn.cloud.e-infra.cz"
+MDDASH_DEFAULT_PROTOCOL = "https://github.com/sb-ncbr/mddash-notebooks.git"
+# MDDash experiment input: scalar PDB accession carried by a workflow input parameter
+MDDASH_PDB_INPUT_PARAM = "pdb_id"
+
+# ScienceMesh share parties travel as workflow input parameters
+SCM_SHARE_WITH_INPUT_PARAM = "Shared With"

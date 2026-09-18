@@ -3,6 +3,10 @@ dispatcher:
   branch: master
   dir: /opt/edc/dispatcher
 
+# Flat variable so --extra-vars "dispatcher_branch=v0.0.1" works
+# (dot-notation extra-vars don't override nested dict keys)
+dispatcher_branch: "{{ dispatcher.branch }}"
+
 git:
   # macos
   # backend: /Library/Developer/CommandLineTools/usr/libexec/git-core/git-http-backend
@@ -25,7 +29,21 @@ redis:
 
 api:
   port: 8000
-  environment: demo
+  environment: demo # dev, demo, prod
+  anonymous_requests: true
+
+vault:
+  url: https://secrets.egi.eu
+  jwt_mount: jwt
+  kv_mount: secrets
+  kv_version: 1
+  jwt_role: ""
+
+# Optional static VIP API key for dev instances without EGI Secret Store access.
+# Personal (per-user) key, NOT a shared secret. Never commit a real value —
+# pass it at deploy time:
+#   ansible-playbook dispatcher.yml -l devN... --extra-vars "vip_api_key=..."
+vip_api_key: ""
 
 im:
   endpoint: https://appsgrycap.i3m.upv.es/im-dev/ # or https://im.egi.eu/im for production
@@ -37,7 +55,10 @@ im:
     username: "demo.egi.eu"
     auth_version: "3.x_oidc_access_token"
     tenant: "openid"
-    domain: "vo.eosc-data-commons.eu"
+    # domain: # XXX: emtpy -> user's default project
+
+# don't use for users' deployment, production Dispatcher runs here
+#    domain: "vo.eosc-data-commons.eu"
   wait:
     max_time: 36000 # 10h
     sleep: 30
@@ -51,6 +72,6 @@ im:
     #VO: vo.eosc-data-commons.eu
 
 logging:
-  level: INFO
+  level: "{{ 'INFO' if api.environment == 'prod' else 'DEBUG' }}"
   format: text
     

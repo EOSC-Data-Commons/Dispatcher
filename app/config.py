@@ -11,8 +11,21 @@ class Settings(BaseSettings):
     host: str = ""
     git_repos: str = ""
     git_url_prefix: str = "/git"
+    # Anonymous (unauthenticated) request endpoints /anon_requests/
+    anonymous_requests_enabled: bool = True
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
+
+    # Vault (EGI Secret Store) configuration
+    vault_url: str = ""
+    vault_jwt_mount: str = "jwt"
+    vault_kv_mount: str = "secrets"
+    vault_kv_version: int = 1
+    vault_jwt_role: str = ""
+
+    # Static VIP API key override for dev instances without vault access.
+    # Empty means per-user vault lookup (production behavior).
+    vip_api_key: str = ""
 
     # Logging configuration
     log_level: str = "INFO"

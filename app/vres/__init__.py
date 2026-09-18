@@ -5,3 +5,4 @@ from .scipion import VREScipion
 from .jupyter import VREJupyter
 from .oscar import VREOSCAR
 from .vip import VREVIP
+from .mddash import VREMDDash

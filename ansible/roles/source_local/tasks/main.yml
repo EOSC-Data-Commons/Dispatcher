@@ -1,5 +1,10 @@
 ---
-- name: Copy local version of repo
+- name: Copy local version of dispatcher repo
   synchronize:
     src: "{{ playbook_dir }}/../"
     dest: "{{ dispatcher.dir }}"
+
+- name: Copy local version of vre-rocrate if it exists locally
+  synchronize:
+    src: "{{ playbook_dir }}/../../vre-rocrate/"
+    dest: "{{ dispatcher.dir }}/vre-rocrate/"

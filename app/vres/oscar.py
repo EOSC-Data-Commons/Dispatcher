@@ -26,20 +26,10 @@ class VREOSCAR(VRE):
         if self.fld_json:
             return self.fld_json
 
-        fdl_url = self.request_package.workflow_url
+        fdl_url = self.payload.workflow_url
         if not fdl_url:
             raise VREConfigurationError("Missing FDL URL in workflow entity")
         fdl_json = self._fetch_file(fdl_url, True)
-
-        script = None
-        for sf in self.request_package.script_files:
-            file_url = sf.url or sf.id
-            if file_url:
-                script = self._fetch_file(file_url)
-                break
-
-        if script:
-            fdl_json["script"] = script
 
         return fdl_json
 
@@ -73,13 +63,9 @@ class VREOSCAR(VRE):
 
         service_url = f"{url}/system/services/{service_name}"
 
-        files = self._get_input_files()
-        self._invoke_service(url, service_name, files)
+        self._invoke_service(url, service_name, self.payload.oscar_input_files)
 
         return service_url
-
-    def _get_input_files(self):
-        return self.request_package.oscar_input_files
 
     def _invoke_service(self, oscar_url, service_name, files):
         headers = {"Authorization": f"Bearer {self.token}"}

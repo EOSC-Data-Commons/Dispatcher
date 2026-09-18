@@ -1,0 +1,23 @@
+api:
+  port: 8000
+  environment: prod
+  anonymous_requests: false
+
+im:
+  endpoint: https://im.egi.eu/im/
+  cloud_provider:
+    type: OpenStack
+    host: "https://identity.brno.openstack.cloud.e-infra.cz"
+    username: "egi.eu"
+    auth_version: "3.x_oidc_access_token"
+    tenant: "openid"
+    # domain: # empty -> user's personal project
+  wait:
+    max_time: 36000 # 10h
+    sleep: 30
+    max_retries: 3
+
+# Prod always uses per-user vault keys — do not set a static key here.
+vip_api_key: ""
+
+

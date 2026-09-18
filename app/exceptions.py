@@ -7,6 +7,12 @@ class VREError(Exception):
     pass
 
 
+class VaultError(Exception):
+    """Raised when communication with the EGI Secret Store (HashiCorp Vault) fails."""
+
+    pass
+
+
 class VREConfigurationError(VREError):
     """Raised when the crate does not contain enough information to resolve a service."""
 
@@ -28,6 +34,10 @@ class WorkflowURLError(WorkflowConfigurationError):
 class FileProcessingError(VREError):
     """Raised when file processing fails"""
 
+    pass
+
+
+class UnsupportedBinderSource(WorkflowConfigurationError):
     pass
 
 

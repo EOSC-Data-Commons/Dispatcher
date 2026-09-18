@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     host: str = "{{ inventory_hostname }}"
     git_repos: str = "{{ git.repos }}"
     git_url_prefix: str = "{{ git.url_prefix }}"
+    anonymous_requests_enabled: bool = {{ api.anonymous_requests | default(true) }}
     im_endpoint: str = "{{ im.endpoint }}"
     im_cloud_provider: dict = {{ im.cloud_provider }}
     im_max_time: int = {{ im.wait.max_time }}
@@ -17,6 +18,15 @@ class Settings(BaseSettings):
     im_max_retries: int = {{ im.wait.max_retries }}
 
     redis_port: int = {{ redis.port }}
+
+    vault_url: str = "{{ vault.url }}"
+    vault_jwt_mount: str = "{{ vault.jwt_mount }}"
+    vault_kv_mount: str = "{{ vault.kv_mount }}"
+    vault_kv_version: int = {{ vault.kv_version }}
+    vault_jwt_role: str = "{{ vault.jwt_role }}"
+
+    # Static VIP API key override (dev instances without vault access).
+    vip_api_key: str = "{{ vip_api_key | default('') }}"
 
     log_level: str = "{{ logging.level | default('INFO') }}"
     log_format: str = "{{ logging.format | default('text') }}"

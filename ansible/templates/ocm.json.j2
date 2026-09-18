@@ -1,7 +1,8 @@
 {
   "enabled": true,
-  "apiVersion": "1.2.0",
+  "apiVersion": "1.4.0",
   "endPoint": "{{ inventory_hostname }}",
+  "provider": "EOSC Data Commons Dispatcher",
   "resourceTypes": [
     {
       "name": "ro-crate",
@@ -9,7 +10,7 @@
         "user"
       ],
       "protocols": {
-        "embedded": ""
+        "embedded": {}
       }
     }
   ]

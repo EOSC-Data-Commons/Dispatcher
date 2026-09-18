@@ -1,0 +1,12 @@
+# nothing here yet
+
+# devel overwrite group_vars
+dispatcher:
+  repo: https://github.com/EOSC-Data-Commons/Dispatcher.git
+  branch: feature/mddash
+  dir: /opt/edc/dispatcher
+
+api:
+  port: 8000
+  environment: dev
+

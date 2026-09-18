@@ -10,7 +10,7 @@ from app.constants import OSCAR_DEFAULT_SERVICE
 from app.vres.oscar import VREOSCAR
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from vre_rocrate import (
-    RequestPackage,
+    VREPayload,
     WorkflowDescriptor,
     FileReference,
 )
@@ -28,7 +28,7 @@ def load_json(file_name):
 @patch("app.vres.oscar.requests.delete")
 def test_lifecycle(mock_delete, mock_post, mock_get):
     """Test OSCAR VRE post function"""
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -38,12 +38,6 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
             runtime_platform="https://oscar.vre.eosc-data-commons.eu",
         ),
         files=[
-            FileReference(
-                id="https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
-                name="script.sh",
-                encoding_format="text/x-shellscript",
-                url="https://raw.githubusercontent.com/grycap/oscar/refs/heads/master/examples/cowsay/script.sh",
-            ),
             FileReference(
                 id="https://example-files.online-convert.com/document/txt/example.txt",
                 name="simpletext_input",
@@ -57,24 +51,15 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
     fdl = load_json("../fixtures/cowsay.json")
-    script_content = """#!/bin/sh
-if [ "$INPUT_TYPE" = "json" ]
-then
-    jq '.message' "$INPUT_FILE_PATH" -r | /usr/games/cowsay
-else
-    cat "$INPUT_FILE_PATH" | /usr/games/cowsay
-fi"""
 
     def get_side_effect(url, **kwargs):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         if url.endswith(".json"):
             mock_resp.json.return_value = fdl
-        elif url.endswith(".sh"):
-            mock_resp.text = script_content
         elif url.endswith(".txt"):
             mock_resp.text = "input file content"
         else:
@@ -92,7 +77,6 @@ fi"""
     assert (
         mock_post.call_args_list[0][0][0] == f"{OSCAR_DEFAULT_SERVICE}/system/services"
     )
-    fdl["script"] = script_content
     assert mock_post.call_args_list[0][1]["json"] == fdl
     assert mock_post.call_args_list[0][1]["headers"] == {
         "Authorization": "Bearer dummy_token",
@@ -118,7 +102,7 @@ fi"""
 
 def test_fdl_in_rocrate():
     """Test Missing url of FDL file in OSCAR VRE"""
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
@@ -128,7 +112,7 @@ def test_fdl_in_rocrate():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
 
     with pytest.raises(VREConfigurationError) as exc:
@@ -144,7 +128,7 @@ def test_oscar_creation_error(mock_post, mock_get):
     mock_post.return_value.status_code = 400
     mock_post.return_value.text = "Bad Request"
 
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -156,7 +140,7 @@ def test_oscar_creation_error(mock_post, mock_get):
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
 
     with pytest.raises(ExternalServiceError) as exc:

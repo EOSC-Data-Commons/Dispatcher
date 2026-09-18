@@ -1,11 +1,14 @@
 from .base_vre import VRE, vre_factory
+import hashlib
+import json
 import requests
 import logging
 import uuid
 from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
-from app.constants import SCIENCEMESH_DEFAULT_SERVICE
+from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCM_SHARE_WITH_INPUT_PARAM
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
+from .utils.token_utils import extract_user_from_token
 
 logger = logging.getLogger(__name__)
 
@@ -30,45 +33,54 @@ class VREScienceMesh(VRE):
         except requests.RequestException as e:
             logger.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise ScienceMeshAPIError("ScienceMesh API call failed") from e
-        return response.json()
+        return self.svc_url
 
     def create_ocm_share_request(self):
-        pkg = self.request_package
-        ocm = pkg.ocm_data
-        if ocm is None:
+        pkg = self.payload
+        receiver_param = pkg.input_by_name(SCM_SHARE_WITH_INPUT_PARAM)
+        receiver = receiver_param.default_value if receiver_param else None
+        if not isinstance(receiver, str) or not receiver:
             raise MissingOCMParameters(
-                "Missing OCM data (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
+                f"Missing required parameter '{SCM_SHARE_WITH_INPUT_PARAM}' to dispatch via OCM to a ScienceMesh VRE"
             )
-        receiver = ocm.receiver_userid
-        owner = ocm.owner_userid
-        sender_userid = ocm.sender_userid
-        sender_name = ocm.sender_name
-        if not receiver or not owner or not sender_userid:
-            raise MissingOCMParameters(
-                "Missing required parameters (receiver, owner, sender) to dispatch via OCM to a ScienceMesh VRE"
-            )
-        resid = ocm.resource_id
-        if resid is None:
-            # TODO the resource ID should be derived from the crate itself and be invariant to multiple shares
-            resid = str(uuid.uuid4())
+
+        # Extract sender/owner from access token (EGI Check-in federation backend)
+        token_user = extract_user_from_token(self.token)
+        sender_userid = token_user.email
+        sender_name = token_user.name or token_user.email
+
+        resource_id = self._resource_id()
 
         ocm_share_request = {
             "shareWith": receiver,
-            "name": ocm.root_name or "",
-            "description": ocm.root_description or "",
+            "name": pkg.root_name,
+            "description": pkg.root_description,
             "providerId": str(uuid.uuid4()),  # must be unique for each share
-            "resourceId": resid,
-            "owner": owner,
+            "resourceId": resource_id,
+            "owner": sender_userid,
             "senderDisplayName": sender_name,
             "sender": self._generate_ocm_address(sender_userid),
-            "resourceType": "embedded",
+            "resourceType": "ro-crate",
             "shareType": "user",
             "protocol": {
                 "name": "multi",
                 "embedded": {"payload": pkg.raw_crate},
             },
         }
+        logger.info(f"OCM share request {ocm_share_request}")
         return ocm_share_request
+
+    def _resource_id(self) -> str:
+        """Deterministic share ID: uuid-shaped SHA-256 of the canonicalized raw crate.
+
+        Re-sharing the identical crate yields the identical resourceId, so
+        repeated dispatch of the same RO-Crate maps to the same OCM resource.
+        """
+        canonical = json.dumps(
+            self.payload.raw_crate, sort_keys=True, separators=(",", ":")
+        )
+        digest = hashlib.sha256(canonical.encode("utf-8")).digest()
+        return str(uuid.UUID(bytes=digest[:16]))
 
     def _generate_ocm_address(self, sender_userid: str | None):
         # Generate an OCM address out of the sender user ID, that is ensure the host matches the dispatcher's public FQDN
@@ -82,6 +94,7 @@ class VREScienceMesh(VRE):
                 "No host configured for OCM sending server, using 'localhost' for testing purposes"
             )
             ocm_sending_server = "localhost"
+        logger.info(f"OCM sending server {ocm_sending_server}")
         return sender_userid + "@" + ocm_sending_server
 
 

@@ -4,21 +4,21 @@ services:
 
   web:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level {{ logging.level|lower | default('info') }} --reload 
+    command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level debug --reload 
     volumes:
       - ./app:/usr/src/app
       - ./nginx/certbot/conf:{{nginx.cert}}
     environment:
       - CELERY_BROKER_URL=redis://redis:{{ redis.port }}/0
       - CELERY_RESULT_BACKEND=redis://redis:{{ redis.port }}/0
-#    env_file:
-#      - .env
+      - ENV=local
     depends_on:
       - redis
+      - certgen
 
   worker:
     build: .
-    command: celery -A app.celery.worker.celery worker --loglevel={{ logging.level | default('INFO') }} 
+    command: celery -A app.celery.worker.celery worker --loglevel=info 
     volumes:
       - git-repos-volume:/{{git.repos}}
       - .:/usr/src
@@ -26,6 +26,7 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://redis:{{ redis.port }}/0
       - CELERY_RESULT_BACKEND=redis://redis:{{ redis.port }}/0
+      - ENV=development
     depends_on:
       - web
       - redis
@@ -39,11 +40,12 @@ services:
       - ./nginx/certbot/conf:{{nginx.cert}}
       - ./nginx/certbot/www:/var/www/certbot
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ocm.json:/etc/nginx/.well-known/ocm
+      - ./nginx/ocm.json:/etc/nginx/.well-known/ocm.json
       - fcgi-socket:/nginx/temp
     depends_on:
       - web
       - git-fcgi
+      - certgen
     
   git-fcgi:
     image: alpine:latest
@@ -62,16 +64,12 @@ services:
         tail -f /dev/null
       "
 
-  certbot:
-    image: certbot/certbot
+  certgen:
+    image: alpine:latest
     volumes:
-      - ./nginx/certbot/conf:{{nginx.cert}}
-      - ./nginx/certbot/www:/var/www/certbot
-    entrypoint: ""
+        - ./nginx/certbot/conf:/etc/ssl/nginx
     command: >
-      sh -c 'certbot certonly --reinstall --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d {{ inventory_hostname }}' 
-    depends_on: 
-      - nginx
+        sh -c "apk add --no-cache openssl && echo 'Generating self-signed certs...' && openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/nginx/privkey.pem -out /etc/ssl/nginx/fullchain.pem -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,DNS:*.localhost,DNS:host.docker.internal,IP:127.0.0.1,IP:::1' && chmod 644 /etc/ssl/nginx/privkey.pem && chmod 644 /etc/ssl/nginx/fullchain.pem && echo 'Done'"
 networks:
   default:
 volumes:
