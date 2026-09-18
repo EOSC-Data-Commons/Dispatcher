@@ -10,7 +10,7 @@ from app.exceptions import VREConfigurationError, WorkflowURLError
 from app.constants import (
     SCIPION_USER,
     SCIPION_DATA_DIR,
-    SCIPION_CONTAINER,
+    SCIPION_INSTANCE,
     SCIPION_DEFAULT_SERVICE,
     SCIPION_MAX_EXECUTION_TIME_SECONDS,
 )
@@ -56,7 +56,7 @@ class VREScipion(VRE):
                 f"python {SCIPION_DATA_DIR}/scipion_EMPIAR.py {data_folder} "
                 f"--template {SCIPION_DATA_DIR}/{workflow_file} "
                 f"--scipion-user-data {SCIPION_DATA_DIR} "
-                f"--container {SCIPION_CONTAINER}'"
+                f"--instance {SCIPION_INSTANCE}'"
             )
             run_command = f"{scipion_command} template {workflow_file} filesPath={SCIPION_DATA_DIR}/{data_folder}"
             logging.debug(f"Run workflow with command: {run_command}")

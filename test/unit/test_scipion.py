@@ -8,7 +8,7 @@ from vre_rocrate import (
     WorkflowDescriptor,
 )
 
-from app.constants import SCIPION_CONTAINER, SCIPION_DATA_DIR, SCIPION_USER
+from app.constants import SCIPION_INSTANCE, SCIPION_DATA_DIR, SCIPION_USER
 from app.exceptions import VREConfigurationError
 from app.vres.scipion import VREScipion
 
@@ -145,7 +145,7 @@ def test_post_happy_path(scipion_vre):
         f"python {SCIPION_DATA_DIR}/scipion_EMPIAR.py {data_folder} "
         f"--template {SCIPION_DATA_DIR}/workflow_simple.json "
         f"--scipion-user-data {SCIPION_DATA_DIR} "
-        f"--container {SCIPION_CONTAINER}'"
+        f"--instance {SCIPION_INSTANCE}'"
     )
     assert "nohup bash -lc" in launch_command
     launched_run_command = shlex.split(launch_command)[3]
