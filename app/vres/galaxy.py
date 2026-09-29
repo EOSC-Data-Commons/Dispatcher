@@ -1,7 +1,7 @@
 from .base_vre import VRE, vre_factory
 import requests
 import logging
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 from app import exceptions
 from vre_rocrate import GALAXY_PROGRAMMING_LANGUAGE
 from app.constants import (
@@ -68,7 +68,7 @@ class VREGalaxy(VRE):
         TRS URLs, raw-descriptor URLs (…/git/{v}/raw/…) and non-WorkflowHub
         hosts are already concrete and must pass through untouched.
         """
-        parsed = urlparse(url)
+        parsed = urlsplit(url)
         if parsed.netloc != "workflowhub.eu":
             return None
         parts = parsed.path.strip("/").split("/")
