@@ -3,6 +3,9 @@ import base64
 import requests
 import logging
 import json
+from urllib.parse import urljoin, urlparse
+
+import yaml
 from app.exceptions import (
     VREConfigurationError,
     ExternalServiceError,
@@ -26,12 +29,108 @@ class VREOSCAR(VRE):
         if self.fld_json:
             return self.fld_json
 
-        fdl_url = self.payload.workflow_url
-        if not fdl_url:
-            raise VREConfigurationError("Missing FDL URL in workflow entity")
-        fdl_json = self._fetch_file(fdl_url, True)
+        crate_url = self.payload.workflow_url
+        if not crate_url:
+            raise VREConfigurationError(
+                "Missing OSCAR Hub directory URL in workflow entity"
+            )
+
+        crate_base_url = self._crate_base_url(crate_url)
+        metadata = self._fetch_file(
+            urljoin(crate_base_url, "ro-crate-metadata.json"), True
+        )
+        fdl_reference = self._find_fdl_reference(metadata)
+        fdl_url = self._resolve_crate_reference(crate_base_url, fdl_reference)
+
+        try:
+            fdl = yaml.safe_load(self._fetch_file(fdl_url))
+        except yaml.YAMLError as ex:
+            raise VREConfigurationError("Invalid FDL YAML in OSCAR Hub crate") from ex
+
+        fdl_json = self._extract_oscar_service(fdl)
+        script_reference = fdl_json.get("script")
+        if not isinstance(script_reference, str) or not script_reference.strip():
+            raise VREConfigurationError("Missing script reference in OSCAR FDL")
+        fdl_json["script"] = self._fetch_file(
+            self._resolve_crate_reference(crate_base_url, script_reference)
+        )
 
         return fdl_json
+
+    @staticmethod
+    def _crate_base_url(crate_url):
+        """Return a fetchable base URL for an OSCAR Hub service directory."""
+        parsed = urlparse(crate_url)
+        path_parts = parsed.path.strip("/").split("/")
+        if parsed.netloc.lower() == "github.com" and len(path_parts) >= 5:
+            owner, repository, view, ref, *directory = path_parts
+            if view == "tree" and directory:
+                raw_path = "/".join([owner, repository, ref, *directory])
+                return f"https://raw.githubusercontent.com/{raw_path}/"
+
+        return crate_url.rstrip("/") + "/"
+
+    @staticmethod
+    def _find_fdl_reference(metadata):
+        graph = metadata.get("@graph") if isinstance(metadata, dict) else None
+        if not isinstance(graph, list):
+            raise VREConfigurationError("Invalid OSCAR Hub RO-Crate metadata")
+
+        entities = {
+            entity.get("@id"): entity
+            for entity in graph
+            if isinstance(entity, dict) and isinstance(entity.get("@id"), str)
+        }
+        root = entities.get("./")
+        parts = root.get("hasPart", []) if isinstance(root, dict) else []
+        if isinstance(parts, dict):
+            parts = [parts]
+
+        for part in parts:
+            part_id = part.get("@id") if isinstance(part, dict) else None
+            entity = entities.get(part_id, {})
+            encoding = str(entity.get("encodingFormat", "")).lower()
+            if part_id and (
+                encoding in {"text/yaml", "application/yaml", "application/x-yaml"}
+                or part_id.lower().endswith((".yml", ".yaml"))
+            ):
+                return entity.get("url") or part_id
+
+        raise VREConfigurationError("Missing FDL YAML in OSCAR Hub RO-Crate")
+
+    @staticmethod
+    def _extract_oscar_service(fdl):
+        try:
+            definitions = fdl["functions"]["oscar"]
+        except (KeyError, TypeError) as ex:
+            raise VREConfigurationError(
+                "FDL does not contain OSCAR service definitions"
+            ) from ex
+
+        if not isinstance(definitions, list):
+            raise VREConfigurationError("Invalid OSCAR service definitions in FDL")
+        services = [
+            service
+            for definition in definitions
+            if isinstance(definition, dict)
+            for service in definition.values()
+            if isinstance(service, dict)
+        ]
+        if len(services) != 1:
+            raise VREConfigurationError(
+                "FDL must contain exactly one OSCAR service definition"
+            )
+
+        service = dict(services[0])
+        if not service.get("name"):
+            raise VREConfigurationError("Missing service name in OSCAR FDL")
+        return service
+
+    @staticmethod
+    def _resolve_crate_reference(crate_base_url, reference):
+        if not isinstance(reference, str) or not reference.strip():
+            raise VREConfigurationError("Invalid file reference in OSCAR Hub crate")
+        return urljoin(crate_base_url, reference)
 
     def _fetch_file(self, url, as_json=False):
         try:

@@ -34,7 +34,7 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         workflow=WorkflowDescriptor(
             id="#workflow",
             type="SoftwareSourceCode",
-            url="https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
+            url="https://github.com/grycap/oscar-hub/tree/main/crates/cowsay",
             runtime_platform="https://oscar.vre.eosc-data-commons.eu",
         ),
         files=[
@@ -54,12 +54,49 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         payload=payload,
     )
     fdl = load_json("../fixtures/cowsay.json")
+    metadata = {
+        "@graph": [
+            {
+                "@id": "./",
+                "@type": ["Dataset", "Service"],
+                "hasPart": [{"@id": "fdl.yml"}, {"@id": "script.sh"}],
+            },
+            {
+                "@id": "fdl.yml",
+                "@type": ["File", "SoftwareSourceCode"],
+                "encodingFormat": "text/yaml",
+            },
+            {"@id": "script.sh", "@type": ["File", "SoftwareSourceCode"]},
+        ]
+    }
+    fdl_yaml = """functions:
+  oscar:
+    - oscar-replica:
+        name: cowsay
+        cpu: '1.0'
+        memory: 1Gi
+        image: ghcr.io/grycap/cowsay
+        input:
+          - storage_provider: minio
+            path: cowsay/input
+        output:
+          - storage_provider: minio
+            path: cowsay/output
+        script: script.sh
+        isolation_level: SERVICE
+        visibility: private
+"""
+    script = fdl["script"]
 
     def get_side_effect(url, **kwargs):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        if url.endswith(".json"):
-            mock_resp.json.return_value = fdl
+        if url.endswith("ro-crate-metadata.json"):
+            mock_resp.json.return_value = metadata
+        elif url.endswith("fdl.yml"):
+            mock_resp.text = fdl_yaml
+        elif url.endswith("script.sh"):
+            mock_resp.text = script
         elif url.endswith(".txt"):
             mock_resp.text = "input file content"
         else:
@@ -101,7 +138,7 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
 
 
 def test_fdl_in_rocrate():
-    """Test Missing url of FDL file in OSCAR VRE"""
+    """Test missing OSCAR Hub directory URL in OSCAR VRE."""
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
@@ -117,14 +154,33 @@ def test_fdl_in_rocrate():
 
     with pytest.raises(VREConfigurationError) as exc:
         vreoscar._get_fdl_from_crate()
-    assert "Missing FDL URL in workflow entity" == str(exc.value)
+    assert "Missing OSCAR Hub directory URL in workflow entity" == str(exc.value)
 
 
 @patch("app.vres.oscar.requests.get")
 @patch("app.vres.oscar.requests.post")
 def test_oscar_creation_error(mock_post, mock_get):
-    mock_get.return_value.status_code = 200
-    mock_get.return_value.json.return_value = {"name": "test_service"}
+    metadata = {
+        "@graph": [
+            {"@id": "./", "hasPart": {"@id": "service.yaml"}},
+            {"@id": "service.yaml", "encodingFormat": "text/yaml"},
+        ]
+    }
+
+    def get_side_effect(url, **kwargs):
+        response = MagicMock(status_code=200)
+        if url.endswith("ro-crate-metadata.json"):
+            response.json.return_value = metadata
+        elif url.endswith("service.yaml"):
+            response.text = (
+                "functions:\n  oscar:\n    - cluster:\n"
+                "        name: test_service\n        script: script.sh\n"
+            )
+        elif url.endswith("script.sh"):
+            response.text = "#!/bin/sh\necho test\n"
+        return response
+
+    mock_get.side_effect = get_side_effect
     mock_post.return_value.status_code = 400
     mock_post.return_value.text = "Bad Request"
 
