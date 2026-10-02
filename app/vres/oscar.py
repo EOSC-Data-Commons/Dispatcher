@@ -21,6 +21,7 @@ class VREOSCAR(VRE):
     def __init__(self, token=None, **kwargs):
         super().__init__(token=token, **kwargs)
         self.fld_json = None
+        self.service_type = None
 
     def get_default_service(self):
         return OSCAR_DEFAULT_SERVICE
@@ -39,6 +40,7 @@ class VREOSCAR(VRE):
         metadata = self._fetch_file(
             urljoin(crate_base_url, "ro-crate-metadata.json"), True
         )
+        self.service_type = self._get_service_type(metadata)
         fdl_reference = self._find_fdl_reference(metadata)
         fdl_url = self._resolve_crate_reference(crate_base_url, fdl_reference)
 
@@ -97,6 +99,24 @@ class VREOSCAR(VRE):
                 return entity.get("url") or part_id
 
         raise VREConfigurationError("Missing FDL YAML in OSCAR Hub RO-Crate")
+
+    @staticmethod
+    def _get_service_type(metadata):
+        graph = metadata.get("@graph") if isinstance(metadata, dict) else None
+        if not isinstance(graph, list):
+            return None
+        root = next(
+            (
+                entity
+                for entity in graph
+                if isinstance(entity, dict) and entity.get("@id") == "./"
+            ),
+            None,
+        )
+        service_type = root.get("serviceType") if root else None
+        if isinstance(service_type, str):
+            return service_type.strip().lower()
+        return None
 
     @staticmethod
     def _extract_oscar_service(fdl):
@@ -168,26 +188,37 @@ class VREOSCAR(VRE):
 
     def _invoke_service(self, oscar_url, service_name, files):
         headers = {"Authorization": f"Bearer {self.token}"}
-        url = f"{oscar_url}/job/{service_name}"
+        synchronous = self.service_type == "synchronous"
+        invocation = "run" if synchronous else "job"
+        url = f"{oscar_url}/{invocation}/{service_name}"
         for f in files:
             file_url = f.url or f.id
             try:
                 logger.info(
                     f"Creating invocation for service {service_name} and file {file_url}"
                 )
-                response = requests.get(file_url, timeout=60)
-                response.raise_for_status()
-                file_content = response.text
+                embedded_content = f.properties.get("content")
+                if embedded_content is not None:
+                    file_content = embedded_content
+                else:
+                    response = requests.get(file_url, timeout=60)
+                    response.raise_for_status()
+                    file_content = response.content
             except Exception as e:
                 logger.error(f"Error fetching file {file_url}: {e}")
                 continue
+            if isinstance(file_content, str):
+                file_content = file_content.encode()
+            request_data = (
+                file_content if synchronous else base64.b64encode(file_content)
+            )
             response = requests.post(
                 url,
                 headers=headers,
-                data=base64.b64encode(file_content.encode()),
+                data=request_data,
                 timeout=60,
             )
-            if response.status_code != 201:
+            if not 200 <= response.status_code < 300:
                 logger.error(
                     f"Error invoking OSCAR service for file {file_url}: {response.text}"
                 )

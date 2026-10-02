@@ -59,6 +59,7 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
             {
                 "@id": "./",
                 "@type": ["Dataset", "Service"],
+                "serviceType": "asynchronous",
                 "hasPart": [{"@id": "fdl.yml"}, {"@id": "script.sh"}],
             },
             {
@@ -99,6 +100,7 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
             mock_resp.text = script
         elif url.endswith(".txt"):
             mock_resp.text = "input file content"
+            mock_resp.content = b"input file content"
         else:
             mock_resp.status_code = 404
             mock_resp.text = "Not Found"
@@ -202,3 +204,46 @@ def test_oscar_creation_error(mock_post, mock_get):
     with pytest.raises(ExternalServiceError) as exc:
         vreoscar.post()
     assert "Error creating OSCAR service: Bad Request" == str(exc.value)
+
+
+@patch("app.vres.oscar.requests.get")
+@patch("app.vres.oscar.requests.post")
+def test_synchronous_service_uses_run(mock_post, mock_get):
+    payload = VREPayload(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="SoftwareSourceCode",
+            url="https://github.com/grycap/oscar-hub/tree/main/crates/cowsay",
+        ),
+        files=[
+            FileReference(
+                id="input.txt",
+                name="input.txt",
+                encoding_format="text/plain",
+                properties={"content": b'{"message": "Hello"}'},
+            )
+        ],
+        raw_crate={},
+    )
+    vreoscar = VREOSCAR(
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        payload=payload,
+    )
+    vreoscar.service_type = "synchronous"
+    mock_post.return_value.status_code = 200
+
+    vreoscar._invoke_service(
+        "https://oscar.example", "cowsay", payload.oscar_input_files
+    )
+
+    mock_get.assert_not_called()
+    mock_post.assert_called_once_with(
+        "https://oscar.example/run/cowsay",
+        headers={"Authorization": "Bearer dummy_token"},
+        data=b'{"message": "Hello"}',
+        timeout=60,
+    )
