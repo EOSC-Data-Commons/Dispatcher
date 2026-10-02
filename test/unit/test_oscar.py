@@ -1,6 +1,5 @@
 """Test OSCAR VRE"""
 
-import base64
 import json
 import os
 import pytest
@@ -24,9 +23,7 @@ def load_json(file_name):
 
 
 @patch("app.vres.oscar.requests.get")
-@patch("app.vres.oscar.requests.post")
-@patch("app.vres.oscar.requests.delete")
-def test_lifecycle(mock_delete, mock_post, mock_get):
+def test_lifecycle(mock_get):
     """Test OSCAR VRE post function"""
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
@@ -34,7 +31,7 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         workflow=WorkflowDescriptor(
             id="#workflow",
             type="SoftwareSourceCode",
-            url="https://raw.githubusercontent.com/micafer/Dispatcher/refs/heads/oscar-vre/test/oscar/cowsay.json",
+            url="https://github.com/grycap/oscar-hub/tree/main/crates/cowsay",
             runtime_platform="https://oscar.vre.eosc-data-commons.eu",
         ),
         files=[
@@ -47,61 +44,85 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         ],
         raw_crate={},
     )
+    client = MagicMock()
+    storage_client = client.create_storage_client.return_value
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
         update_state=None,
         payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
     )
     fdl = load_json("../fixtures/cowsay.json")
+    metadata = {
+        "@graph": [
+            {
+                "@id": "./",
+                "@type": ["Dataset", "Service"],
+                "serviceType": "asynchronous",
+                "hasPart": [{"@id": "fdl.yml"}, {"@id": "script.sh"}],
+            },
+            {
+                "@id": "fdl.yml",
+                "@type": ["File", "SoftwareSourceCode"],
+                "encodingFormat": "text/yaml",
+            },
+            {"@id": "script.sh", "@type": ["File", "SoftwareSourceCode"]},
+        ]
+    }
+    fdl_yaml = """functions:
+  oscar:
+    - oscar-replica:
+        name: cowsay
+        cpu: '1.0'
+        memory: 1Gi
+        image: ghcr.io/grycap/cowsay
+        input:
+          - storage_provider: minio
+            path: cowsay/input
+        output:
+          - storage_provider: minio
+            path: cowsay/output
+        script: script.sh
+        isolation_level: SERVICE
+        visibility: private
+"""
+    script = fdl["script"]
 
     def get_side_effect(url, **kwargs):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        if url.endswith(".json"):
-            mock_resp.json.return_value = fdl
+        if url.endswith("ro-crate-metadata.json"):
+            mock_resp.json.return_value = metadata
+        elif url.endswith("fdl.yml"):
+            mock_resp.text = fdl_yaml
+        elif url.endswith("script.sh"):
+            mock_resp.text = script
         elif url.endswith(".txt"):
             mock_resp.text = "input file content"
+            mock_resp.content = b"input file content"
         else:
             mock_resp.status_code = 404
             mock_resp.text = "Not Found"
         return mock_resp
 
     mock_get.side_effect = get_side_effect
-    mock_post.return_value.status_code = 201
 
     result = vreoscar.post()
     assert result == f"{OSCAR_DEFAULT_SERVICE}/system/services/cowsay"
-    assert mock_post.call_count == 2
+    client.create_service.assert_called_once_with(fdl)
+    client.create_storage_client.assert_called_once_with("cowsay")
+    upload_args = storage_client.upload_file.call_args.args
+    assert upload_args[0] == "minio.default"
+    assert os.path.basename(upload_args[1]) == "example.txt"
+    assert upload_args[2] == "cowsay/input"
 
-    assert (
-        mock_post.call_args_list[0][0][0] == f"{OSCAR_DEFAULT_SERVICE}/system/services"
-    )
-    assert mock_post.call_args_list[0][1]["json"] == fdl
-    assert mock_post.call_args_list[0][1]["headers"] == {
-        "Authorization": "Bearer dummy_token",
-        "Content-Type": "application/json",
-    }
-
-    assert mock_post.call_args_list[1][0][0] == f"{OSCAR_DEFAULT_SERVICE}/job/cowsay"
-    assert mock_post.call_args_list[1][1]["data"] == base64.b64encode(
-        b"input file content"
-    )
-    assert mock_post.call_args_list[1][1]["headers"] == {
-        "Authorization": "Bearer dummy_token"
-    }
-
-    mock_delete.return_value.status_code = 204
     vreoscar.delete()
-    assert mock_delete.call_count == 1
-    assert (
-        mock_delete.call_args_list[0][0][0]
-        == f"{OSCAR_DEFAULT_SERVICE}/system/services/cowsay"
-    )
+    client.remove_service.assert_called_once_with("cowsay")
 
 
 def test_fdl_in_rocrate():
-    """Test Missing url of FDL file in OSCAR VRE"""
+    """Test missing OSCAR Hub directory URL in OSCAR VRE."""
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
@@ -117,16 +138,34 @@ def test_fdl_in_rocrate():
 
     with pytest.raises(VREConfigurationError) as exc:
         vreoscar._get_fdl_from_crate()
-    assert "Missing FDL URL in workflow entity" == str(exc.value)
+    assert "Missing OSCAR Hub directory URL in workflow entity" == str(exc.value)
 
 
 @patch("app.vres.oscar.requests.get")
-@patch("app.vres.oscar.requests.post")
-def test_oscar_creation_error(mock_post, mock_get):
-    mock_get.return_value.status_code = 200
-    mock_get.return_value.json.return_value = {"name": "test_service"}
-    mock_post.return_value.status_code = 400
-    mock_post.return_value.text = "Bad Request"
+def test_oscar_creation_error(mock_get):
+    metadata = {
+        "@graph": [
+            {"@id": "./", "hasPart": {"@id": "service.yaml"}},
+            {"@id": "service.yaml", "encodingFormat": "text/yaml"},
+        ]
+    }
+
+    def get_side_effect(url, **kwargs):
+        response = MagicMock(status_code=200)
+        if url.endswith("ro-crate-metadata.json"):
+            response.json.return_value = metadata
+        elif url.endswith("service.yaml"):
+            response.text = (
+                "functions:\n  oscar:\n    - cluster:\n"
+                "        name: test_service\n        script: script.sh\n"
+            )
+        elif url.endswith("script.sh"):
+            response.text = "#!/bin/sh\necho test\n"
+        return response
+
+    mock_get.side_effect = get_side_effect
+    client = MagicMock()
+    client.create_service.side_effect = RuntimeError("Bad Request")
 
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
@@ -141,8 +180,46 @@ def test_oscar_creation_error(mock_post, mock_get):
         request_id=0,
         update_state=None,
         payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
     )
 
     with pytest.raises(ExternalServiceError) as exc:
         vreoscar.post()
     assert "Error creating OSCAR service: Bad Request" == str(exc.value)
+
+
+def test_synchronous_service_uses_run():
+    payload = VREPayload(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="SoftwareSourceCode",
+            url="https://github.com/grycap/oscar-hub/tree/main/crates/cowsay",
+        ),
+        files=[
+            FileReference(
+                id="input.txt",
+                name="input.txt",
+                encoding_format="text/plain",
+                properties={"content": b'{"message": "Hello"}'},
+            )
+        ],
+        raw_crate={},
+    )
+    client = MagicMock()
+    vreoscar = VREOSCAR(
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
+    )
+    vreoscar.service_type = "synchronous"
+
+    vreoscar._invoke_service(client, "cowsay", payload.oscar_input_files)
+
+    run_args = client.run_service.call_args
+    assert run_args.args == ("cowsay",)
+    assert os.path.basename(run_args.kwargs["input"]) == "input.txt"
+    assert run_args.kwargs["timeout"] == 300
