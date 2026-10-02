@@ -1,6 +1,5 @@
 """Test OSCAR VRE"""
 
-import base64
 import json
 import os
 import pytest
@@ -24,9 +23,7 @@ def load_json(file_name):
 
 
 @patch("app.vres.oscar.requests.get")
-@patch("app.vres.oscar.requests.post")
-@patch("app.vres.oscar.requests.delete")
-def test_lifecycle(mock_delete, mock_post, mock_get):
+def test_lifecycle(mock_get):
     """Test OSCAR VRE post function"""
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
@@ -47,11 +44,14 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         ],
         raw_crate={},
     )
+    client = MagicMock()
+    storage_client = client.create_storage_client.return_value
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
         update_state=None,
         payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
     )
     fdl = load_json("../fixtures/cowsay.json")
     metadata = {
@@ -107,36 +107,18 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         return mock_resp
 
     mock_get.side_effect = get_side_effect
-    mock_post.return_value.status_code = 201
 
     result = vreoscar.post()
     assert result == f"{OSCAR_DEFAULT_SERVICE}/system/services/cowsay"
-    assert mock_post.call_count == 2
+    client.create_service.assert_called_once_with(fdl)
+    client.create_storage_client.assert_called_once_with("cowsay")
+    upload_args = storage_client.upload_file.call_args.args
+    assert upload_args[0] == "minio.default"
+    assert os.path.basename(upload_args[1]) == "example.txt"
+    assert upload_args[2] == "cowsay/input"
 
-    assert (
-        mock_post.call_args_list[0][0][0] == f"{OSCAR_DEFAULT_SERVICE}/system/services"
-    )
-    assert mock_post.call_args_list[0][1]["json"] == fdl
-    assert mock_post.call_args_list[0][1]["headers"] == {
-        "Authorization": "Bearer dummy_token",
-        "Content-Type": "application/json",
-    }
-
-    assert mock_post.call_args_list[1][0][0] == f"{OSCAR_DEFAULT_SERVICE}/job/cowsay"
-    assert mock_post.call_args_list[1][1]["data"] == base64.b64encode(
-        b"input file content"
-    )
-    assert mock_post.call_args_list[1][1]["headers"] == {
-        "Authorization": "Bearer dummy_token"
-    }
-
-    mock_delete.return_value.status_code = 204
     vreoscar.delete()
-    assert mock_delete.call_count == 1
-    assert (
-        mock_delete.call_args_list[0][0][0]
-        == f"{OSCAR_DEFAULT_SERVICE}/system/services/cowsay"
-    )
+    client.remove_service.assert_called_once_with("cowsay")
 
 
 def test_fdl_in_rocrate():
@@ -160,8 +142,7 @@ def test_fdl_in_rocrate():
 
 
 @patch("app.vres.oscar.requests.get")
-@patch("app.vres.oscar.requests.post")
-def test_oscar_creation_error(mock_post, mock_get):
+def test_oscar_creation_error(mock_get):
     metadata = {
         "@graph": [
             {"@id": "./", "hasPart": {"@id": "service.yaml"}},
@@ -183,8 +164,8 @@ def test_oscar_creation_error(mock_post, mock_get):
         return response
 
     mock_get.side_effect = get_side_effect
-    mock_post.return_value.status_code = 400
-    mock_post.return_value.text = "Bad Request"
+    client = MagicMock()
+    client.create_service.side_effect = RuntimeError("Bad Request")
 
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
@@ -199,6 +180,7 @@ def test_oscar_creation_error(mock_post, mock_get):
         request_id=0,
         update_state=None,
         payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
     )
 
     with pytest.raises(ExternalServiceError) as exc:
@@ -206,9 +188,7 @@ def test_oscar_creation_error(mock_post, mock_get):
     assert "Error creating OSCAR service: Bad Request" == str(exc.value)
 
 
-@patch("app.vres.oscar.requests.get")
-@patch("app.vres.oscar.requests.post")
-def test_synchronous_service_uses_run(mock_post, mock_get):
+def test_synchronous_service_uses_run():
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
@@ -227,23 +207,19 @@ def test_synchronous_service_uses_run(mock_post, mock_get):
         ],
         raw_crate={},
     )
+    client = MagicMock()
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
         update_state=None,
         payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
     )
     vreoscar.service_type = "synchronous"
-    mock_post.return_value.status_code = 200
 
-    vreoscar._invoke_service(
-        "https://oscar.example", "cowsay", payload.oscar_input_files
-    )
+    vreoscar._invoke_service(client, "cowsay", payload.oscar_input_files)
 
-    mock_get.assert_not_called()
-    mock_post.assert_called_once_with(
-        "https://oscar.example/run/cowsay",
-        headers={"Authorization": "Bearer dummy_token"},
-        data=b'{"message": "Hello"}',
-        timeout=60,
-    )
+    run_args = client.run_service.call_args
+    assert run_args.args == ("cowsay",)
+    assert os.path.basename(run_args.kwargs["input"]) == "input.txt"
+    assert run_args.kwargs["timeout"] == 300
