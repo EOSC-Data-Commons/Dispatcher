@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import tempfile
+from oscar_python.client import Client
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -157,20 +158,33 @@ class VREOSCAR(VRE):
             raise VREConfigurationError("Invalid file reference in OSCAR Hub crate")
         return urljoin(crate_base_url, reference)
 
-    def _fetch_file(self, url, as_json=False):
+    def _write_input_file(self, directory, file_reference):
+        source = file_reference.url or file_reference.id
+        filename = os.path.basename(urlparse(source).path) or file_reference.name
+        content = file_reference.properties.get("content")
+        if content is None:
+            content = self._fetch_file(source, as_binary=True)
+        if isinstance(content, str):
+            content = content.encode()
+        local_path = os.path.join(directory, filename)
+        with open(local_path, "wb") as stream:
+            stream.write(content)
+        return local_path
+
+    def _fetch_file(self, url, as_json=False, as_binary=False):
         try:
-            response = requests.get(url, timeout=30)
+            response = requests.get(url, timeout=60)
             response.raise_for_status()
             if as_json:
                 return response.json()
+            if as_binary:
+                return response.content
             return response.text
         except Exception as ex:
             raise ExternalDataSourceError("Network error while fetching files.") from ex
 
     @staticmethod
     def _default_oscar_client_factory(endpoint, token):
-        from oscar_python.client import Client
-
         return Client(
             options={
                 "cluster_id": "dispatcher",
@@ -251,26 +265,6 @@ class VREOSCAR(VRE):
                 raise ExternalServiceError(
                     f"Error invoking OSCAR service: {ex}"
                 ) from ex
-
-    def _write_input_file(self, directory, file_reference):
-        source = file_reference.url or file_reference.id
-        filename = os.path.basename(urlparse(source).path) or file_reference.name
-        content = file_reference.properties.get("content")
-        if content is None:
-            try:
-                response = requests.get(source, timeout=60)
-                response.raise_for_status()
-                content = response.content
-            except Exception as ex:
-                raise ExternalDataSourceError(
-                    f"Error fetching OSCAR input file {source}"
-                ) from ex
-        if isinstance(content, str):
-            content = content.encode()
-        local_path = os.path.join(directory, filename)
-        with open(local_path, "wb") as stream:
-            stream.write(content)
-        return local_path
 
     def delete(self):
         fdl_json = self._get_fdl_from_crate()
