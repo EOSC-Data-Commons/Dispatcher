@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import secrets
 import tempfile
 from oscar_python.client import Client
 from urllib.parse import urljoin, urlparse
@@ -197,7 +198,8 @@ class VREOSCAR(VRE):
     def post(self):
         fdl_json = self._get_fdl_from_crate()
         self.fld_json = fdl_json
-        service_name = fdl_json["name"]
+        service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
+        fdl_json["name"] = service_name
 
         logger.info(f"Creating OSCAR service {service_name}")
         logger.debug(f"FDL: {json.dumps(fdl_json)}")

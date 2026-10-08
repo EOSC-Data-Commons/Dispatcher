@@ -108,17 +108,22 @@ def test_lifecycle(mock_get):
 
     mock_get.side_effect = get_side_effect
 
-    result = vreoscar.post()
-    assert result == f"{OSCAR_DEFAULT_SERVICE}/system/services/cowsay"
-    client.create_service.assert_called_once_with(fdl)
-    client.create_storage_client.assert_called_once_with("cowsay")
+    with patch("app.vres.oscar.secrets.token_hex", return_value="a1b2c3d4"):
+        result = vreoscar.post()
+
+    service_name = "cowsay-a1b2c3d4"
+    assert result == f"{OSCAR_DEFAULT_SERVICE}/system/services/{service_name}"
+    created_service = client.create_service.call_args.args[0]
+    assert created_service["name"] == service_name
+    assert created_service["script"] == fdl["script"]
+    client.create_storage_client.assert_called_once_with(service_name)
     upload_args = storage_client.upload_file.call_args.args
     assert upload_args[0] == "minio.default"
     assert os.path.basename(upload_args[1]) == "example.txt"
     assert upload_args[2] == "cowsay/input"
 
     vreoscar.delete()
-    client.remove_service.assert_called_once_with("cowsay")
+    client.remove_service.assert_called_once_with(service_name)
 
 
 def test_fdl_in_rocrate():
