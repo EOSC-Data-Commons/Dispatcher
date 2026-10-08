@@ -12,6 +12,8 @@ from .utils.token_utils import extract_user_from_token
 
 logger = logging.getLogger(__name__)
 
+SERVICE_DEEP_LINK = "/files/data-repositories"
+
 
 class VREScienceMesh(VRE):
     def get_default_service(self):
@@ -33,7 +35,7 @@ class VREScienceMesh(VRE):
         except requests.RequestException as e:
             logger.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise ScienceMeshAPIError("ScienceMesh API call failed") from e
-        return self.svc_url
+        return self.svc_url + SERVICE_DEEP_LINK
 
     def create_ocm_share_request(self):
         pkg = self.payload
