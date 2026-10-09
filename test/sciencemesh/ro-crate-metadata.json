@@ -90,25 +90,25 @@
             "@id": "#creator",
             "@type": "Person",
             "name": "Rasmus Oscar Welander",
-            "userid": "rasmus.oscar.welander@egi.eu"
+            "userid": "user@egi.eu"
         },
         {
             "@id": "#sender",
             "@type": "Person",
             "name": "Rasmus Oscar Welander",
-            "userid": "rasmus.oscar.welander@egi.eu"
+            "userid": "user@egi.eu"
         },
         {
             "@id": "#owner",
             "@type": "Person",
-            "userid": "rasmus.oscar.welander@egi.eu"
+            "userid": "user@egi.eu"
         },
         {
             "@id": "#input-Shared With",
             "@type": "FormalParameter",
             "name": "Shared With",
             "additionalType": "string",
-            "defaultValue": "rwelande@cernbox.cern.ch"
+            "defaultValue": "user@eosc.cernbox.cern.ch"
         },
         {
             "@id": "#workflow-hub",
