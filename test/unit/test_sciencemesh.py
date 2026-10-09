@@ -45,7 +45,10 @@ def test_post_returns_svc_url(sciencemesh_vre, requests_mock, mock_token_user):
         json=json,
     )
 
-    assert sciencemesh_vre.post() == sciencemesh_vre.svc_url
+    assert (
+        sciencemesh_vre.post()
+        == sciencemesh_vre.svc_url + sciencemesh_vre.SERVICE_DEEP_LINK
+    )
 
 
 def test_post_succeeds_without_destination_entity(
@@ -59,7 +62,10 @@ def test_post_succeeds_without_destination_entity(
         status_code=200,
         json=json,
     )
-    assert sciencemesh_vre.post() == sciencemesh_vre.svc_url
+    assert (
+        sciencemesh_vre.post()
+        == sciencemesh_vre.svc_url + sciencemesh_vre.SERVICE_DEEP_LINK
+    )
 
 
 def test_post_sends_correct_ocm_share_request(
@@ -115,9 +121,9 @@ def test_create_ocm_share_uses_token_claims_for_owner_and_sender(
 ):
     result = sciencemesh_vre.create_ocm_share_request()
 
-    assert result["owner"] == "rasmus.oscar.welander@egi.eu"
-    assert result["senderDisplayName"] == "Rasmus Oscar Welander"
-    assert result["sender"].startswith("rasmus.oscar.welander@egi.eu@")
+    assert result["owner"] == "user@egi.eu"
+    assert result["senderDisplayName"] == "ScienceMesh User"
+    assert result["sender"].startswith("user@egi.eu@")
 
 
 def test_create_ocm_share_falls_back_name_to_email(sciencemesh_vre, mock_token_user):

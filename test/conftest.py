@@ -12,7 +12,10 @@ from fixtures.dummy_crate import (
 )
 from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
-from app.vres.sciencemesh import VREScienceMesh
+from app.vres.sciencemesh import (
+    VREScienceMesh,
+    SERVICE_DEEP_LINK,
+)
 from app.config import settings
 from vre_rocrate import (
     BINDER_PROGRAMMING_LANGUAGE,
@@ -470,8 +473,8 @@ def binder_vre_zenodo_url():
     return vre
 
 
-SCIENCEMESH_SENDER_EMAIL = "rasmus.oscar.welander@egi.eu"
-SCIENCEMESH_SENDER_NAME = "Rasmus Oscar Welander"
+SCIENCEMESH_SENDER_EMAIL = "user@egi.eu"
+SCIENCEMESH_SENDER_NAME = "ScienceMesh User"
 
 
 @pytest.fixture
@@ -490,7 +493,7 @@ def sciencemesh_vre():
             FormalParameter(
                 id="#input-Shared With",
                 name="Shared With",
-                default_value="rwelande@cernbox.cern.ch",
+                default_value="user@eosc.cernbox.cern.ch",
             ),
         ],
         raw_crate={
@@ -511,6 +514,7 @@ def sciencemesh_vre():
         payload=package,
     )
     vre.svc_url = "https://sciencemesh.example.org"
+    vre.SERVICE_DEEP_LINK = SERVICE_DEEP_LINK
     return vre
 
 
