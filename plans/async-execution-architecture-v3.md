@@ -101,8 +101,12 @@ only what is dispatcher-domain:
   CREATE INDEX idx_tasks_state ON tasks(status, updated_at);
   ```
 
-  - Access: stdlib `sqlite3` + `asyncio.to_thread`, one shared connection
-    (`check_same_thread=False`) guarded by an `asyncio.Lock`; no `aiosqlite`.
+  - Access: **`aiosqlite`** (MIT, zero transitive deps, maintained) — one
+    connection, whose dedicated thread + internal request queue give us the
+    async bridge and write serialization for free, instead of hand-rolling
+    `check_same_thread=False` + an `asyncio.Lock` around stdlib `sqlite3`. Its
+    own thread also keeps DB writes off the default `asyncio.to_thread` executor
+    shared with Binder's `git clone` / zip handling.
   - Schema evolution: `PRAGMA user_version` + ordered migration list from day
     one (v1 = the create above).
   - Behind a `StatusStore` protocol: `SQLiteStatusStore` (prod),
@@ -191,7 +195,11 @@ go via `asyncio.to_thread`.
 5. **Per-call retries (tenacity), never whole-flow retries** (a retried IM
    create = a VM).
 6. **SQLite (WAL) store** over Redis (durable by default, no service) and
-   RabbitMQ (category mismatch); dict for live tasks.
+   RabbitMQ (category mismatch); dict for live tasks. Accessed via
+   **`aiosqlite`**, not a hand-rolled `sqlite3` + `to_thread` bridge — the
+   library owns the thread/queue serialization we would otherwise re-implement,
+   and it has zero transitive deps (consistent with taking `tenacity`/`httpx`
+   rather than hand-rolling retries/HTTP).
 7. **Conservative janitor defaults:** orphan-reap on; delivered-VM TTL off.
 8. **Resume = crate_json + inf_id + IM_WAIT**, metadata-only IM flows; zip+IM
    degrades; T2 resume out of scope; payload persistence rejected.
@@ -203,13 +211,34 @@ go via `asyncio.to_thread`.
 - **Single-host coupling:** SQLite ties records to the web host's volume;
   multi-instance later ⇒ swap backend behind `StatusStore` (RESP/Postgres),
   flow code untouched.
-- **EGI token expiry** on late destroy/resume (~1 h tokens): handled
-  gracefully; deployments needing long-lived cleanup should configure provider
-  credentials server-side.
+- **Expiring user tokens for IM lifecycle operations** — see the open
+  discussion note below.
 - **External IM dependency:** release of IM-backed flows gates on the IM repo's
   package; rest of the release ships independently (lazy factory + fake).
 - **Contract changes requiring consumer notice:** 400 on invalid crate, 403 on
   foreign owner, 404 on unknown id, new `DESTROYED` state.
+
+### Open for team discussion: IM lifecycle operations with expiring user tokens
+
+**Limitation.** IM auth on the EGI provider path (and the OpenStack
+`3.x_oidc_access_token` path) reuses the *user's* OIDC access token, captured at
+dispatch. Those tokens live ~1 h, but IM lifecycle operations do not: orphan
+reaping, the optional delivered-VM TTL janitor, a user's `DELETE` hours later,
+and resuming a flow that sat queued all run long after expiry — the destroy call
+then fails auth, the VM stays up, and cleanup silently falls back to manual ops
+intervention. The same clock can even bite a *live* 60-minute deployment, whose
+late `state` polls may outlive the token.
+
+**Proposed direction (for team decision, not resolved here).** Decouple
+infrastructure-lifecycle credentials from the per-user session token: give the
+dispatcher its own long-lived IM credential in settings (an ops-owned service
+account / robot token, or the existing OpenStack static-password path) used for
+janitor, recovery-scan and `DELETE` operations, with the user token used only for
+the initial dispatch. A lighter alternative is to persist the EGI refresh token
+at dispatch and mint fresh access tokens on demand (requires `offline_access`
+and secure refresh-token storage). Both are security/operations trade-offs, not
+purely technical ones — hence called out for team discussion rather than decided
+unilaterally.
 
 ## Implementation plan
 
@@ -217,8 +246,8 @@ Branch: `feature/async-execution` (exists). Two PRs + one integration gate.
 
 **PR-1 — foundation & ports (P0–P2):**
 
-- P0: deps (`httpx>=0.27,<1`, `tenacity>=8.2`, `pytest-httpx>=0.30`; drop
-  `aiohttp`) + config: `db_path`, `status_ttl=86400`, `janitor_interval=60`,
+- P0: deps (`httpx>=0.27,<1`, `tenacity>=8.2`, `aiosqlite>=0.22,<1`,
+  `pytest-httpx>=0.30`; drop `aiohttp`) + config: `db_path`, `status_ttl=86400`, `janitor_interval=60`,
   `stale_task_timeout=3600`, `infra_max_lifetime=None`, `http_default_timeout=30`
   (+ pool limits), `http_retry_attempts=4`, backoff 1–30 s,
   `jupyter_poll_interval=10`/`jupyter_wait_max_time=900`,
