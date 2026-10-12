@@ -1,6 +1,8 @@
 # Design Note: Async Execution Architecture (v2 — single runtime)
 
-**Status:** v2 — approved for implementation. Supersedes
+**Status:** superseded by `async-execution-architecture-v3.md` (SQLite store,
+IM consumed behind a protocol) — kept for history. v2 was approved for
+implementation, then team review replaced Redis with SQLite. v2 superseded
 `async-execution-architecture.md` (v1: hybrid — async web tier + Celery for IM)
 via the decision to port IM to async, which retires Celery entirely.
 Decisions log at the end.
