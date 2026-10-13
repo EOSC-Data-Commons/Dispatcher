@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     git_url_prefix: str = "/git"
     # Anonymous (unauthenticated) request endpoints /anon_requests/
     anonymous_requests_enabled: bool = True
+    # Auth: TTL (seconds) of the in-process userinfo→claims cache used when
+    # validating raw EGI Check-in access tokens (accepted next to the
+    # fastapi-oauth2 session token).
+    auth_cache_ttl: float = 60.0
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
 
