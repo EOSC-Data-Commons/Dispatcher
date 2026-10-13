@@ -18,7 +18,6 @@ singleton, so concurrent callers cannot clobber each other's tokens where
 ``/oauth2/token``).
 """
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass
@@ -87,8 +86,8 @@ def _token_scope(token: str) -> list[str]:
 
 def _fetch_userinfo_claims(access_token: str) -> dict:
     """Full userinfo claim set for *access_token* from the EGI Check-in
-    federation backend. Synchronous GET — the backend runs it in a worker
-    thread off the event loop (see :meth:`DispatcherAuthBackend._claims`)."""
+    federation backend. Called synchronously (blocking); the in-process TTL
+    cache in :meth:`DispatcherAuthBackend._claims` limits the call rate."""
     userinfo_url = _CHECKIN_USERINFO_URLS.get(settings.egi_checkin_env)
     response = requests.get(
         userinfo_url,
@@ -142,7 +141,7 @@ class DispatcherAuthBackend(OAuth2Backend):
         if cached is not None:
             return cached
         try:
-            claims = await asyncio.to_thread(_fetch_userinfo_claims, token)
+            claims = _fetch_userinfo_claims(token)
         except requests.RequestException as exc:
             logger.debug("Raw access-token validation failed: %s", exc)
             raise AuthenticationError("Invalid EGI Check-in access token")

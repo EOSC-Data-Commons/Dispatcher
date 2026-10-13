@@ -94,7 +94,7 @@ def _session_token(sub: str = "alice@egi.eu") -> str:
 
 
 def _patch_userinfo(claims=None, side_effect=None):
-    """Patch the userinfo fetch (run in a worker thread by the backend)."""
+    """Patch the synchronous userinfo fetch used by the backend."""
     return patch(
         "app.middleware.dispatcher_auth._fetch_userinfo_claims",
         **({"return_value": claims} if claims is not None else {"side_effect": side_effect}),
