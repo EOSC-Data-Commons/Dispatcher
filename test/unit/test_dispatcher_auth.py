@@ -97,7 +97,11 @@ def _patch_userinfo(claims=None, side_effect=None):
     """Patch the synchronous userinfo fetch used by the backend."""
     return patch(
         "app.middleware.dispatcher_auth._fetch_userinfo_claims",
-        **({"return_value": claims} if claims is not None else {"side_effect": side_effect}),
+        **(
+            {"return_value": claims}
+            if claims is not None
+            else {"side_effect": side_effect}
+        ),
     )
 
 
@@ -219,9 +223,7 @@ def test_userinfo_claims_are_cached():
     app = _make_app()
     fetch = Mock(return_value=dict(_CLAIMS))
 
-    with patch(
-        "app.middleware.dispatcher_auth._fetch_userinfo_claims", fetch
-    ):
+    with patch("app.middleware.dispatcher_auth._fetch_userinfo_claims", fetch):
         client = TestClient(app)
         first = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
         second = client.get(
@@ -238,9 +240,7 @@ def test_expired_cache_entry_refreshes():
     app = _make_app(cache_ttl=-1.0)
     fetch = Mock(side_effect=[dict(_CLAIMS), requests.HTTPError("401")])
 
-    with patch(
-        "app.middleware.dispatcher_auth._fetch_userinfo_claims", fetch
-    ):
+    with patch("app.middleware.dispatcher_auth._fetch_userinfo_claims", fetch):
         client = TestClient(app)
         first = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
         second = client.get(
@@ -257,9 +257,7 @@ def test_failed_validation_is_not_cached():
     app = _make_app()
     fetch = Mock(side_effect=[requests.HTTPError("401"), dict(_CLAIMS)])
 
-    with patch(
-        "app.middleware.dispatcher_auth._fetch_userinfo_claims", fetch
-    ):
+    with patch("app.middleware.dispatcher_auth._fetch_userinfo_claims", fetch):
         client = TestClient(app)
         first = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
         second = client.get(
