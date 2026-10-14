@@ -5,7 +5,11 @@ import requests
 import logging
 import uuid
 from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
-from app.constants import SCIENCEMESH_DEFAULT_SERVICE, SCM_SHARE_WITH_INPUT_PARAM
+from app.constants import (
+    SCIENCEMESH_DEFAULT_SERVICE,
+    SCM_SHARE_WITH_INPUT_PARAM,
+    SCIENCEMESH_DEFAULT_DOMAIN,
+)
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
 from .utils.token_utils import extract_user_from_token
@@ -52,9 +56,8 @@ class VREScienceMesh(VRE):
         sender_name = token_user.name or token_user.email
 
         resource_id = self._resource_id()
-
         ocm_share_request = {
-            "shareWith": receiver,
+            "shareWith": f"{receiver}@{SCIENCEMESH_DEFAULT_DOMAIN}",
             "name": pkg.root_name,
             "description": pkg.root_description,
             "providerId": str(uuid.uuid4()),  # must be unique for each share

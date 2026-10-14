@@ -2,6 +2,7 @@
 from pathlib import Path
 import pytest
 from unittest.mock import Mock, patch
+from app.constants import SCIENCEMESH_DEFAULT_DOMAIN
 from fixtures.dummy_crate import (
     DummyEntity,
     DummyCrate,
@@ -493,7 +494,7 @@ def sciencemesh_vre():
             FormalParameter(
                 id="#input-Shared With",
                 name="Shared With",
-                default_value="user@eosc.cernbox.cern.ch",
+                default_value="username",
             ),
         ],
         raw_crate={
@@ -525,7 +526,7 @@ def ocm_share_request(sciencemesh_vre):
     root = pkg.get_entity("./")
 
     ocm_share_request = {
-        "shareWith": receiver_input.default_value,
+        "shareWith": f"{receiver_input.default_value}@{SCIENCEMESH_DEFAULT_DOMAIN}",
         "name": root.get("name", ""),
         "description": root.get("description", ""),
         "providerId": "n/a",
