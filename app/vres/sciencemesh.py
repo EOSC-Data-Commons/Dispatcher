@@ -7,7 +7,6 @@ import uuid
 from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
 from app.constants import (
     SCIENCEMESH_DEFAULT_DOMAIN,
-    SCIENCEMESH_DEFAULT_SERVICE,
     SCM_SHARE_WITH_INPUT_PARAM,
 )
 from app.config import settings
@@ -21,7 +20,7 @@ SERVICE_DEEP_LINK = "/files/data-repositories"
 
 class VREScienceMesh(VRE):
     def get_default_service(self):
-        return SCIENCEMESH_DEFAULT_SERVICE
+        return f"https://{SCIENCEMESH_DEFAULT_DOMAIN}"
 
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
