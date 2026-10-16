@@ -20,7 +20,7 @@ from fastapi_oauth2.claims import Claims
 from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
 
 from app.routers import requests, auth, anonymous_requests
-from app.config import settings
+from app.config import get_jwt_secret, settings
 from app.logging_config import setup_logging
 from app.middleware.request_logging import RequestLoggingMiddleware
 
@@ -99,5 +99,9 @@ def get_oauth2_client() -> OAuth2Client:
 
 app.add_middleware(
     OAuth2Middleware,
-    config=OAuth2Config(clients=[get_oauth2_client()], same_site="none"),
+    config=OAuth2Config(
+        clients=[get_oauth2_client()],
+        same_site="none",
+        jwt_secret=get_jwt_secret(),
+    ),
 )

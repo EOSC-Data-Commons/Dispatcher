@@ -5,6 +5,9 @@ dispatcher:
 oauth2:
   client_id: "abc"
   client_secret: "abcd"
+  # Local-dev only (localhost, dummy OAuth2 client): lets sessions survive
+  # redeploys. Real secrets live in the encrypted dispatchers group_vars.
+  jwt_secret: "local-dev-session-secret"
 
 nginx:
   cert: /etc/ssl/nginx
