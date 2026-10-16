@@ -121,10 +121,10 @@ class DispatcherAuthBackend(OAuth2Backend):
             scheme, param = get_authorization_scheme_param(authorization or "")
             if not scheme or not param:
                 raise
-            return await self._authenticate_access_token(param)
+            return self._authenticate_access_token(param)
 
-    async def _authenticate_access_token(self, token: str) -> Tuple[Auth, User]:
-        claims = await self._claims(token)
+    def _authenticate_access_token(self, token: str) -> Tuple[Auth, User]:
+        claims = self._claims(token)
         provider = Auth.clients.get("egi-checkin")
         claims_cfg = provider.claims if provider else {}
         scope = _token_scope(token) or (provider.scope if provider else None) or []
@@ -136,7 +136,7 @@ class DispatcherAuthBackend(OAuth2Backend):
         user = User({**claims, "provider": "egi-checkin", "scope": scope})
         return auth, user.use_claims(claims_cfg)
 
-    async def _claims(self, token: str) -> dict:
+    def _claims(self, token: str) -> dict:
         cached = self._cache.get(token)
         if cached is not None:
             return cached
