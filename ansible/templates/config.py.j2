@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     git_repos: str = "{{ git.repos }}"
     git_url_prefix: str = "{{ git.url_prefix }}"
     anonymous_requests_enabled: bool = {{ api.anonymous_requests | default(true) }}
+    auth_cache_ttl: float = {{api.auth_cache_ttl | default(60.0)}}
+    
     im_endpoint: str = "{{ im.endpoint }}"
     im_cloud_provider: dict = {{ im.cloud_provider }}
     im_max_time: int = {{ im.wait.max_time }}

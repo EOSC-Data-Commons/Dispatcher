@@ -22,18 +22,18 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from app.config import settings
 from app.vres.utils.vault import vault_get_api_key
 
-# ---------------------------------------------------------------------------
-# Override vault settings for the test — defaults match the ansible vars
-# ---------------------------------------------------------------------------
-settings.vault_url = os.environ.get("VAULT_URL", "https://secrets.egi.eu")
-settings.vault_jwt_mount = os.environ.get("VAULT_JWT_MOUNT", "jwt")
-settings.vault_kv_mount = os.environ.get("VAULT_KV_MOUNT", "secrets")
-settings.vault_kv_version = int(os.environ.get("VAULT_KV_VERSION", "1"))
-settings.vault_jwt_role = os.environ.get("VAULT_JWT_ROLE", "")
-settings.egi_checkin_env = "prod"
-
 
 def main() -> None:
+    # Override vault settings for the test — defaults match the ansible vars.
+    # Applied here (not at module level) so collecting this file with pytest
+    # does not mutate the global settings singleton for other tests.
+    settings.vault_url = os.environ.get("VAULT_URL", "https://secrets.egi.eu")
+    settings.vault_jwt_mount = os.environ.get("VAULT_JWT_MOUNT", "jwt")
+    settings.vault_kv_mount = os.environ.get("VAULT_KV_MOUNT", "secrets")
+    settings.vault_kv_version = int(os.environ.get("VAULT_KV_VERSION", "1"))
+    settings.vault_jwt_role = os.environ.get("VAULT_JWT_ROLE", "")
+    settings.egi_checkin_env = "prod"
+
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <access_token> [key_id]", file=sys.stderr)
         sys.exit(1)
