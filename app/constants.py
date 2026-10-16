@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 GALAXY_DEFAULT_SERVICE = "https://usegalaxy.eu/"
 GALAXY_WORKFLOW_TARGET_TYPE = "trs_url"
 GALAXY_PUBLIC_DEFAULT = False
@@ -6,7 +8,8 @@ WORKFLOWHUB_TRS_API = "https://workflowhub.eu/ga4gh/trs/v2"
 BINDER_DEFAULT_SERVICE = "https://mybinder.org"
 
 SCIENCEMESH_DEFAULT_SERVICE = "https://eosc.cernbox.cern.ch"
-SCIENCEMESH_DEFAULT_DOMAIN = "eosc.cernbox.cern.ch"
+SCIENCEMESH_DEFAULT_DOMAIN = urlparse(SCIENCEMESH_DEFAULT_SERVICE).hostname
+
 SCIPION_DEFAULT_SERVICE = "https://scipion.i2pc.es/"
 
 OSCAR_DEFAULT_SERVICE = "https://oscar.vre.eosc-data-commons.eu"

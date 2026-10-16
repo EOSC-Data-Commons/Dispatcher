@@ -2,7 +2,6 @@
 from pathlib import Path
 import pytest
 from unittest.mock import Mock, patch
-from app.constants import SCIENCEMESH_DEFAULT_DOMAIN
 from fixtures.dummy_crate import (
     DummyEntity,
     DummyCrate,
@@ -11,6 +10,7 @@ from fixtures.dummy_crate import (
     FILE_2,
     ONE_DATA_FILE,
 )
+from app.constants import SCIENCEMESH_DEFAULT_DOMAIN
 from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
 from app.vres.sciencemesh import (
@@ -524,7 +524,6 @@ def ocm_share_request(sciencemesh_vre):
     pkg = sciencemesh_vre.payload
     receiver_input = pkg.input_by_name("Shared With")
     root = pkg.get_entity("./")
-
     ocm_share_request = {
         "shareWith": f"{receiver_input.default_value}@{SCIENCEMESH_DEFAULT_DOMAIN}",
         "name": root.get("name", ""),
