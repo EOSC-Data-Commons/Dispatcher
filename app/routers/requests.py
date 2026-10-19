@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Annotated, Dict
 
 from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import JSONResponse
@@ -18,7 +18,7 @@ router = APIRouter(
 
 
 @router.get("/{task_id}")
-def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
+def status(token: Annotated[str, Depends(oauth2_scheme)], task_id: str = ""):
     task = AsyncResult(task_id)
     return JSONResponse(
         {
@@ -33,8 +33,8 @@ def status(token: str = Depends(oauth2_scheme), task_id: str = ""):
 
 @router.post("/zip_rocrate/")
 def zip_rocrate(
-    token: str = Depends(oauth2_scheme),
-    parsed_zipfile: tuple[Dict, dict[str, bytes]] = Depends(parse_zipfile),
+    token: Annotated[str, Depends(oauth2_scheme)],
+    parsed_zipfile: Annotated[tuple[Dict, dict[str, bytes]], Depends(parse_zipfile)],
     request: Request = None,
 ):
     task = vre_from_zipfile.apply_async(
@@ -46,7 +46,7 @@ def zip_rocrate(
 
 @router.post("/metadata_rocrate/")
 def metadata_rocrate(
-    token: str = Depends(oauth2_scheme),
+    token: Annotated[str, Depends(oauth2_scheme)],
     data: Dict = Body(...),
     request: Request = None,
 ):
