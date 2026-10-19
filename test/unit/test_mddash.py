@@ -12,15 +12,15 @@ from app.exceptions import (
     ExternalServiceError,
 )
 from vre_rocrate import (
-    RequestPackage,
+    VREPayload,
     WorkflowDescriptor,
-    FileReference,
+    FormalParameter,
 )
 
 
-def _build_package(pdb_name="1L2Y"):
-    """Build a minimal RequestPackage for MDDash tests."""
-    return RequestPackage(
+def _build_package(pdb_id="1L2Y"):
+    """Build a minimal VREPayload for MDDash tests (scalar pdb_id input)."""
+    return VREPayload(
         vre_type=MDDASH_PROGRAMMING_LANGUAGE,
         programming_language=MDDASH_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -28,12 +28,11 @@ def _build_package(pdb_name="1L2Y"):
             type="ComputationalWorkflow",
             url="https://github.com/sb-ncbr/mddash-notebooks.git",
         ),
-        files=[
-            FileReference(
-                id="https://www.ebi.ac.uk/pdbe/entry-files/download/pdb1l2y.ent",
-                name=pdb_name,
-                encoding_format="chemical/x-pdb",
-                url="https://www.ebi.ac.uk/pdbe/entry-files/download/pdb1l2y.ent",
+        workflow_inputs=[
+            FormalParameter(
+                id="#input-pdb_id",
+                name="pdb_id",
+                default_value=pdb_id,
             ),
         ],
     )
@@ -45,7 +44,7 @@ def _make_vre(package=None):
         token="dummy_token",
         request_id=42,
         update_state=MagicMock(),
-        request_package=package or _build_package(),
+        payload=package or _build_package(),
     )
 
 
@@ -103,7 +102,7 @@ def test_get_default_service():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=None,
+        payload=None,
     )
     assert vre.get_default_service() == MDDASH_DEFAULT_SERVICE
 
@@ -129,9 +128,9 @@ def test_post_success(mock_session_cls, successful_session):
 @patch("app.vres.mddash.VREMDDash._wait_for_server")
 @patch("app.vres.mddash.VREMDDash._start_server")
 @patch("app.vres.mddash.VREMDDash._login")
-def test_post_missing_pdb_file(*_):
-    """post raises VREConfigurationError when no PDB file is present."""
-    package = RequestPackage(
+def test_post_missing_pdb_id(*_):
+    """post raises VREConfigurationError when the pdb_id input parameter is absent."""
+    package = VREPayload(
         vre_type=MDDASH_PROGRAMMING_LANGUAGE,
         programming_language=MDDASH_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -143,7 +142,7 @@ def test_post_missing_pdb_file(*_):
     vre = _make_vre(package=package)
     with pytest.raises(VREConfigurationError) as exc:
         vre.post()
-    assert "No PDB file" in str(exc.value)
+    assert "pdb_id" in str(exc.value)
 
 
 def test_create_experiment_request_failure():

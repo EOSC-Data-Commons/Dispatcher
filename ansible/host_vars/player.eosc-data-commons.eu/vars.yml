@@ -17,4 +17,7 @@ im:
     sleep: 30
     max_retries: 3
 
+# Prod always uses per-user vault keys — do not set a static key here.
+vip_api_key: ""
+
 

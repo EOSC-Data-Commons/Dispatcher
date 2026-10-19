@@ -10,7 +10,7 @@ from app.constants import OSCAR_DEFAULT_SERVICE
 from app.vres.oscar import VREOSCAR
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from vre_rocrate import (
-    RequestPackage,
+    VREPayload,
     WorkflowDescriptor,
     FileReference,
 )
@@ -28,7 +28,7 @@ def load_json(file_name):
 @patch("app.vres.oscar.requests.delete")
 def test_lifecycle(mock_delete, mock_post, mock_get):
     """Test OSCAR VRE post function"""
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -51,7 +51,7 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
     fdl = load_json("../fixtures/cowsay.json")
 
@@ -102,7 +102,7 @@ def test_lifecycle(mock_delete, mock_post, mock_get):
 
 def test_fdl_in_rocrate():
     """Test Missing url of FDL file in OSCAR VRE"""
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
@@ -112,7 +112,7 @@ def test_fdl_in_rocrate():
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
 
     with pytest.raises(VREConfigurationError) as exc:
@@ -128,7 +128,7 @@ def test_oscar_creation_error(mock_post, mock_get):
     mock_post.return_value.status_code = 400
     mock_post.return_value.text = "Bad Request"
 
-    request_package = RequestPackage(
+    payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -140,7 +140,7 @@ def test_oscar_creation_error(mock_post, mock_get):
         token="dummy_token",
         request_id=0,
         update_state=None,
-        request_package=request_package,
+        payload=payload,
     )
 
     with pytest.raises(ExternalServiceError) as exc:

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # VRE provider healthcheck (fail-fast when a provider is down)
     vre_healthcheck_enabled: bool = True
     vre_healthcheck_timeout: float = 3.0
+    # Static VIP API key override for dev instances without vault access.
+    # Empty means per-user vault lookup (production behavior).
+    vip_api_key: str = ""
 
     # Logging configuration
     log_level: str = "INFO"

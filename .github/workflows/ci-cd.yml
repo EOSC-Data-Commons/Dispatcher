@@ -4,6 +4,9 @@ on:
   push:
     branches: [ master ]
     tags: [ "v*" ]
+concurrency:
+  group: deploy-${{ github.ref_type }} 
+  cancel-in-progress: ${{ github.ref_type == 'branch' }}
 jobs:
   deploy:
     runs-on: ubuntu-latest

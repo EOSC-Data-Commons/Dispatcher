@@ -4,7 +4,7 @@ from app.vres.binder import VREBinder
 from app.vres.sciencemesh import VREScienceMesh
 from app.vres.galaxy import VREGalaxy
 from app.vres.oscar import VREOSCAR
-from vre_rocrate import RequestPackage, WorkflowDescriptor
+from vre_rocrate import VREPayload, WorkflowDescriptor
 from vre_rocrate import (
     BINDER_PROGRAMMING_LANGUAGE,
     SCIENCEMESH_PROGRAMMING_LANGUAGE,
@@ -13,8 +13,8 @@ from vre_rocrate import (
 )
 
 
-def _make_package(lang_id: str) -> RequestPackage:
-    return RequestPackage(
+def _make_package(lang_id: str) -> VREPayload:
+    return VREPayload(
         vre_type=lang_id,
         programming_language=lang_id,
         workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
@@ -27,7 +27,7 @@ def test_factory_creates_sciencemesh_vre():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=_make_package(SCIENCEMESH_PROGRAMMING_LANGUAGE),
+        payload=_make_package(SCIENCEMESH_PROGRAMMING_LANGUAGE),
     )
     assert isinstance(vre, VREScienceMesh)
 
@@ -37,7 +37,7 @@ def test_factory_creates_binder_vre():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=_make_package(BINDER_PROGRAMMING_LANGUAGE),
+        payload=_make_package(BINDER_PROGRAMMING_LANGUAGE),
     )
     assert isinstance(vre, VREBinder)
 
@@ -47,7 +47,7 @@ def test_factory_creates_galaxy_vre():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=_make_package(GALAXY_PROGRAMMING_LANGUAGE),
+        payload=_make_package(GALAXY_PROGRAMMING_LANGUAGE),
     )
     assert isinstance(vre, VREGalaxy)
 
@@ -57,7 +57,7 @@ def test_factory_creates_oscar_vre():
         token="test-token",
         request_id=0,
         update_state=None,
-        request_package=_make_package(OSCAR_PROGRAMMING_LANGUAGE),
+        payload=_make_package(OSCAR_PROGRAMMING_LANGUAGE),
     )
     assert isinstance(vre, VREOSCAR)
 
@@ -68,5 +68,5 @@ def test_factory_errors_on_unkown_vre_type():
             token="test-token",
             request_id=0,
             update_state=None,
-            request_package=_make_package("random programming language"),
+            payload=_make_package("random programming language"),
         )

@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     vault_kv_version: int = {{ vault.kv_version }}
     vault_jwt_role: str = "{{ vault.jwt_role }}"
 
+    # Static VIP API key override (dev instances without vault access).
+    vip_api_key: str = "{{ vip_api_key | default('') }}"
+
     log_level: str = "{{ logging.level | default('INFO') }}"
     log_format: str = "{{ logging.format | default('text') }}"
 
