@@ -4,11 +4,12 @@ The fastapi-oauth2 session token (HS256, minted by the browser login flow)
 keeps working unchanged; a raw EGI Check-in access token presented as a
 Bearer token (Authorization header or cookie) is validated against the
 Check-in userinfo endpoint with a short TTL cache.
+
+The userinfo endpoint is faked at the HTTP transport (requests_mock), so
+the tests exercise the real fetch code — URL, Bearer header, status
+handling — instead of patching module internals.
 """
 
-from unittest.mock import Mock, patch
-
-import requests
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi_oauth2.claims import Claims
@@ -93,18 +94,6 @@ def _session_token(sub: str = "alice@egi.eu") -> str:
     )
 
 
-def _patch_userinfo(claims=None, side_effect=None):
-    """Patch the synchronous userinfo fetch used by the backend."""
-    return patch(
-        "app.middleware.dispatcher_auth._fetch_userinfo_claims",
-        **(
-            {"return_value": claims}
-            if claims is not None
-            else {"side_effect": side_effect}
-        ),
-    )
-
-
 # ---------------------------------------------------------------------------
 # Session tokens (unchanged behavior)
 # ---------------------------------------------------------------------------
@@ -139,12 +128,12 @@ def test_session_token_accepted_via_cookie():
 # ---------------------------------------------------------------------------
 
 
-def test_raw_access_token_accepted_via_header():
+def test_raw_access_token_accepted_via_header(requests_mock):
     app = _make_app()
+    requests_mock.get(_USERINFO_URL, json=_CLAIMS)
 
-    with _patch_userinfo(claims=_CLAIMS):
-        client = TestClient(app)
-        resp = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
+    client = TestClient(app)
+    resp = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
 
     assert resp.status_code == 200
     assert resp.json()["identity"] == "egi-checkin:bob@egi.eu"
@@ -153,63 +142,63 @@ def test_raw_access_token_accepted_via_header():
     assert resp.json()["access_token"] == "raw-egi-token"
 
 
-def test_raw_access_token_accepted_via_cookie():
+def test_raw_access_token_accepted_via_cookie(requests_mock):
     app = _make_app()
+    requests_mock.get(_USERINFO_URL, json={"sub": "carol@egi.eu"})
 
-    with _patch_userinfo(claims={"sub": "carol@egi.eu"}):
-        client = TestClient(app)
-        client.cookies.set("Authorization", "Bearer raw-egi-token")
-        resp = client.get("/whoami")
+    client = TestClient(app)
+    client.cookies.set("Authorization", "Bearer raw-egi-token")
+    resp = client.get("/whoami")
 
     assert resp.status_code == 200
     assert resp.json()["identity"] == "egi-checkin:carol@egi.eu"
     assert resp.json()["access_token"] == "raw-egi-token"
 
 
-def test_identity_matches_across_token_types():
+def test_identity_matches_across_token_types(requests_mock):
     """The same person via either credential resolves to the same owner
     identity ({provider}:{sub})."""
     app = _make_app()
     token = _session_token("dave@egi.eu")
+    requests_mock.get(_USERINFO_URL, json={"sub": "dave@egi.eu"})
 
-    with _patch_userinfo(claims={"sub": "dave@egi.eu"}):
-        client = TestClient(app)
-        via_session = client.get(
-            "/whoami", headers={"Authorization": f"Bearer {token}"}
-        ).json()
-        via_raw = client.get(
-            "/whoami", headers={"Authorization": "Bearer raw-dave-token"}
-        ).json()
+    client = TestClient(app)
+    via_session = client.get(
+        "/whoami", headers={"Authorization": f"Bearer {token}"}
+    ).json()
+    via_raw = client.get(
+        "/whoami", headers={"Authorization": "Bearer raw-dave-token"}
+    ).json()
 
     assert via_session["identity"] == via_raw["identity"] == "egi-checkin:dave@egi.eu"
 
 
-def test_invalid_raw_token_rejected():
+def test_invalid_raw_token_rejected(requests_mock):
     app = _make_app()
+    requests_mock.get(_USERINFO_URL, status_code=401)
 
-    with _patch_userinfo(side_effect=requests.HTTPError("401 Unauthorized")):
-        client = TestClient(app)
-        resp = client.get("/whoami", headers={"Authorization": "Bearer bogus"})
+    client = TestClient(app)
+    resp = client.get("/whoami", headers={"Authorization": "Bearer bogus"})
 
     assert resp.status_code == 400
 
 
-def test_userinfo_missing_sub_rejected():
+def test_userinfo_missing_sub_rejected(requests_mock):
     app = _make_app()
+    requests_mock.get(_USERINFO_URL, json={"email": "no-sub@example.org"})
 
-    with _patch_userinfo(claims={"email": "no-sub@example.org"}):
-        client = TestClient(app)
-        resp = client.get("/whoami", headers={"Authorization": "Bearer raw-token"})
+    client = TestClient(app)
+    resp = client.get("/whoami", headers={"Authorization": "Bearer raw-token"})
 
     assert resp.status_code == 400
 
 
-def test_userinfo_non_dict_payload_rejected():
+def test_userinfo_non_dict_payload_rejected(requests_mock):
     app = _make_app()
+    requests_mock.get(_USERINFO_URL, json=["not", "a", "dict"])
 
-    with _patch_userinfo(claims=["not", "a", "dict"]):
-        client = TestClient(app)
-        resp = client.get("/whoami", headers={"Authorization": "Bearer raw-token"})
+    client = TestClient(app)
+    resp = client.get("/whoami", headers={"Authorization": "Bearer raw-token"})
 
     assert resp.status_code == 400
 
@@ -219,54 +208,51 @@ def test_userinfo_non_dict_payload_rejected():
 # ---------------------------------------------------------------------------
 
 
-def test_userinfo_claims_are_cached():
+def test_userinfo_claims_are_cached(requests_mock):
     app = _make_app()
-    fetch = Mock(return_value=dict(_CLAIMS))
+    userinfo = requests_mock.get(_USERINFO_URL, json=dict(_CLAIMS))
 
-    with patch("app.middleware.dispatcher_auth._fetch_userinfo_claims", fetch):
-        client = TestClient(app)
-        first = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
-        second = client.get(
-            "/whoami", headers={"Authorization": "Bearer raw-egi-token"}
-        )
+    client = TestClient(app)
+    first = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
+    second = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
 
     assert first.status_code == second.status_code == 200
     # one upstream userinfo call for both requests
-    assert fetch.call_count == 1
+    assert userinfo.call_count == 1
 
 
-def test_expired_cache_entry_refreshes():
+def test_expired_cache_entry_refreshes(requests_mock):
     # negative TTL: every lookup is a miss
     app = _make_app(cache_ttl=-1.0)
-    fetch = Mock(side_effect=[dict(_CLAIMS), requests.HTTPError("401")])
+    userinfo = requests_mock.get(
+        _USERINFO_URL,
+        response_list=[{"json": dict(_CLAIMS)}, {"status_code": 401}],
+    )
 
-    with patch("app.middleware.dispatcher_auth._fetch_userinfo_claims", fetch):
-        client = TestClient(app)
-        first = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
-        second = client.get(
-            "/whoami", headers={"Authorization": "Bearer raw-egi-token"}
-        )
+    client = TestClient(app)
+    first = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
+    second = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
 
     assert first.status_code == 200
     assert second.status_code == 400
-    assert fetch.call_count == 2
+    assert userinfo.call_count == 2
 
 
-def test_failed_validation_is_not_cached():
+def test_failed_validation_is_not_cached(requests_mock):
     """A rejected token must not poison the cache for a later valid retry."""
     app = _make_app()
-    fetch = Mock(side_effect=[requests.HTTPError("401"), dict(_CLAIMS)])
+    userinfo = requests_mock.get(
+        _USERINFO_URL,
+        response_list=[{"status_code": 401}, {"json": dict(_CLAIMS)}],
+    )
 
-    with patch("app.middleware.dispatcher_auth._fetch_userinfo_claims", fetch):
-        client = TestClient(app)
-        first = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
-        second = client.get(
-            "/whoami", headers={"Authorization": "Bearer raw-egi-token"}
-        )
+    client = TestClient(app)
+    first = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
+    second = client.get("/whoami", headers={"Authorization": "Bearer raw-egi-token"})
 
     assert first.status_code == 400
     assert second.status_code == 200
-    assert fetch.call_count == 2
+    assert userinfo.call_count == 2
 
 
 # ---------------------------------------------------------------------------
@@ -274,27 +260,16 @@ def test_failed_validation_is_not_cached():
 # ---------------------------------------------------------------------------
 
 
-class _FakeResponse:
-    def __init__(self, payload):
-        self._payload = payload
+def test_fetch_userinfo_claims_sends_bearer_header(requests_mock):
+    requests_mock.get(_USERINFO_URL, json={"sub": "x@egi.eu"})
 
-    def raise_for_status(self):
-        pass
-
-    def json(self):
-        return self._payload
-
-
-def test_fetch_userinfo_claims_sends_bearer_header():
-    with patch(
-        "app.middleware.dispatcher_auth.requests.get",
-        return_value=_FakeResponse({"sub": "x@egi.eu"}),
-    ) as mock_get:
-        claims = _fetch_userinfo_claims("the-token")
+    claims = _fetch_userinfo_claims("the-token")
 
     assert claims == {"sub": "x@egi.eu"}
-    assert mock_get.call_args[0][0] == _USERINFO_URL
-    assert mock_get.call_args[1]["headers"]["Authorization"] == "Bearer the-token"
+    sent = requests_mock.request_history[0]
+    assert sent.method == "GET"
+    assert sent.url == _USERINFO_URL
+    assert sent.headers["Authorization"] == "Bearer the-token"
 
 
 # ---------------------------------------------------------------------------
