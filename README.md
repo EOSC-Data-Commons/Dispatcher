@@ -39,8 +39,8 @@ Report if anything is broken via Gighub issues, please.
 1. You'll need VS Code.
 2. To avoid inconsistend formatting we provide a VS Code settings for you to follow the standard formatting executed automatically. 
 3. Head over to Extension tab inside your VS Code and install [Black formatter extension](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter)
-4. To install python venv use `python3 -m venv venv` and `source venv/bin/activate` to activate it.
-5. Install requirements by `pip install -r requirements.txt -r requirements-dev.txt` (or `uv pip install -r requirements.txt -r requirements-dev.txt` if you use [uv](https://docs.astral.sh/uv/))
+4. To install python venv use `uv venv venv` and `source venv/bin/activate` to activate it (or `python3 -m venv venv` if you don't use [uv](https://docs.astral.sh/uv/))
+5. Install requirements by `uv pip install -r requirements.txt -r requirements-dev.txt` (or `pip install -r requirements.txt -r requirements-dev.txt` if you don't use uv)
 6. Set VS Code to use this virtual environment by using `CTRL-SHIFT-P` and `Python: Select Interpreter` and then your virtual environment (Should be Python 3.x.x (venv) ./venv/bin/python)
 7. The formatting happens automatically when saving a file.
    
