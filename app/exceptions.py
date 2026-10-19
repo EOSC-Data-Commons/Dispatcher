@@ -47,6 +47,12 @@ class ExternalServiceError(VREError):
     pass
 
 
+class VREUnavailableError(ExternalServiceError):
+    """Raised when a pre-dispatch healthcheck finds the VRE provider unavailable."""
+
+    pass
+
+
 class GalaxyAPIError(ExternalServiceError):
     """Raised when Galaxy API communication fails"""
 
