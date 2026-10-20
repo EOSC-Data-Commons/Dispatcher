@@ -27,3 +27,11 @@ MDDASH_PDB_INPUT_PARAM = "pdb_id"
 
 # ScienceMesh share parties travel as workflow input parameters
 SCM_SHARE_WITH_INPUT_PARAM = "Shared With"
+
+# RRP (Reproducible Research Platform, https://rrp-eosc.ethz.ch/)
+RRP_DEFAULT_SERVICE = "https://rrp-eosc.ethz.ch"
+RRP_CREATE_PROJECT_PATH = "/external/dispatcher/v1/projects"
+RRP_DEFAULT_RESOURCES = {"cpu": 1.0, "memMb": 2048}
+RRP_DEFAULT_BRANCH = "main"
+RRP_DOI_URL_PREFIX = "https://doi.org/"
+RRP_ROOT_PATH_PREFIX = "__ROOT__/"

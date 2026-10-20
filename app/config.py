@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # Empty means per-user vault lookup (production behavior).
     vip_api_key: str = ""
 
+    # RRP polling: max attempts per stage and interval between attempts
+    rrp_poll_max_attempts: int = 20
+    rrp_poll_interval_seconds: int = 2
+
     # Logging configuration
     log_level: str = "INFO"
     log_format: str = "text"  # 'text' or 'json' for future expansion
