@@ -16,13 +16,14 @@ from app.vres.vip import VREVIP
 from app.vres.scipion import VREScipion
 from app.vres.utils.health import check_service_alive
 from vre_rocrate import (
-    RequestPackage,
+    VREPayload,
     WorkflowDescriptor,
     RuntimePlatform,
     GALAXY_PROGRAMMING_LANGUAGE,
     VIP_PROGRAMMING_LANGUAGE,
     SCIPION_PROGRAMMING_LANGUAGE,
 )
+import requests_mock
 
 
 @pytest.fixture
@@ -33,8 +34,8 @@ def enable_healthcheck():
     settings.vre_healthcheck_enabled = False
 
 
-def _package(lang_id: str, runtime_platform=None) -> RequestPackage:
-    return RequestPackage(
+def _package(lang_id: str, runtime_platform=None) -> VREPayload:
+    return VREPayload(
         vre_type=lang_id,
         programming_language=lang_id,
         workflow=WorkflowDescriptor(
@@ -142,7 +143,7 @@ def test_crate_specified_service_url_is_probed(requests_mock, enable_healthcheck
 
 def test_im_deployed_service_skips_healthcheck(requests_mock, enable_healthcheck):
     """IM-deployed services do not exist at resolution time — no probe."""
-    package = RequestPackage(
+    package = VREPayload(
         vre_type=GALAXY_PROGRAMMING_LANGUAGE,
         programming_language=GALAXY_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
