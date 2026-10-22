@@ -54,22 +54,6 @@ def test_lifecycle(mock_get):
         oscar_client_factory=lambda _url, _token: client,
     )
     fdl = load_json("../fixtures/cowsay.json")
-    metadata = {
-        "@graph": [
-            {
-                "@id": "./",
-                "@type": ["Dataset", "Service"],
-                "serviceType": "asynchronous",
-                "hasPart": [{"@id": "fdl.yml"}, {"@id": "script.sh"}],
-            },
-            {
-                "@id": "fdl.yml",
-                "@type": ["File", "SoftwareSourceCode"],
-                "encodingFormat": "text/yaml",
-            },
-            {"@id": "script.sh", "@type": ["File", "SoftwareSourceCode"]},
-        ]
-    }
     fdl_yaml = """functions:
   oscar:
     - oscar-replica:
@@ -92,9 +76,7 @@ def test_lifecycle(mock_get):
     def get_side_effect(url, **kwargs):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        if url.endswith("ro-crate-metadata.json"):
-            mock_resp.json.return_value = metadata
-        elif url.endswith("fdl.yml"):
+        if url.endswith("fdl.yaml"):
             mock_resp.text = fdl_yaml
         elif url.endswith("script.sh"):
             mock_resp.text = script
@@ -121,6 +103,10 @@ def test_lifecycle(mock_get):
     assert upload_args[0] == "minio.default"
     assert os.path.basename(upload_args[1]) == "example.txt"
     assert upload_args[2] == "cowsay/input"
+    requested_urls = [call.args[0] for call in mock_get.call_args_list]
+    assert any(url.endswith("fdl.yaml") for url in requested_urls)
+    assert any(url.endswith("script.sh") for url in requested_urls)
+    assert not any(url.endswith("ro-crate-metadata.json") for url in requested_urls)
 
     vreoscar.delete()
     client.remove_service.assert_called_once_with(service_name)
@@ -148,18 +134,9 @@ def test_fdl_in_rocrate():
 
 @patch("app.vres.oscar.requests.get")
 def test_oscar_creation_error(mock_get):
-    metadata = {
-        "@graph": [
-            {"@id": "./", "hasPart": {"@id": "service.yaml"}},
-            {"@id": "service.yaml", "encodingFormat": "text/yaml"},
-        ]
-    }
-
     def get_side_effect(url, **kwargs):
         response = MagicMock(status_code=200)
-        if url.endswith("ro-crate-metadata.json"):
-            response.json.return_value = metadata
-        elif url.endswith("service.yaml"):
+        if url.endswith("fdl.yaml"):
             response.text = (
                 "functions:\n  oscar:\n    - cluster:\n"
                 "        name: test_service\n        script: script.sh\n"
@@ -193,6 +170,33 @@ def test_oscar_creation_error(mock_get):
     assert "Error creating OSCAR service: Bad Request" == str(exc.value)
 
 
+def test_script_fetch_error():
+    payload = VREPayload(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow", type="SoftwareSourceCode", url="http://some-url"
+        ),
+        raw_crate={},
+    )
+    vreoscar = VREOSCAR(
+        token="dummy_token",
+        request_id=0,
+        update_state=None,
+        payload=payload,
+    )
+    fdl = (
+        "functions:\n  oscar:\n    - cluster:\n"
+        "        name: test-service\n"
+    )
+
+    with patch.object(vreoscar, "_fetch_file", side_effect=[fdl, RuntimeError()]):
+        with pytest.raises(VREConfigurationError) as exc:
+            vreoscar._get_fdl_from_crate()
+
+    assert "Failed to fetch OSCAR script" == str(exc.value)
+
+
 def test_synchronous_service_uses_run():
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
@@ -220,11 +224,18 @@ def test_synchronous_service_uses_run():
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
-    vreoscar.service_type = "synchronous"
+    fdl = {
+        "name": "cowsay",
+        "image": "ghcr.io/grycap/cowsay",
+        "script": "#!/bin/sh\necho test\n",
+    }
 
-    vreoscar._invoke_service(client, "cowsay", payload.oscar_input_files)
+    with patch.object(vreoscar, "_get_fdl_from_crate", return_value=fdl):
+        with patch("app.vres.oscar.secrets.token_hex", return_value="a1b2c3d4"):
+            vreoscar.post()
 
     run_args = client.run_service.call_args
-    assert run_args.args == ("cowsay",)
+    assert run_args.args == ("cowsay-a1b2c3d4",)
     assert os.path.basename(run_args.kwargs["input"]) == "input.txt"
     assert run_args.kwargs["timeout"] == 300
+    client.create_storage_client.assert_not_called()
