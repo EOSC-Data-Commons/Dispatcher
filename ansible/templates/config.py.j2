@@ -19,6 +19,10 @@ class Settings(BaseSettings):
 
     redis_port: int = {{ redis.port }}
 
+    vre_healthcheck_enabled: bool = {{ api.vre_healthcheck_enabled | default(true) }}
+    vre_healthcheck_timeout: float = {{ api.vre_healthcheck_timeout | default(3.0) }}
+
+
     vault_url: str = "{{ vault.url }}"
     vault_jwt_mount: str = "{{ vault.jwt_mount }}"
     vault_kv_mount: str = "{{ vault.kv_mount }}"
