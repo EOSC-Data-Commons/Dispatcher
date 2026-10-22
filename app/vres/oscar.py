@@ -25,7 +25,6 @@ class VREOSCAR(VRE):
     def __init__(self, token=None, oscar_client_factory=None, **kwargs):
         super().__init__(token=token, **kwargs)
         self.fld_json = None
-        self.service_type = None
         self._oscar_client_factory = (
             oscar_client_factory or self._default_oscar_client_factory
         )
@@ -44,25 +43,20 @@ class VREOSCAR(VRE):
             )
 
         crate_base_url = self._crate_base_url(crate_url)
-        metadata = self._fetch_file(
-            urljoin(crate_base_url, "ro-crate-metadata.json"), True
-        )
-        self.service_type = self._get_service_type(metadata)
-        fdl_reference = self._find_fdl_reference(metadata)
-        fdl_url = self._resolve_crate_reference(crate_base_url, fdl_reference)
+        fdl_url = urljoin(crate_base_url, "fdl.yaml")
+        script_url = urljoin(crate_base_url, "script.sh")
 
         try:
             fdl = yaml.safe_load(self._fetch_file(fdl_url))
         except yaml.YAMLError as ex:
             raise VREConfigurationError("Invalid FDL YAML in OSCAR Hub crate") from ex
+        try:
+            script = self._fetch_file(script_url)
+        except Exception as ex:
+            raise VREConfigurationError("Failed to fetch OSCAR script") from ex
 
         fdl_json = self._extract_oscar_service(fdl)
-        script_reference = fdl_json.get("script")
-        if not isinstance(script_reference, str) or not script_reference.strip():
-            raise VREConfigurationError("Missing script reference in OSCAR FDL")
-        fdl_json["script"] = self._fetch_file(
-            self._resolve_crate_reference(crate_base_url, script_reference)
-        )
+        fdl_json["script"] = script
 
         return fdl_json
 
@@ -78,52 +72,6 @@ class VREOSCAR(VRE):
                 return f"https://raw.githubusercontent.com/{raw_path}/"
 
         return crate_url.rstrip("/") + "/"
-
-    @staticmethod
-    def _find_fdl_reference(metadata):
-        graph = metadata.get("@graph") if isinstance(metadata, dict) else None
-        if not isinstance(graph, list):
-            raise VREConfigurationError("Invalid OSCAR Hub RO-Crate metadata")
-
-        entities = {
-            entity.get("@id"): entity
-            for entity in graph
-            if isinstance(entity, dict) and isinstance(entity.get("@id"), str)
-        }
-        root = entities.get("./")
-        parts = root.get("hasPart", []) if isinstance(root, dict) else []
-        if isinstance(parts, dict):
-            parts = [parts]
-
-        for part in parts:
-            part_id = part.get("@id") if isinstance(part, dict) else None
-            entity = entities.get(part_id, {})
-            encoding = str(entity.get("encodingFormat", "")).lower()
-            if part_id and (
-                encoding in {"text/yaml", "application/yaml", "application/x-yaml"}
-                or part_id.lower().endswith((".yml", ".yaml"))
-            ):
-                return entity.get("url") or part_id
-
-        raise VREConfigurationError("Missing FDL YAML in OSCAR Hub RO-Crate")
-
-    @staticmethod
-    def _get_service_type(metadata):
-        graph = metadata.get("@graph") if isinstance(metadata, dict) else None
-        if not isinstance(graph, list):
-            return None
-        root = next(
-            (
-                entity
-                for entity in graph
-                if isinstance(entity, dict) and entity.get("@id") == "./"
-            ),
-            None,
-        )
-        service_type = root.get("serviceType") if root else None
-        if isinstance(service_type, str):
-            return service_type.strip().lower()
-        return None
 
     @staticmethod
     def _extract_oscar_service(fdl):
@@ -195,6 +143,11 @@ class VREOSCAR(VRE):
             }
         )
 
+    def _get_service_type(self, fdl_json):
+        if "input" in fdl_json:
+            return "asynchronous"
+        return "synchronous"
+
     def post(self):
         fdl_json = self._get_fdl_from_crate()
         self.fld_json = fdl_json
@@ -210,7 +163,7 @@ class VREOSCAR(VRE):
         except Exception as ex:
             raise ExternalServiceError(f"Error creating OSCAR service: {ex}") from ex
 
-        if self.service_type == "synchronous":
+        if self._get_service_type(fdl_json) == "synchronous":
             self._invoke_service(client, service_name, self.payload.oscar_input_files)
         else:
             self._upload_input_files(
