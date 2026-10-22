@@ -46,6 +46,7 @@ def test_lifecycle(mock_get):
     )
     client = MagicMock()
     storage_client = client.create_storage_client.return_value
+    storage_provider_client = storage_client._get_client.return_value
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
@@ -99,10 +100,12 @@ def test_lifecycle(mock_get):
     assert created_service["name"] == service_name
     assert created_service["script"] == fdl["script"]
     client.create_storage_client.assert_called_once_with(service_name)
-    upload_args = storage_client.upload_file.call_args.args
-    assert upload_args[0] == "minio.default"
-    assert os.path.basename(upload_args[1]) == "example.txt"
-    assert upload_args[2] == "cowsay/input"
+    storage_client._get_client.assert_called_once_with("minio.default")
+    storage_provider_client.upload_url.assert_called_once_with(
+        "https://example-files.online-convert.com/document/txt/example.txt",
+        "cowsay/input/example.txt",
+    )
+    storage_client.upload_file.assert_not_called()
     requested_urls = [call.args[0] for call in mock_get.call_args_list]
     assert any(url.endswith("fdl.yml") for url in requested_urls)
     assert any(url.endswith("script.sh") for url in requested_urls)
