@@ -12,6 +12,14 @@ The endpoint accepts requests at the paths:
 
 On successful completition, a URL pointing to the prepared environment is returned.
 
+### VRE provider healthcheck
+
+Before a request is dispatched, the target VRE provider URL (the default service, or `runtimePlatform` from the crate) is probed with a short-timeout HTTP GET. If the provider is unreachable, returns an HTTP 5xx, or does not respond in time, the request task fails immediately with `VREUnavailableError` instead of hanging on provider timeouts. Services that are about to be deployed via Infrastructure Manager are not probed (they do not exist yet).
+
+Configured via environment variables (see `app/config.py`):
+- `VRE_HEALTHCHECK_ENABLED` (default `true`) — set to `false` to disable probing
+- `VRE_HEALTHCHECK_TIMEOUT` (default `3.0`) — probe timeout in seconds
+
 ## Deployment
 
 Production installation of Dispatcher, operated by CESNET, runs at https://player.eosc-data-commons.eu/. Authentication via EGI CheckIn (production environment) is required.
