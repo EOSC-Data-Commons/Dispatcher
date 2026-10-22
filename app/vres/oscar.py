@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class VREOSCAR(VRE):
     def __init__(self, token=None, oscar_client_factory=None, **kwargs):
         super().__init__(token=token, **kwargs)
-        self.fld_json = None
+        self.fdl_json = None
         self._oscar_client_factory = (
             oscar_client_factory or self._default_oscar_client_factory
         )
@@ -33,8 +33,8 @@ class VREOSCAR(VRE):
         return OSCAR_DEFAULT_SERVICE
 
     def _get_fdl_from_crate(self):
-        if self.fld_json:
-            return self.fld_json
+        if self.fdl_json:
+            return self.fdl_json
 
         crate_url = self.payload.workflow_url
         if not crate_url:
@@ -101,12 +101,6 @@ class VREOSCAR(VRE):
             raise VREConfigurationError("Missing service name in OSCAR FDL")
         return service
 
-    @staticmethod
-    def _resolve_crate_reference(crate_base_url, reference):
-        if not isinstance(reference, str) or not reference.strip():
-            raise VREConfigurationError("Invalid file reference in OSCAR Hub crate")
-        return urljoin(crate_base_url, reference)
-
     def _write_input_file(self, directory, file_reference):
         source = file_reference.url or file_reference.id
         filename = os.path.basename(urlparse(source).path) or file_reference.name
@@ -120,12 +114,10 @@ class VREOSCAR(VRE):
             stream.write(content)
         return local_path
 
-    def _fetch_file(self, url, as_json=False, as_binary=False):
+    def _fetch_file(self, url, as_binary=False):
         try:
             response = requests.get(url, timeout=60)
             response.raise_for_status()
-            if as_json:
-                return response.json()
             if as_binary:
                 return response.content
             return response.text
@@ -150,7 +142,7 @@ class VREOSCAR(VRE):
 
     def post(self):
         fdl_json = self._get_fdl_from_crate()
-        self.fld_json = fdl_json
+        self.fdl_json = fdl_json
         service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
         fdl_json["name"] = service_name
 
