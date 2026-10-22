@@ -185,10 +185,7 @@ def test_script_fetch_error():
         update_state=None,
         payload=payload,
     )
-    fdl = (
-        "functions:\n  oscar:\n    - cluster:\n"
-        "        name: test-service\n"
-    )
+    fdl = "functions:\n  oscar:\n    - cluster:\n" "        name: test-service\n"
 
     with patch.object(vreoscar, "_fetch_file", side_effect=[fdl, RuntimeError()]):
         with pytest.raises(VREConfigurationError) as exc:
