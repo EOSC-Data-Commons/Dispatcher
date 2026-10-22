@@ -191,17 +191,14 @@ class VREOSCAR(VRE):
 
         try:
             storage_client = client.create_storage_client(service_name)
-            with tempfile.TemporaryDirectory(prefix="dispatcher-oscar-") as directory:
-                for file_reference in files:
-                    filename = (
-                        os.path.basename(urlparse(file_reference.url).path)
-                        or file_reference.name
-                    )
-                    storage_client._get_client(provider).upload_url(
-                        file_reference.url, os.path.join(input_path, filename)
-                    )
-                    # local_path = self._write_input_file(directory, file_reference)
-                    # storage_client.upload_file(provider, local_path, input_path)
+            for file_reference in files:
+                filename = (
+                    os.path.basename(urlparse(file_reference.url).path)
+                    or file_reference.name
+                )
+                storage_client._get_client(provider).upload_url(
+                    file_reference.url, os.path.join(input_path, filename)
+                )
         except Exception as ex:
             raise ExternalServiceError(
                 f"Error uploading OSCAR input file: {ex}"
