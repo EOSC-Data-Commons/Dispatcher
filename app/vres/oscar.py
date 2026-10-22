@@ -43,7 +43,7 @@ class VREOSCAR(VRE):
             )
 
         crate_base_url = self._crate_base_url(crate_url)
-        fdl_url = urljoin(crate_base_url, "fdl.yaml")
+        fdl_url = urljoin(crate_base_url, "fdl.yml")
         script_url = urljoin(crate_base_url, "script.sh")
 
         try:

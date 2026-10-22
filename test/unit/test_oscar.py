@@ -76,7 +76,7 @@ def test_lifecycle(mock_get):
     def get_side_effect(url, **kwargs):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        if url.endswith("fdl.yaml"):
+        if url.endswith("fdl.yml"):
             mock_resp.text = fdl_yaml
         elif url.endswith("script.sh"):
             mock_resp.text = script
@@ -104,7 +104,7 @@ def test_lifecycle(mock_get):
     assert os.path.basename(upload_args[1]) == "example.txt"
     assert upload_args[2] == "cowsay/input"
     requested_urls = [call.args[0] for call in mock_get.call_args_list]
-    assert any(url.endswith("fdl.yaml") for url in requested_urls)
+    assert any(url.endswith("fdl.yml") for url in requested_urls)
     assert any(url.endswith("script.sh") for url in requested_urls)
     assert not any(url.endswith("ro-crate-metadata.json") for url in requested_urls)
 
@@ -136,7 +136,7 @@ def test_fdl_in_rocrate():
 def test_oscar_creation_error(mock_get):
     def get_side_effect(url, **kwargs):
         response = MagicMock(status_code=200)
-        if url.endswith("fdl.yaml"):
+        if url.endswith("fdl.yml"):
             response.text = (
                 "functions:\n  oscar:\n    - cluster:\n"
                 "        name: test_service\n        script: script.sh\n"
