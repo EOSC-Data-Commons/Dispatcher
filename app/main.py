@@ -12,16 +12,17 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI
-from fastapi_oauth2.middleware import OAuth2Middleware
 from fastapi_oauth2.router import router as oauth2_router
 from fastapi_oauth2.config import OAuth2Config
 from fastapi_oauth2.client import OAuth2Client
 from fastapi_oauth2.claims import Claims
 from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
+from starlette.middleware.authentication import AuthenticationMiddleware
 
 from app.routers import requests, auth, anonymous_requests
 from app.config import settings
 from app.logging_config import setup_logging
+from app.middleware.dispatcher_auth import DispatcherAuthBackend
 from app.middleware.request_logging import RequestLoggingMiddleware
 
 # Initialize logging before anything else
@@ -92,12 +93,15 @@ def get_oauth2_client() -> OAuth2Client:
         client_secret=settings.client_secret,
         redirect_uri=settings.redirect_uri,
         claims=Claims(
-            identity=lambda user: f"{user.provider}:{user.id}",
+            identity=lambda user: f"{user.provider}:{user.sub}",
         ),
     )
 
 
 app.add_middleware(
-    OAuth2Middleware,
-    config=OAuth2Config(clients=[get_oauth2_client()], same_site="none"),
+    AuthenticationMiddleware,
+    backend=DispatcherAuthBackend(
+        OAuth2Config(clients=[get_oauth2_client()], same_site="none"),
+        cache_ttl=settings.auth_cache_ttl,
+    ),
 )

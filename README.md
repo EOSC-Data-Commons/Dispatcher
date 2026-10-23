@@ -43,6 +43,21 @@ Report if anything is broken via Gighub issues, please.
 6. If everythings goes right, `SUCCESS` status is returned finally, containing the endpoint to the target VRE
 7. If anything goes wrong, check you are still authenticated by calling GET /oauth2/token. If you don't see the token, follow step 1.
 
+### Calling the API without the browser login
+
+Protected endpoints (`/requests/...`, `/oauth2/token`) accept two credentials:
+
+- the session cookie minted by the browser login flow above, or
+- a raw **EGI Check-in access token** (from the same Check-in environment the dispatcher is registered in — production/demo/dev), sent as an `Authorization: Bearer <token>` header.
+
+For example:
+
+```
+curl -H "Authorization: Bearer $EGI_ACCESS_TOKEN" https://dev1.player.eosc-data-commons.eu/oauth2/token
+```
+
+Raw tokens are validated against the Check-in userinfo endpoint; validation results are cached in-process for `AUTH_CACHE_TTL` seconds (default 60).
+
 ## Contribution
 1. You'll need VS Code.
 2. To avoid inconsistend formatting we provide a VS Code settings for you to follow the standard formatting executed automatically. 
