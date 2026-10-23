@@ -10,9 +10,13 @@ from fixtures.dummy_crate import (
     FILE_2,
     ONE_DATA_FILE,
 )
+from app.constants import SCIENCEMESH_DEFAULT_DOMAIN
 from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
-from app.vres.sciencemesh import VREScienceMesh
+from app.vres.sciencemesh import (
+    VREScienceMesh,
+    SERVICE_DEEP_LINK,
+)
 from app.config import settings
 from vre_rocrate import (
     BINDER_PROGRAMMING_LANGUAGE,
@@ -232,6 +236,18 @@ def tmp_dir_setup(tmpdir):
     settings.git_repos = tmpdir
     settings.host = ""
     yield
+
+
+@pytest.fixture(autouse=True)
+def disable_vre_healthcheck():
+    """Disable the VRE provider healthcheck so tests never hit the network.
+
+    Healthcheck-specific tests re-enable it explicitly.
+    """
+    original = settings.vre_healthcheck_enabled
+    settings.vre_healthcheck_enabled = False
+    yield
+    settings.vre_healthcheck_enabled = original
 
 
 @pytest.fixture
@@ -470,8 +486,8 @@ def binder_vre_zenodo_url():
     return vre
 
 
-SCIENCEMESH_SENDER_EMAIL = "rasmus.oscar.welander@egi.eu"
-SCIENCEMESH_SENDER_NAME = "Rasmus Oscar Welander"
+SCIENCEMESH_SENDER_EMAIL = "user@egi.eu"
+SCIENCEMESH_SENDER_NAME = "ScienceMesh User"
 
 
 @pytest.fixture
@@ -490,7 +506,7 @@ def sciencemesh_vre():
             FormalParameter(
                 id="#input-Shared With",
                 name="Shared With",
-                default_value="rwelande@cernbox.cern.ch",
+                default_value="username",
             ),
         ],
         raw_crate={
@@ -511,6 +527,7 @@ def sciencemesh_vre():
         payload=package,
     )
     vre.svc_url = "https://sciencemesh.example.org"
+    vre.SERVICE_DEEP_LINK = SERVICE_DEEP_LINK
     return vre
 
 
@@ -519,9 +536,8 @@ def ocm_share_request(sciencemesh_vre):
     pkg = sciencemesh_vre.payload
     receiver_input = pkg.input_by_name("Shared With")
     root = pkg.get_entity("./")
-
     ocm_share_request = {
-        "shareWith": receiver_input.default_value,
+        "shareWith": f"{receiver_input.default_value}@{SCIENCEMESH_DEFAULT_DOMAIN}",
         "name": root.get("name", ""),
         "description": root.get("description", ""),
         "providerId": "n/a",

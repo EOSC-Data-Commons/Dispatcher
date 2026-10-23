@@ -4,6 +4,7 @@ from vre_rocrate import RuntimePlatform, VREPayload
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 from app.exceptions import VREConfigurationError
+from .utils.health import check_service_alive
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,13 +37,33 @@ class VRE(ABC):
         self._request_id = request_id
         self._im_factory = im_factory or self._default_im_factory
         self.ssh = None
+        self._deployed_via_im = False
         self.svc_url = self.setup_service().rstrip("/")
+        self.check_health()
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     @abstractmethod
     def get_default_service(self) -> str:
         pass
+
+    def get_healthcheck_url(self) -> str:
+        """URL probed by check_health() to verify provider availability.
+
+        Override in subclasses to point to a lightweight provider-specific
+        endpoint. The default probes the service root URL.
+        """
+        return self.svc_url
+
+    def check_health(self) -> None:
+        """Fail fast if the VRE provider for the resolved service is unavailable.
+
+        Skipped for services deployed via the Infrastructure Manager — their
+        URL does not exist before deployment.
+        """
+        if self._deployed_via_im:
+            return
+        check_service_alive(self.get_healthcheck_url())
 
     def setup_service(self) -> str:
         rp = self._get_runtime_platform()
@@ -75,6 +96,7 @@ class VRE(ABC):
                 raise VREConfigurationError("Failed to deploy service via IM")
             # Get also SSH information if available, for example to connect to a remote Scipion instance.
             self.ssh = outputs.get("ssh")
+            self._deployed_via_im = True
             return outputs.get("url", self.get_default_service())
 
         raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
