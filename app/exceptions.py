@@ -87,6 +87,18 @@ class MissingOCMParameters(VREConfigurationError):
     pass
 
 
+class MissingRRPParameters(VREConfigurationError):
+    """Raised when the crate misses information required to launch an RRP project"""
+
+    pass
+
+
+class RRPAPIError(ExternalServiceError):
+    """Raised when RRP API communication fails"""
+
+    pass
+
+
 class IMError(Exception):
     """Base exception for all IM-related errors"""
 
