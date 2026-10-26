@@ -119,7 +119,7 @@ protocol; SQLite and in-memory backends).
 | Any exception in a flow | `FAILURE` with the error text; last stage kept as context ("died while …") |
 | Success | `SUCCESS` + callback URL; stage cleared |
 | Restart (any flow) | Record left in PENDING/PROGRESS is orphaned by definition ⇒ janitor marks `FAILURE("worker lost")`; IM infra reaped |
-| Deployed IM infrastructure outlives a failed flow | Janitor destroys it on the next scan (retries on later scans if the call fails) |
+| Deployed IM infrastructure outlives a failed flow | Janitor destroys it on the next scan (retries on later scans if the call fails; "already gone" (404) counts as success) |
 | Delivered VM exceeds `infra_max_lifetime` | Janitor destroys it — **off by default**, stays off unless an operator sets it |
 
 The point of the table: with resume gone, the rules are small and the
@@ -219,6 +219,30 @@ keep the test suite green throughout.
   → log + retry, startup-orphan rule), one live EGI check that the
   credential row carries a refresh token after login, one live IM smoke
   (create → wait → outputs → destroy) before merge.
+- **D6 — production hardening (from the audit round).**
+  - *Readiness check:* alongside the trivial `/healthz` liveness probe
+    (whose compose wiring — healthcheck, restart policy, autoheal — is
+    tracked as a GitHub issue and applies to the current code too), add
+    a readiness endpoint that opens and closes the status DB. Rationale:
+    in this architecture an unusable status store fails every dispatch at
+    record creation; readiness should say "not ready" before traffic
+    discovers that the hard way.
+  - *Janitor destroy failures:* treat IM destroy 404/410 as success (infra
+    already gone ⇒ mark `destroyed_at`, stop retrying); retry genuine
+    failures with a per-record attempt counter that escalates to a visible
+    worklist instead of warning-forever; expose a reap-failure counter for
+    alerting; auth fallback chain = refresh token → operator credential
+    (runbook).
+  - *Registry backup:* scheduled online backups of the SQLite file (the
+    `.backup` API is safe during writes), shipped off-host; a documented,
+    actually-executed restore drill (losing the registry orphans every
+    tracked VM; IM's per-credential infrastructure list is the partial
+    recovery path).
+  - *Token-file hygiene:* web container runs as a non-root user with
+    700/600 on the DB directory/file; backups inherit the same protection
+    class as the tokens (an unprotected backup undoes the permissions).
+    Row TTL and refresh rotation (already in D2/D3) keep the number of
+    live tokens small.
 
 Delete the resume-lifecycle test suites when their code goes; keep the rest
 of the suite, and its v3 invariants (stage/result semantics, delete hooks),
@@ -226,16 +250,20 @@ green.
 
 ## 12. Trade-offs we accept on purpose
 
-- A restart during an IM deployment wastes one provisioning run; the user
-  resubmits. If that ever becomes expensive, v3's resume design is archived
-  on `feature/async-execution` and can be reintroduced behind this schema.
+- If the dispatcher restarts mid-IM-deployment, the in-flight VM is
+  destroyed instead of delivered (v3 resumed it). The user sees
+  `FAILURE("worker lost")` and resubmits — the cost of a restart is one
+  wasted provisioning run. If that ever becomes expensive at our scale,
+  v3's resume design is archived on `feature/async-execution` and can be
+  reintroduced behind this schema.
 - A stored refresh token is sensitive; it sits in the same SQLite file as
   the records, expiry TTL'd, and in the ops runbook for manual cleanup if
-  it is lost or revoked.
+  it is lost or revoked. The file gets production-grade hygiene (non-root
+  container, 700/600 permissions, protected backups — see D6): one read
+  of that file impersonates every user to the VREs.
 - v4 does not solve multi-instance deployments yet (single uvicorn worker);
   the store protocol leaves the door open.
 
 ## 13. Repo state for the executor
 
-- This branch is **master** with the legacy Celery code.
 - Design notes: v1/v2/v3 live in `plans/` on `feature/async-execution`.
