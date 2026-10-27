@@ -22,6 +22,8 @@ async def test(request: Request):
 
 @router.get("/token")
 async def get_token(
-    token: Annotated[str, Depends(oauth2_scheme)], request: Request = None
+    token: Annotated[str, Depends(oauth2_scheme)],
 ):
-    return {"token": request.auth.provider.access_token}
+    # The request's own credential (header, or cookie for browsers) —
+    # not the shared provider singleton (last login's token).
+    return {"token": token}
