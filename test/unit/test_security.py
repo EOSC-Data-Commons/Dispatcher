@@ -5,9 +5,8 @@ from types import SimpleNamespace
 import jwt as pyjwt
 import pytest
 from fastapi import HTTPException
-from fastapi_oauth2.exceptions import OAuth2AuthenticationError
 
-from app import auth_middleware, security
+from app import security
 from app.config import settings
 from fixtures.jwt_helper import (
     DEV_ISSUER,
@@ -69,34 +68,6 @@ def test_verify_rejects_foreign_signature(jwks, key):
 def test_verify_requires_core_claims(jwks, key):
     with pytest.raises(pyjwt.PyJWTError):
         security.verify(make_token(key, drop=("sub",)))
-
-
-# ---------------------------------------------------------------------------
-# auth_middleware patches
-# ---------------------------------------------------------------------------
-
-
-def test_jwt_create_passes_through_provider_token():
-    assert auth_middleware._jwt_create({"_access_token": "abc"}) == "abc"
-
-
-def test_jwt_create_raises_without_provider_token():
-    with pytest.raises(OAuth2AuthenticationError):
-        auth_middleware._jwt_create({"email": "x@y.z"})
-
-
-def test_jwt_decode_injects_middleware_fields(jwks, key):
-    decoded = auth_middleware._jwt_decode(make_token(key))
-
-    assert decoded["provider"] == "egi-checkin"
-    # scope string is coerced to a sorted list for Auth(scopes)
-    assert decoded["scope"] == ["email", "offline_access", "openid", "profile"]
-    assert decoded["_expires_at"] == decoded["exp"]
-
-
-def test_jwt_decode_rejects_garbage():
-    with pytest.raises(pyjwt.PyJWTError):
-        auth_middleware._jwt_decode("not-a-jwt")
 
 
 # ---------------------------------------------------------------------------

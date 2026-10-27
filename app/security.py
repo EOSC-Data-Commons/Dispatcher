@@ -36,6 +36,14 @@ ALGORITHMS = ("RS256",)
 
 LEEWAY_SECONDS = 30
 
+#: Session cookie carrying the Bearer credential (browser logins).
+SESSION_COOKIE = "Authorization"
+
+#: Cookie lifetime ≈ the IdP token lifetime (Check-in issues 3600 s):
+#: sessions end when the token expires and the user re-logs in — accepted
+#: decision (Auth Design 1 validation, §4.2).
+SESSION_MAX_AGE = 3600
+
 
 def issuer() -> str:
     """The Check-in realm issuer for the configured environment."""
@@ -104,10 +112,31 @@ def access_token_from_request(request: Request) -> str | None:
     header = request.headers.get("Authorization", "")
     if header.startswith("Bearer "):
         return header[len("Bearer ") :]
-    cookie = request.cookies.get("Authorization")
+    cookie = request.cookies.get(SESSION_COOKIE)
     if cookie:
         return cookie[len("Bearer ") :] if cookie.startswith("Bearer ") else cookie
     return None
+
+
+def on_login_tokens(
+    sub: str | None, access_token: str, refresh_token: str | None
+) -> None:
+    """Login-event seam for later phases.
+
+    The login callback (``app/routers/auth.py``) calls this with
+    everything Check-in issued. Today it only logs at debug level;
+    the janitor session (v4 plan, D2) replaces the body with a write to
+    the per-user credentials store, so out-of-band IM lifecycle
+    operations can exchange the refresh token for a fresh access token.
+
+    ``offline_access`` is requested in the client scope so refresh
+    tokens ARE issued — capturing one later requires no config change.
+    """
+    logger.debug(
+        "Login for %s (refresh token %s)",
+        sub,
+        "issued" if refresh_token else "not issued",
+    )
 
 
 async def get_principal(request: Request) -> Principal:
