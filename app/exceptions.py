@@ -87,6 +87,12 @@ class MissingOCMParameters(VREConfigurationError):
     pass
 
 
+class OCMSigningKeyError(VREError):
+    """Raised when the key that signs OCM requests cannot be loaded."""
+
+    pass
+
+
 class IMError(Exception):
     """Base exception for all IM-related errors"""
 

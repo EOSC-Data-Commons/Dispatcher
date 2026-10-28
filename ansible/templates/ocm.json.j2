@@ -3,6 +3,10 @@
   "apiVersion": "1.4.0",
   "endPoint": "{{ inventory_hostname }}",
   "provider": "EOSC Data Commons Dispatcher",
+  "capabilities": [
+    "http-sig"
+  ],
+  "jwksUri": "https://{{ inventory_hostname }}/.well-known/jwks.json",
   "resourceTypes": [
     {
       "name": "ro-crate",

@@ -11,6 +11,7 @@ from app.constants import (
 )
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
+from .utils.http_signature import OCMSignatureAuth, load_signing_key
 from .utils.token_utils import extract_user_from_token
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class VREScienceMesh(VRE):
     def post(self):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = self.create_ocm_share_request()
+        auth = OCMSignatureAuth(load_signing_key(settings.ocm_signing_key_file))
 
         try:
             logger.info(f"{self.__class__.__name__}: calling {self.svc_url}")
@@ -32,6 +34,7 @@ class VREScienceMesh(VRE):
                 f"{self.svc_url}/ocm/shares",
                 headers=headers,
                 json=data,
+                auth=auth,
             )
             logger.info(f"{self.__class__.__name__}: returned {response.text}")
             response.raise_for_status()
