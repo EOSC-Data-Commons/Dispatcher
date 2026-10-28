@@ -155,6 +155,13 @@ http {
             fastcgi_param REMOTE_USER      $remote_user;
             fastcgi_param HTTP_AUTHORIZATION $http_authorization;
         }
+        location = /.well-known/jwks.json {
+            proxy_pass https://web:{{api.port}}/.well-known/jwks.json;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
         location /.well-known/ {
     	    alias /etc/nginx/.well-known/;
 	        add_header Content-Type application/json;

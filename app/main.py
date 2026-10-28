@@ -19,7 +19,7 @@ from fastapi_oauth2.client import OAuth2Client
 from fastapi_oauth2.claims import Claims
 from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
 
-from app.routers import requests, auth, anonymous_requests
+from app.routers import requests, auth, anonymous_requests, wellknown
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware.request_logging import RequestLoggingMiddleware
@@ -56,6 +56,7 @@ app.add_middleware(RequestLoggingMiddleware)
 app.include_router(oauth2_router)
 app.include_router(requests.router)
 app.include_router(auth.router)
+app.include_router(wellknown.router)
 if settings.anonymous_requests_enabled:
     app.include_router(anonymous_requests.router)
 

@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # VRE provider healthcheck (fail-fast when a provider is down)
     vre_healthcheck_enabled: bool = True
     vre_healthcheck_timeout: float = 3.0
+
+    # Ed25519 private key (PEM) that signs the OCM shares sent to ScienceMesh
+    ocm_signing_key_file: str = ""
+
     # Static VIP API key override for dev instances without vault access.
     # Empty means per-user vault lookup (production behavior).
     vip_api_key: str = ""
