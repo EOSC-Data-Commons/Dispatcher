@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import uuid
 from unittest.mock import patch
 import pytest
@@ -86,6 +88,24 @@ def test_post_sends_correct_ocm_share_request(
         ocm_share_request.pop(key, None)
 
     assert actual == ocm_share_request
+
+
+def test_post_signs_ocm_share_request(sciencemesh_vre, requests_mock, mock_token_user):
+    requests_mock.post(
+        f"{sciencemesh_vre.svc_url}/ocm/shares", status_code=200, json={}
+    )
+    sciencemesh_vre.post()
+
+    sent = requests_mock.request_history[0]
+    digest = base64.b64encode(hashlib.sha256(sent.body).digest()).decode()
+    assert sent.headers["Content-Digest"] == f"sha-256=:{digest}:"
+    # The kid of the RFC 8037 key that the ocm_signing_key fixture configures
+    assert (
+        'keyid="kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k"'
+        in sent.headers["Signature-Input"]
+    )
+    assert 'tag="ocm"' in sent.headers["Signature-Input"]
+    assert sent.headers["Signature"].startswith("sig1=:")
 
 
 def test_resource_id_is_deterministic_from_crate(sciencemesh_vre, mock_token_user):

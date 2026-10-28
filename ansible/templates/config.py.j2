@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     vre_healthcheck_enabled: bool = {{ api.vre_healthcheck_enabled | default(true) }}
     vre_healthcheck_timeout: float = {{ api.vre_healthcheck_timeout | default(3.0) }}
 
+    ocm_signing_key_file: str = "/etc/ocm/signing_key.pem"
+
 
     vault_url: str = "{{ vault.url }}"
     vault_jwt_mount: str = "{{ vault.jwt_mount }}"

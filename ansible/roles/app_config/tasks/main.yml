@@ -16,6 +16,23 @@
     state: directory
     mode: '0755'
 
+- name: Ensure OCM signing key directory exists
+  file:
+    path: "{{ dispatcher.dir }}/ocm"
+    state: directory
+    mode: '0755'
+
+- name: Generate OCM signing key
+  ansible.builtin.command:
+    cmd: openssl genpkey -algorithm ed25519 -out {{ dispatcher.dir }}/ocm/signing_key.pem
+    creates: "{{ dispatcher.dir }}/ocm/signing_key.pem"
+
+# The worker container reads the key as the celery user, like the TLS key (see modify_cert).
+- name: Make OCM signing key readable by the containers
+  file:
+    path: "{{ dispatcher.dir }}/ocm/signing_key.pem"
+    mode: '0444'
+
 - name: Install ocm.json
   ansible.builtin.template:
     src: ocm.json.j2
