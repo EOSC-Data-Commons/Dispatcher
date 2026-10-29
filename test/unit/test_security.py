@@ -4,8 +4,10 @@ import jwt as pyjwt
 import pytest
 
 from app import security
+from app.security import JWKSSource, SigningKey
 from fixtures.jwt_helper import (
     DEV_ISSUER,
+    FakeJWKS,
     generate_rsa_key,
     make_token,
 )
@@ -71,3 +73,18 @@ def test_header_takes_precedence_over_cookie(stub_request):
 
 def test_no_token_returns_none(stub_request):
     assert security.access_token_from_request(stub_request()) is None
+
+
+# ---------------------------------------------------------------------------
+# seam conformance — the fakes must keep implementing the contracts they
+# substitute for, or test results stop saying anything about production.
+# (isinstance on runtime-checkable protocols checks member presence,
+# including properties; signature checking would need mypy in CI.)
+# ---------------------------------------------------------------------------
+
+
+def test_fake_jwks_conforms_to_the_key_source_seam(key):
+    source = FakeJWKS(key)
+    signing = source.get_signing_key_from_jwt("any-token")
+    assert isinstance(source, JWKSSource)
+    assert isinstance(signing, SigningKey)

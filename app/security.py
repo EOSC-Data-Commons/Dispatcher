@@ -19,6 +19,7 @@ See ``plans/Auth Design 1 — Dispatcher validation.md``.
 
 import logging
 from functools import lru_cache
+from typing import Any, Protocol, runtime_checkable
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
@@ -60,8 +61,28 @@ def issuer() -> str:
         ) from None
 
 
+@runtime_checkable
+class SigningKey(Protocol):
+    """What verify() needs from a resolved signing key."""
+
+    key: Any  # the key material PyJWT accepts
+
+
+@runtime_checkable
+class JWKSSource(Protocol):
+    """The key-source seam.
+
+    ``_jwks()`` returns one; the production implementation is PyJWT's
+    PyJWKClient, the tests substitute fixtures.jwt_helper.FakeJWKS.
+    Declared here so the implicit interface the fakes already implement
+    is explicit — this is documentation, not a second implementation.
+    """
+
+    def get_signing_key_from_jwt(self, token: str) -> SigningKey: ...
+
+
 @lru_cache(maxsize=1)
-def _jwks() -> PyJWKClient:
+def _jwks() -> JWKSSource:
     url = f"{issuer()}/protocol/openid-connect/certs"
     logger.info("Using Check-in JWKS at %s", url)
     return PyJWKClient(url, cache_keys=True)

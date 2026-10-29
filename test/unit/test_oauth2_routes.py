@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from fastapi_sso.sso.base import OpenID
 
 from app import security
+from app.checkin import LoginProvider
 from app.routers import auth as auth_router
 from app.security import oauth2_scheme
 from fixtures.jwt_helper import make_token
@@ -56,6 +57,15 @@ async def test_scheme_401_garbage_token(stub_request):
         await oauth2_scheme(stub_request(headers={"Authorization": "Bearer not-a-jwt"}))
     assert exc.value.status_code == 401
     assert 'error="invalid_token"' in exc.value.headers["WWW-Authenticate"]
+
+
+# ---------------------------------------------------------------------------
+# seam conformance — see test_security.py for why
+# ---------------------------------------------------------------------------
+
+
+def test_fake_sso_conforms_to_the_login_provider_seam():
+    assert isinstance(_FakeSSO(), LoginProvider)
 
 
 # ---------------------------------------------------------------------------

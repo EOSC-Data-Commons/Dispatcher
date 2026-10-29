@@ -6,8 +6,12 @@ factory. The HTTP routes live in :mod:`app.routers.auth`; token
 verification in :mod:`app.security`.
 """
 
+from typing import Any, Protocol, runtime_checkable
+
 from fastapi_sso.sso.base import OpenID
 from fastapi_sso.sso.generic import create_provider
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
 
 from app import security
 from app.config import settings
@@ -65,7 +69,29 @@ CheckinSSO = create_provider(
 )
 
 
-def build_sso(redirect_uri: str) -> CheckinSSO:
+@runtime_checkable
+class LoginProvider(Protocol):
+    """The login-flow seam: what the routes consume from build_sso().
+
+    Deliberately narrow (interface segregation) — only the members the
+    routes touch, with the no-argument call shapes they actually use.
+    fastapi-sso's SSOBase and the test fake both conform; the routes
+    never name this type (structural typing), the factory annotates it.
+    """
+
+    async def __aenter__(self) -> "LoginProvider": ...
+    async def __aexit__(self, *args: object) -> None: ...
+    async def get_login_redirect(self) -> RedirectResponse: ...
+    async def verify_and_process(self, request: Request) -> Any: ...
+
+    @property
+    def access_token(self) -> str | None: ...
+
+    @property
+    def refresh_token(self) -> str | None: ...
+
+
+def build_sso(redirect_uri: str) -> LoginProvider:
     """A fresh provider instance per request (required: state and the
     OAuth client are single-use)."""
     return CheckinSSO(
