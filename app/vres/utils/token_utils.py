@@ -20,7 +20,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class TokenUser:
-    email: str
+    """The authenticated user behind an access token.
+
+    ``sub`` is the OIDC subject — EGI Check-in's persistent, email-shaped
+    user id (``<hash>@egi.eu``). ``name`` is the ``preferred_username``
+    claim, which on Check-in carries the same id.
+    """
+
+    sub: str
     name: str | None
 
 
@@ -39,8 +46,8 @@ def extract_user_from_token(access_token: str) -> TokenUser:
         ) from e
 
     # verify() requires the "sub" claim, so it is always present here.
-    email = claims["sub"]
+    sub = claims["sub"]
     name = claims.get("preferred_username")
 
-    logger.debug(f"Extracted user from token: email={email}, name={name}")
-    return TokenUser(email=email, name=name)
+    logger.debug(f"Extracted user from token: sub={sub}, name={name}")
+    return TokenUser(sub=sub, name=name)

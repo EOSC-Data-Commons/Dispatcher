@@ -51,8 +51,8 @@ class VREScienceMesh(VRE):
 
         # Extract sender/owner from access token (EGI Check-in federation backend)
         token_user = extract_user_from_token(self.token)
-        sender_userid = token_user.email
-        sender_name = token_user.name or token_user.email
+        sender_userid = token_user.sub
+        sender_name = token_user.name or token_user.sub
         resource_id = self._resource_id()
         ocm_share_request = {
             "shareWith": f"{receiver}@{SCIENCEMESH_DEFAULT_DOMAIN}",

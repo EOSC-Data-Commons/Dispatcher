@@ -12,9 +12,11 @@ from fastapi_sso.sso.generic import create_provider
 from app import security
 from app.config import settings
 
-#: Registered with EGI Check-in as the redirect URI — do not change
-#: without re-registering the client.
-CALLBACK_PATH = "/oauth2/egi-checkin/token"
+#: Registered with EGI Check-in as the redirect URI (the OIDC
+#: redirection endpoint) — do not change without re-registering the
+#: client. Named "redirect" per OAuth vocabulary; GLOSSARY.md reserves
+#: "callback URL" for the dispatch result.
+REDIRECT_PATH = "/oauth2/egi-checkin/token"
 
 #: Scope requested at login; ``offline_access`` makes Check-in issue a
 #: refresh token (captured via security.on_login_tokens for the janitor).

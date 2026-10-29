@@ -13,7 +13,7 @@ from fastapi.responses import RedirectResponse
 from fastapi_sso.sso.base import SSOLoginError
 
 from app import security
-from app.checkin import CALLBACK_PATH, build_sso
+from app.checkin import REDIRECT_PATH, build_sso
 from app.config import settings
 from app.security import oauth2_scheme
 
@@ -26,23 +26,24 @@ router = APIRouter(
 )
 
 
-def _callback_uri(request: Request) -> str:
-    return str(request.base_url).rstrip("/") + CALLBACK_PATH
+def _redirect_uri(request: Request) -> str:
+    return str(request.base_url).rstrip("/") + REDIRECT_PATH
 
 
 @router.get("/login")
 async def login(request: Request):
     """Redirect to EGI Check-in; a state cookie travels with the request."""
-    async with build_sso(_callback_uri(request)) as sso:
+    async with build_sso(_redirect_uri(request)) as sso:
         return await sso.get_login_redirect()
 
 
 @router.get("/egi-checkin/token")
-async def checkin_callback(request: Request):
-    """Login callback: exchange the code for IdP tokens and set the *IdP
-    access token* as the session cookie — the dispatcher never mints
+async def checkin_redirect(request: Request):
+    """OIDC redirection endpoint: receives the browser back from
+    Check-in, exchanges the code for IdP tokens, and sets the *IdP access
+    token* as the session cookie — the dispatcher never mints
     credentials of its own."""
-    async with build_sso(_callback_uri(request)) as sso:
+    async with build_sso(_redirect_uri(request)) as sso:
         openid = await sso.verify_and_process(request)
         access_token = sso.access_token
         refresh_token = sso.refresh_token
@@ -58,7 +59,6 @@ async def checkin_callback(request: Request):
         security.SESSION_COOKIE,
         value=f"Bearer {access_token}",
         max_age=security.SESSION_MAX_AGE,
-        expires=security.SESSION_MAX_AGE,
         secure=True,
         httponly=True,
         samesite="lax",

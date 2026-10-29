@@ -124,11 +124,11 @@ async def test_login_redirects_to_provider(app):
     assert response.status_code == 303
     assert response.headers["location"] == "https://checkin.example/auth"
     # The callback URL handed to the provider matches the registered path.
-    assert app.state.captured["redirect_uri"].endswith(auth_router.CALLBACK_PATH)
+    assert app.state.captured["redirect_uri"].endswith(auth_router.REDIRECT_PATH)
 
 
 @pytest.mark.asyncio
-async def test_callback_sets_idp_token_as_cookie(app):
+async def test_redirect_endpoint_sets_idp_token_as_cookie(app):
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
         transport=transport, base_url="https://test"

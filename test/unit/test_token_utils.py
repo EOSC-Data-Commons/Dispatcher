@@ -18,23 +18,15 @@ from fixtures.jwt_helper import make_token
 class TestTokenUser:
     """Tests for the TokenUser dataclass."""
 
-    def test_creates_with_email_and_name(self):
-        user = TokenUser(email="jdoe@example.com", name="John Doe")
-        assert user.email == "jdoe@example.com"
+    def test_creates_with_sub_and_name(self):
+        user = TokenUser(sub="jdoe@example.com", name="John Doe")
+        assert user.sub == "jdoe@example.com"
         assert user.name == "John Doe"
 
     def test_creates_with_name_none(self):
-        user = TokenUser(email="jdoe@example.com", name=None)
-        assert user.email == "jdoe@example.com"
+        user = TokenUser(sub="jdoe@example.com", name=None)
+        assert user.sub == "jdoe@example.com"
         assert user.name is None
-
-    def test_has_no_sub_attribute(self):
-        """Regression: TokenUser must not expose a 'sub' field.
-
-        The 'sub' OIDC claim is stored as 'email', not as a separate field.
-        """
-        user = TokenUser(email="sub@example.com", name="Name")
-        assert not hasattr(user, "sub")
 
 
 # ---------------------------------------------------------------------------
@@ -42,21 +34,21 @@ class TestTokenUser:
 # ---------------------------------------------------------------------------
 
 
-def test_extracts_email_and_name(key):
+def test_extracts_sub_and_name(key):
     """Successful extraction returns TokenUser with both fields."""
     user = extract_user_from_token(make_token(key))
 
-    assert user.email.endswith("@egi.eu")
-    assert user.name == user.email  # preferred_username is the same id
+    assert user.sub.endswith("@egi.eu")
+    assert user.name == user.sub  # preferred_username is the same id
 
 
-def test_extracts_email_without_name(key):
+def test_extracts_sub_without_name(key):
     """When preferred_username is missing, name is None."""
     token = make_token(key, drop=("preferred_username",))
 
     user = extract_user_from_token(token)
 
-    assert user.email.endswith("@egi.eu")
+    assert user.sub.endswith("@egi.eu")
     assert user.name is None
 
 
