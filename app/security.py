@@ -18,7 +18,6 @@ See ``plans/Auth Design 1 — Dispatcher validation.md``.
 """
 
 import logging
-from dataclasses import dataclass
 from functools import lru_cache
 
 import jwt
@@ -86,30 +85,6 @@ def verify(token: str) -> dict:
     )
 
 
-@dataclass(frozen=True)
-class Principal:
-    """The authenticated caller, uniform for cookie and header traffic."""
-
-    subject: str
-    scopes: frozenset[str]
-    claims: dict
-    raw_token: str  # forwarded to VREs; never log it
-
-
-def principal_from(claims: dict, token: str) -> Principal:
-    scope = claims.get("scope", "")
-    if isinstance(scope, str):
-        scopes = frozenset(scope.split())
-    else:
-        scopes = frozenset(scope)
-    return Principal(
-        subject=str(claims["sub"]),
-        scopes=scopes,
-        claims=claims,
-        raw_token=token,
-    )
-
-
 def access_token_from_request(request: Request) -> str | None:
     """The request's own credential: Authorization header (Bearer) first,
     then the Authorization cookie (browser sessions — the cookie value
@@ -145,31 +120,6 @@ def on_login_tokens(
     )
 
 
-async def get_principal(request: Request) -> Principal:
-    """Route dependency: a verified Principal or a 401 with the Bearer
-    error contract (``expired_token`` vs ``invalid_token``)."""
-    token = access_token_from_request(request)
-    if not token:
-        raise HTTPException(
-            status.HTTP_401_UNAUTHORIZED,
-            "Not authenticated",
-            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
-        )
-    try:
-        return principal_from(verify(token), token)
-    except jwt.PyJWTError as exc:
-        expired = "expired" in str(exc).lower()
-        raise HTTPException(
-            status.HTTP_401_UNAUTHORIZED,
-            str(exc),
-            headers={
-                "WWW-Authenticate": 'Bearer error="'
-                + ("expired_token" if expired else "invalid_token")
-                + '"'
-            },
-        ) from exc
-
-
 # --- request credential (FastAPI dependency) --------------------------------
 #
 # OpenAPI integration: shows the Authorize dialog for pasting Bearer
@@ -180,7 +130,9 @@ _bearer = HTTPBearer(auto_error=False, bearerFormat="JWT")
 
 async def oauth2_scheme(
     request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    # OpenAPI registration only (the Authorize dialog): the credential
+    # itself is read from the request below, header first then cookie.
+    _credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> str:
     """The request's own verified access token, or a 401.
 

@@ -1,7 +1,5 @@
 """Unit tests for the request-credential dependency and login routes."""
 
-from types import SimpleNamespace
-
 import httpx
 import pytest
 from fastapi import FastAPI, HTTPException
@@ -9,30 +7,9 @@ from fastapi.responses import RedirectResponse
 from fastapi_sso.sso.base import OpenID
 
 from app import security
-from app.config import settings
 from app.routers import auth as auth_router
 from app.security import oauth2_scheme
-from fixtures.jwt_helper import generate_rsa_key, make_token, patch_jwks
-
-
-@pytest.fixture(autouse=True)
-def dev_env():
-    original = settings.egi_checkin_env
-    settings.egi_checkin_env = "dev"
-    yield
-    settings.egi_checkin_env = original
-
-
-@pytest.fixture
-def key(monkeypatch):
-    rsa_key = generate_rsa_key()
-    patch_jwks(monkeypatch, rsa_key)
-    return rsa_key
-
-
-def _request(headers=None, cookies=None):
-    return SimpleNamespace(headers=headers or {}, cookies=cookies or {})
-
+from fixtures.jwt_helper import make_token
 
 # ---------------------------------------------------------------------------
 # oauth2_scheme dependency
@@ -40,41 +17,43 @@ def _request(headers=None, cookies=None):
 
 
 @pytest.mark.asyncio
-async def test_scheme_returns_verified_header_token(key):
-    token = make_token(key)
-    result = await oauth2_scheme(_request(headers={"Authorization": f"Bearer {token}"}))
-    assert result == token
-
-
-@pytest.mark.asyncio
-async def test_scheme_accepts_session_cookie(key):
+async def test_scheme_returns_verified_header_token(key, stub_request):
     token = make_token(key)
     result = await oauth2_scheme(
-        _request(cookies={security.SESSION_COOKIE: f"Bearer {token}"})
+        stub_request(headers={"Authorization": f"Bearer {token}"})
     )
     assert result == token
 
 
 @pytest.mark.asyncio
-async def test_scheme_401_without_credential():
+async def test_scheme_accepts_session_cookie(key, stub_request):
+    token = make_token(key)
+    result = await oauth2_scheme(
+        stub_request(cookies={security.SESSION_COOKIE: f"Bearer {token}"})
+    )
+    assert result == token
+
+
+@pytest.mark.asyncio
+async def test_scheme_401_without_credential(stub_request):
     with pytest.raises(HTTPException) as exc:
-        await oauth2_scheme(_request())
+        await oauth2_scheme(stub_request())
     assert exc.value.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_scheme_401_expired_token_with_error_code(key):
+async def test_scheme_401_expired_token_with_error_code(key, stub_request):
     token = make_token(key, lifetime=-1000)
     with pytest.raises(HTTPException) as exc:
-        await oauth2_scheme(_request(headers={"Authorization": f"Bearer {token}"}))
+        await oauth2_scheme(stub_request(headers={"Authorization": f"Bearer {token}"}))
     assert exc.value.status_code == 401
     assert 'error="expired_token"' in exc.value.headers["WWW-Authenticate"]
 
 
 @pytest.mark.asyncio
-async def test_scheme_401_garbage_token(key):
+async def test_scheme_401_garbage_token(stub_request):
     with pytest.raises(HTTPException) as exc:
-        await oauth2_scheme(_request(headers={"Authorization": "Bearer not-a-jwt"}))
+        await oauth2_scheme(stub_request(headers={"Authorization": "Bearer not-a-jwt"}))
     assert exc.value.status_code == 401
     assert 'error="invalid_token"' in exc.value.headers["WWW-Authenticate"]
 

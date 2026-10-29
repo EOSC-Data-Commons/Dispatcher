@@ -4,29 +4,11 @@ Since Auth Design 1, identity is extracted by verifying the JWT locally
 (no userinfo round-trip); tests sign real RS256 tokens with a local key.
 """
 
-import jwt as pyjwt
 import pytest
 
-from app.config import settings
 from app.exceptions import VREAuthenticationError
 from app.vres.utils.token_utils import TokenUser, extract_user_from_token
-from fixtures.jwt_helper import generate_rsa_key, make_token, patch_jwks
-
-
-@pytest.fixture(autouse=True)
-def dev_env():
-    original = settings.egi_checkin_env
-    settings.egi_checkin_env = "dev"
-    yield
-    settings.egi_checkin_env = original
-
-
-@pytest.fixture
-def key(monkeypatch):
-    rsa_key = generate_rsa_key()
-    patch_jwks(monkeypatch, rsa_key)
-    return rsa_key
-
+from fixtures.jwt_helper import make_token
 
 # ---------------------------------------------------------------------------
 # TokenUser tests
