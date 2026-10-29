@@ -1,9 +1,10 @@
-"""EGI Check-in login provider (fastapi-sso).
+"""EGI Check-in realm facts and login provider (fastapi-sso).
 
-Everything EGI-Check-in-specific about the login flow: the realm's OIDC
-endpoints, the requested scope, the provider class, and a per-request
-factory. The HTTP routes live in :mod:`app.routers.auth`; token
-verification in :mod:`app.security`.
+Everything EGI-Check-in-specific: the realm identity (issuers), the
+OIDC endpoints, the requested scope, the provider class, and a
+per-request factory. The HTTP routes live in :mod:`app.routers.auth`;
+token verification in :mod:`app.security`, which anchors its issuer pin
+and JWKS URL to :func:`issuer` here.
 """
 
 from typing import Any, Protocol, runtime_checkable
@@ -13,8 +14,25 @@ from fastapi_sso.sso.generic import create_provider
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from app import security
 from app.config import settings
+
+#: Realm issuers keyed by the ``egi_checkin_env`` setting.
+CHECKIN_ISSUERS = {
+    "prod": "https://aai.egi.eu/auth/realms/egi",
+    "demo": "https://aai-demo.egi.eu/auth/realms/egi",
+    "dev": "https://aai-dev.egi.eu/auth/realms/egi",
+}
+
+
+def issuer() -> str:
+    """The Check-in realm issuer for the configured environment."""
+    try:
+        return CHECKIN_ISSUERS[settings.egi_checkin_env]
+    except KeyError:
+        raise ValueError(
+            f"Unknown egi_checkin_env: {settings.egi_checkin_env!r}"
+        ) from None
+
 
 #: Registered with EGI Check-in as the redirect URI (the OIDC
 #: redirection endpoint) — do not change without re-registering the
@@ -38,7 +56,7 @@ LOGIN_SCOPE = [
 
 def _endpoints() -> dict:
     """OIDC endpoints of the configured Check-in realm."""
-    base = f"{security.issuer()}/protocol/openid-connect"
+    base = f"{issuer()}/protocol/openid-connect"
     return {
         "authorization_endpoint": f"{base}/auth",
         "token_endpoint": f"{base}/token",

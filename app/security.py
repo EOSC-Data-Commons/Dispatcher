@@ -6,9 +6,10 @@ its own. One token type, one validator, for both browser sessions
 (cookie) and Bearer callers (header).
 
 This module owns *trust* and nothing else: verification, the request
-credential, and the session constants. The EGI Check-in login flow
-lives in :mod:`app.checkin`; the HTTP routes in
-:mod:`app.routers.auth`.
+credential, and the session constants. The EGI Check-in realm facts —
+issuer map, endpoints, login flow — live in :mod:`app.checkin`; this
+module anchors its issuer pin and JWKS URL to ``checkin.issuer()``. The
+HTTP routes live in :mod:`app.routers.auth`.
 
 Validated against a live Check-in token on 2026-10-27 (aai-dev):
 RS256, `kid`-addressed JWKS, 3600 s lifetime, no `aud` claim (none is
@@ -26,16 +27,9 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 
-from app.config import settings
+from app.checkin import issuer
 
 logger = logging.getLogger(__name__)
-
-#: Realm issuers keyed by the ``egi_checkin_env`` setting.
-CHECKIN_ISSUERS = {
-    "prod": "https://aai.egi.eu/auth/realms/egi",
-    "demo": "https://aai-demo.egi.eu/auth/realms/egi",
-    "dev": "https://aai-dev.egi.eu/auth/realms/egi",
-}
 
 #: Algorithms accepted for verification — pinned, never both HMAC and RSA.
 ALGORITHMS = ("RS256",)
@@ -49,16 +43,6 @@ SESSION_COOKIE = "Authorization"
 #: sessions end when the token expires and the user re-logs in — accepted
 #: decision (Auth Design 1 validation, §4.2).
 SESSION_MAX_AGE = 3600
-
-
-def issuer() -> str:
-    """The Check-in realm issuer for the configured environment."""
-    try:
-        return CHECKIN_ISSUERS[settings.egi_checkin_env]
-    except KeyError:
-        raise ValueError(
-            f"Unknown egi_checkin_env: {settings.egi_checkin_env!r}"
-        ) from None
 
 
 @runtime_checkable
