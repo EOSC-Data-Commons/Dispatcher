@@ -1,23 +1,18 @@
 """
 FastAPI application entry point for the dispatcher service.
 
-This module initializes the application, configures logging, and sets up
-middleware for request handling and authentication.
+This module initializes the application and configures logging. Request
+authentication is not middleware: every protected route depends on
+``app.security.oauth2_scheme``, which verifies the request's own
+credential (Authorization header or session cookie) via
+``app.security`` — the Auth Design 1 resource-server model.
 """
 
 import logging
-import os
 import ssl
 from contextlib import asynccontextmanager
-from typing import Optional
 
 from fastapi import FastAPI
-from fastapi_oauth2.middleware import OAuth2Middleware
-from fastapi_oauth2.router import router as oauth2_router
-from fastapi_oauth2.config import OAuth2Config
-from fastapi_oauth2.client import OAuth2Client
-from fastapi_oauth2.claims import Claims
-from social_core.backends.egi_checkin import EGICheckinOpenIdConnect
 
 from app.routers import requests, auth, anonymous_requests, healthz
 from app.config import settings
@@ -49,11 +44,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Dispatcher Service", lifespan=lifespan)
 
-# Add request logging middleware (must be added before OAuth2 middleware)
+# Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
 
 # Include routers
-app.include_router(oauth2_router)
 app.include_router(healthz.router)
 app.include_router(requests.router)
 app.include_router(auth.router)
@@ -62,43 +56,3 @@ if settings.anonymous_requests_enabled:
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain(settings.cert_chain_file, keyfile=settings.private_key_file)
-
-
-class TestEGICheckinOpenIdConnect(EGICheckinOpenIdConnect):
-    CHECKIN_ENV = settings.egi_checkin_env
-
-
-class DummyOAuth2Client(OAuth2Client):
-    async def authenticate(self, code: Optional[str] = None, **kwargs):
-        return {
-            "id": "dummy-user",
-            "email": "dev@example.com",
-            "name": "Dev User",
-            "picture": None,
-        }
-
-
-def get_oauth2_client() -> OAuth2Client:
-    if os.getenv("ENV") == "local":
-        logger.info("Using dummy OAuth2 client for local development")
-        return DummyOAuth2Client(
-            backend=TestEGICheckinOpenIdConnect, client_id="", client_secret=""
-        )
-    return OAuth2Client(
-        backend=TestEGICheckinOpenIdConnect,
-        scope=[
-            "openid email profile entitlements voperson_id voperson_external_affiliation eduperson_entitlement"
-        ],
-        client_id=settings.client_id,
-        client_secret=settings.client_secret,
-        redirect_uri=settings.redirect_uri,
-        claims=Claims(
-            identity=lambda user: f"{user.provider}:{user.id}",
-        ),
-    )
-
-
-app.add_middleware(
-    OAuth2Middleware,
-    config=OAuth2Config(clients=[get_oauth2_client()], same_site="none"),
-)

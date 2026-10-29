@@ -130,7 +130,7 @@ def test_create_ocm_share_falls_back_name_to_email(sciencemesh_vre, mock_token_u
     from app.vres.utils.token_utils import TokenUser
 
     mock_token_user.return_value = TokenUser(
-        email="jdoe@example.com",
+        sub="jdoe@example.com",
         name=None,
     )
 
