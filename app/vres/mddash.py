@@ -111,7 +111,7 @@ class VREMDDash(VRE):
         user_api_url = url + "/hub/api/user"
 
         for i in range(max_retries):
-            logger.info(f"--- Poll attempt {i+1}/{max_retries}")
+            logger.info(f"--- Poll attempt {i + 1}/{max_retries}")
 
             try:
                 resp = ctx.session.get(user_api_url)
