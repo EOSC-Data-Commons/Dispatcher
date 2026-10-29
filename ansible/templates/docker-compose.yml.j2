@@ -4,7 +4,7 @@ services:
 
   web:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level {{ logging.level|lower | default('info') }} --reload 
+    command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level {{ logging.level|lower | default('info') }}
     volumes:
       - ./app:/usr/src/app
       - ./nginx/certbot/conf:{{nginx.cert}}
