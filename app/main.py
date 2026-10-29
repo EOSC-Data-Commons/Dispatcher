@@ -3,8 +3,8 @@ FastAPI application entry point for the dispatcher service.
 
 This module initializes the application and configures logging. Request
 authentication is not middleware: every protected route depends on
-``app.routers.utils.auth.oauth2_scheme``, which verifies the request's
-own credential (Authorization header or session cookie) via
+``app.security.oauth2_scheme``, which verifies the request's own
+credential (Authorization header or session cookie) via
 ``app.security`` — the Auth Design 1 resource-server model.
 """
 

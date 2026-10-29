@@ -1,9 +1,14 @@
-"""JWT verification against EGI Check-in — the single source of trust.
+"""JWT verification and request credentials — the single source of trust.
 
 The dispatcher acts as an OAuth2 resource server (Auth Design 1): it
 validates IdP-issued JWTs locally via JWKS and mints no credentials of
 its own. One token type, one validator, for both browser sessions
 (cookie) and Bearer callers (header).
+
+This module owns *trust* and nothing else: verification, the request
+credential, and the session constants. The EGI Check-in login flow
+lives in :mod:`app.checkin`; the HTTP routes in
+:mod:`app.routers.auth`.
 
 Validated against a live Check-in token on 2026-10-27 (aai-dev):
 RS256, `kid`-addressed JWKS, 3600 s lifetime, no `aud` claim (none is
@@ -17,7 +22,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 import jwt
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 
 from app.config import settings
@@ -162,3 +168,45 @@ async def get_principal(request: Request) -> Principal:
                 + '"'
             },
         ) from exc
+
+
+# --- request credential (FastAPI dependency) --------------------------------
+#
+# OpenAPI integration: shows the Authorize dialog for pasting Bearer
+# tokens. Browser users never need it — they authenticate via cookie.
+
+_bearer = HTTPBearer(auto_error=False, bearerFormat="JWT")
+
+
+async def oauth2_scheme(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> str:
+    """The request's own verified access token, or a 401.
+
+    Every protected route depends on this, so verification (RS256 via
+    JWKS, issuer pin, expiry) happens per request with no middleware:
+    Authorization header first (CLI/service callers), then the session
+    cookie (browser logins).
+    """
+    token = access_token_from_request(request)
+    if not token:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Not authenticated",
+            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+        )
+    try:
+        verify(token)
+    except jwt.PyJWTError as exc:
+        expired = "expired" in str(exc).lower()
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            str(exc),
+            headers={
+                "WWW-Authenticate": 'Bearer error="'
+                + ("expired_token" if expired else "invalid_token")
+                + '"'
+            },
+        ) from exc
+    return token

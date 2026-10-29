@@ -11,7 +11,7 @@ from fastapi_sso.sso.base import OpenID
 from app import security
 from app.config import settings
 from app.routers import auth as auth_router
-from app.routers.utils.auth import oauth2_scheme
+from app.security import oauth2_scheme
 from fixtures.jwt_helper import generate_rsa_key, make_token, patch_jwks
 
 
@@ -120,7 +120,7 @@ def app(monkeypatch):
         return _FakeSSO(redirect_uri)
 
     login_events = []
-    monkeypatch.setattr(auth_router, "_build_sso", fake_build)
+    monkeypatch.setattr(auth_router, "build_sso", fake_build)
     monkeypatch.setattr(
         security,
         "on_login_tokens",

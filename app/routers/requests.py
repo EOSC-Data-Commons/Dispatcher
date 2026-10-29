@@ -4,7 +4,9 @@ from typing import Annotated, Dict
 from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 
-from .utils import parse_zipfile, oauth2_scheme
+from app.security import oauth2_scheme
+
+from .utils import parse_zipfile
 from celery.result import AsyncResult
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 
