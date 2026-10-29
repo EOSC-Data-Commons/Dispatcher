@@ -19,6 +19,7 @@ See ``plans/Auth Design 1 — Dispatcher validation.md``.
 """
 
 import logging
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Protocol, runtime_checkable
 
@@ -72,21 +73,40 @@ def _jwks() -> JWKSSource:
     return PyJWKClient(url, cache_keys=True)
 
 
-def verify(token: str) -> dict:
-    """The only place a token becomes trusted.
+@dataclass(frozen=True)
+class TokenUser:
+    """The verified identity behind an access token.
+
+    ``sub`` is the OIDC subject — EGI Check-in's persistent,
+    email-shaped user id (``<hash>@egi.eu``); ``name`` is the
+    ``preferred_username`` claim, which on Check-in carries the same
+    id. The raw claims dict stays inside :func:`verify`.
+    """
+
+    sub: str
+    name: str | None
+
+
+def verify(token: str) -> TokenUser:
+    """The only place a token becomes trusted identity.
 
     Checks the signature (RS256 via the realm's JWKS), the issuer (pinned
     per environment) and expiry. No audience validation: Check-in emits
     no ``aud`` claim (verified live); the issuer pin plus signature is
-    the compensating control.
+    the compensating control. Returns the verified subject; the claims
+    dict never leaves this module.
     """
-    return jwt.decode(
+    claims = jwt.decode(
         token,
         _jwks().get_signing_key_from_jwt(token).key,
         algorithms=list(ALGORITHMS),
         issuer=issuer(),
         leeway=LEEWAY_SECONDS,
         options={"require": ["exp", "iat", "iss", "sub"]},
+    )
+    return TokenUser(
+        sub=str(claims["sub"]),
+        name=claims.get("preferred_username"),
     )
 
 

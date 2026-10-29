@@ -6,7 +6,6 @@ import pytest
 from app import security
 from app.security import JWKSSource, SigningKey
 from fixtures.jwt_helper import (
-    DEV_ISSUER,
     FakeJWKS,
     generate_rsa_key,
     make_token,
@@ -18,9 +17,9 @@ from fixtures.jwt_helper import (
 
 
 def test_verify_accepts_valid_token(key):
-    claims = security.verify(make_token(key))
-    assert claims["sub"].endswith("@egi.eu")
-    assert claims["iss"] == DEV_ISSUER
+    user = security.verify(make_token(key))
+    assert user.sub.endswith("@egi.eu")
+    assert user.name == user.sub  # preferred_username is the same id
 
 
 def test_verify_rejects_wrong_issuer(key):
