@@ -17,6 +17,7 @@ from fastapi import FastAPI
 
 from app.routers import requests, auth, anonymous_requests, healthz
 from app.config import settings
+from app.credentials import SQLiteCredentialStore
 from app.http import close_http_client, init_http_client
 from app.logging_config import setup_logging
 from app.middleware.request_logging import RequestLoggingMiddleware
@@ -51,6 +52,9 @@ async def lifespan(app: FastAPI):
     store = SQLiteStatusStore(settings.db_path)
     await store.connect()
     app.state.status_store = store
+    credentials = SQLiteCredentialStore(settings.db_path)
+    await credentials.connect()
+    app.state.credentials = credentials
     app.state.tasks: dict[str, asyncio.Task] = {}
 
     recovery = RecoveryManager(store, app.state.tasks)
@@ -69,6 +73,7 @@ async def lifespan(app: FastAPI):
             task.cancel()
         await asyncio.gather(*live, return_exceptions=True)
         await close_http_client()
+        await credentials.aclose()
         await store.aclose()
 
 

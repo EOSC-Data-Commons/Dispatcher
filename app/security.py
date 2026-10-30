@@ -29,6 +29,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 
 from app.checkin import issuer
+from app.credentials import CredentialStore
 
 logger = logging.getLogger(__name__)
 
@@ -124,25 +125,30 @@ def access_token_from_request(request: Request) -> str | None:
     return None
 
 
-def on_login_tokens(
-    sub: str | None, access_token: str, refresh_token: str | None
+async def on_login_tokens(
+    store: "CredentialStore | None",
+    sub: str | None,
+    access_token: str,
+    refresh_token: str | None,
 ) -> None:
-    """Login-event seam for later phases.
-
-    The login callback (``app/routers/auth.py``) calls this with
-    everything Check-in issued. Today it only logs at debug level;
-    the janitor session (v4 plan, D2) replaces the body with a write to
-    the per-user credentials store, so out-of-band IM lifecycle
+    """Login-event seam: persist the caller's tokens into the per-user
+    credential store (v4 plan, D2), so out-of-band IM lifecycle
     operations can exchange the refresh token for a fresh access token.
 
-    ``offline_access`` is requested in the client scope so refresh
-    tokens ARE issued — capturing one later requires no config change.
+    The login callback (``app/routers/auth.py``) calls this with
+    everything Check-in issued; ``store`` is ``app.state.credentials``
+    (None in bare test apps ⇒ debug log only). ``offline_access`` is
+    requested in the client scope so refresh tokens ARE issued.
     """
-    logger.debug(
-        "Login for %s (refresh token %s)",
-        sub,
-        "issued" if refresh_token else "not issued",
-    )
+    if store is None or sub is None:
+        logger.debug(
+            "Login for %s (refresh token %s, store %s)",
+            sub,
+            "issued" if refresh_token else "not issued",
+            "wired" if store is not None else "not wired",
+        )
+        return
+    await store.upsert(sub, access_token, refresh_token)
 
 
 # --- request credential (FastAPI dependency) --------------------------------
