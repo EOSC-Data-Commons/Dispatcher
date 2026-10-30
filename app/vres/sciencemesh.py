@@ -1,7 +1,7 @@
 from .base_vre import VRE, vre_factory
 import hashlib
 import json
-import requests
+import httpx
 import logging
 import uuid
 from vre_rocrate import SCIENCEMESH_PROGRAMMING_LANGUAGE
@@ -11,6 +11,7 @@ from app.constants import (
 )
 from app.config import settings
 from app.exceptions import MissingOCMParameters, ScienceMeshAPIError
+from app import http as app_http
 from .utils.token_utils import extract_user_from_token
 
 logger = logging.getLogger(__name__)
@@ -22,25 +23,25 @@ class VREScienceMesh(VRE):
     def get_default_service(self):
         return f"https://{SCIENCEMESH_DEFAULT_DOMAIN}"
 
-    def post(self):
+    async def post(self):
+        svc_url = await self.setup_service()
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
-        data = self.create_ocm_share_request()
+        data = await self.create_ocm_share_request()
 
         try:
-            logger.info(f"{self.__class__.__name__}: calling {self.svc_url}")
-            response = requests.post(
-                f"{self.svc_url}/ocm/shares",
+            logger.info(f"{self.__class__.__name__}: calling {svc_url}")
+            response = await app_http.post(
+                f"{svc_url}/ocm/shares",
                 headers=headers,
                 json=data,
             )
             logger.info(f"{self.__class__.__name__}: returned {response.text}")
-            response.raise_for_status()
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             logger.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise ScienceMeshAPIError("ScienceMesh API call failed") from e
-        return self.svc_url + SERVICE_DEEP_LINK
+        return svc_url + SERVICE_DEEP_LINK
 
-    def create_ocm_share_request(self):
+    async def create_ocm_share_request(self):
         pkg = self.payload
         receiver_param = pkg.input_by_name(SCM_SHARE_WITH_INPUT_PARAM)
         receiver = receiver_param.default_value if receiver_param else None
@@ -49,7 +50,7 @@ class VREScienceMesh(VRE):
                 f"Missing required parameter '{SCM_SHARE_WITH_INPUT_PARAM}' to dispatch via OCM to a ScienceMesh VRE"
             )
 
-        # Extract sender/owner from access token (EGI Check-in federation backend)
+        # Extract sender/owner from access token (verified locally)
         token_user = extract_user_from_token(self.token)
         sender_userid = token_user.sub
         sender_name = token_user.name or token_user.sub

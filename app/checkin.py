@@ -65,6 +65,11 @@ def _endpoints() -> dict:
     }
 
 
+def token_endpoint() -> str:
+    """The realm's OAuth2 token endpoint (refresh-token exchanges — v4 D3)."""
+    return _endpoints()["token_endpoint"]
+
+
 def _openid_from_response(response: dict, session=None) -> OpenID:
     """Map Check-in's userinfo to the OpenID shape fastapi-sso expects.
 

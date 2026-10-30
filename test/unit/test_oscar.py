@@ -3,7 +3,7 @@
 import json
 import os
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
 from app.constants import OSCAR_DEFAULT_SERVICE
 from app.vres.oscar import VREOSCAR
@@ -14,48 +14,10 @@ from vre_rocrate import (
     FileReference,
 )
 
+COWSAY_CRATE_URL = "https://github.com/grycap/oscar-hub/tree/main/crates/cowsay"
+COWSAY_RAW_BASE = "https://raw.githubusercontent.com/grycap/oscar-hub/main/crates/cowsay/"
 
-def load_json(file_name):
-    """Load a json file from the test directory"""
-    abs_file_path = os.path.join(os.path.dirname(__file__), file_name)
-    with open(abs_file_path, encoding="utf-8") as f:
-        return json.load(f)
-
-
-@patch("app.vres.oscar.requests.get")
-def test_lifecycle(mock_get):
-    """Test OSCAR VRE post function"""
-    payload = VREPayload(
-        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
-        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
-        workflow=WorkflowDescriptor(
-            id="#workflow",
-            type="SoftwareSourceCode",
-            url="https://github.com/grycap/oscar-hub/tree/main/crates/cowsay",
-            runtime_platform="https://oscar.vre.eosc-data-commons.eu",
-        ),
-        files=[
-            FileReference(
-                id="https://example-files.online-convert.com/document/txt/example.txt",
-                name="simpletext_input",
-                encoding_format="text/txt",
-                url="https://example-files.online-convert.com/document/txt/example.txt",
-            ),
-        ],
-        raw_crate={},
-    )
-    client = MagicMock()
-    storage_client = client.create_storage_client.return_value
-    storage_provider_client = storage_client._get_client.return_value
-    vreoscar = VREOSCAR(
-        token="dummy_token",
-        request_id=0,
-        update_state=None,
-        payload=payload,
-        oscar_client_factory=lambda _url, _token: client,
-    )
-    fdl = load_json("../fixtures/cowsay.json")
-    fdl_yaml = """functions:
+FDL_YAML = """functions:
   oscar:
     - oscar-replica:
         name: cowsay
@@ -72,27 +34,62 @@ def test_lifecycle(mock_get):
         isolation_level: SERVICE
         visibility: private
 """
-    script = fdl["script"]
 
-    def get_side_effect(url, **kwargs):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        if url.endswith("fdl.yml"):
-            mock_resp.text = fdl_yaml
-        elif url.endswith("script.sh"):
-            mock_resp.text = script
-        elif url.endswith(".txt"):
-            mock_resp.text = "input file content"
-            mock_resp.content = b"input file content"
-        else:
-            mock_resp.status_code = 404
-            mock_resp.text = "Not Found"
-        return mock_resp
 
-    mock_get.side_effect = get_side_effect
+def load_json(file_name):
+    """Load a json file from the test directory"""
+    abs_file_path = os.path.join(os.path.dirname(__file__), file_name)
+    with open(abs_file_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _oscar_client():
+    client = MagicMock()
+    client.create_storage_client.return_value._get_client.return_value = MagicMock()
+    return client
+
+
+async def test_lifecycle(httpx_mock):
+    """Async OSCAR-Hub flow: fdl.yml + script.sh fetched from the crate
+    directory, service created and fed via MinIO upload, then torn down
+    through the remembered delivered URL."""
+    fdl = load_json("../fixtures/cowsay.json")
+    httpx_mock.add_response(method="GET", url=f"{COWSAY_RAW_BASE}fdl.yml", text=FDL_YAML)
+    httpx_mock.add_response(
+        method="GET", url=f"{COWSAY_RAW_BASE}script.sh", text=fdl["script"]
+    )
+
+    payload = VREPayload(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#workflow",
+            type="SoftwareSourceCode",
+            url=COWSAY_CRATE_URL,
+            runtime_platform="https://oscar.vre.eosc-data-commons.eu",
+        ),
+        files=[
+            FileReference(
+                id="https://example-files.online-convert.com/document/txt/example.txt",
+                name="simpletext_input",
+                encoding_format="text/txt",
+                url="https://example-files.online-convert.com/document/txt/example.txt",
+            ),
+        ],
+        raw_crate={},
+    )
+    client = _oscar_client()
+    storage_client = client.create_storage_client.return_value
+    storage_provider_client = storage_client._get_client.return_value
+    vreoscar = VREOSCAR(
+        token="dummy_token",
+        request_id=0,
+        payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
+    )
 
     with patch("app.vres.oscar.secrets.token_hex", return_value="a1b2c3d4"):
-        result = vreoscar.post()
+        result = await vreoscar.post()
 
     service_name = "cowsay-a1b2c3d4"
     assert result == f"{OSCAR_DEFAULT_SERVICE}/system/services/{service_name}"
@@ -105,17 +102,40 @@ def test_lifecycle(mock_get):
         "https://example-files.online-convert.com/document/txt/example.txt",
         "cowsay/input/example.txt",
     )
-    storage_client.upload_file.assert_not_called()
-    requested_urls = [call.args[0] for call in mock_get.call_args_list]
+    requested_urls = [str(r.url) for r in httpx_mock.get_requests()]
     assert any(url.endswith("fdl.yml") for url in requested_urls)
     assert any(url.endswith("script.sh") for url in requested_urls)
     assert not any(url.endswith("ro-crate-metadata.json") for url in requested_urls)
 
-    vreoscar.delete()
+    await vreoscar.delete()
     client.remove_service.assert_called_once_with(service_name)
 
 
-def test_fdl_in_rocrate():
+async def test_delete_uses_delivered_url_without_fdl_fetch(httpx_mock):
+    """With a delivered_url hint (as dispatch passes on DELETE), teardown
+    needs no FDL download and no extra round-trips."""
+    delivered = f"{OSCAR_DEFAULT_SERVICE}/system/services/cowsay-a1b2c3d4"
+    client = _oscar_client()
+    vre = VREOSCAR(
+        token="dummy_token",
+        request_id=0,
+        payload=VREPayload(
+            vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+            programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+            workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
+            raw_crate={},
+        ),
+        oscar_client_factory=lambda _url, _token: client,
+        delivered_url=delivered,
+    )
+    # NOTE: no responses registered — any fetch would fail the test.
+
+    await vre.delete()
+
+    client.remove_service.assert_called_once_with("cowsay-a1b2c3d4")
+
+
+async def test_fdl_in_rocrate():
     """Test missing OSCAR Hub directory URL in OSCAR VRE."""
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
@@ -126,30 +146,20 @@ def test_fdl_in_rocrate():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
         payload=payload,
     )
 
     with pytest.raises(VREConfigurationError) as exc:
-        vreoscar._get_fdl_from_crate()
+        await vreoscar._get_fdl_from_crate()
     assert "Missing OSCAR Hub directory URL in workflow entity" == str(exc.value)
 
 
-@patch("app.vres.oscar.requests.get")
-def test_oscar_creation_error(mock_get):
-    def get_side_effect(url, **kwargs):
-        response = MagicMock(status_code=200)
-        if url.endswith("fdl.yml"):
-            response.text = (
-                "functions:\n  oscar:\n    - cluster:\n"
-                "        name: test_service\n        script: script.sh\n"
-            )
-        elif url.endswith("script.sh"):
-            response.text = "#!/bin/sh\necho test\n"
-        return response
-
-    mock_get.side_effect = get_side_effect
-    client = MagicMock()
+async def test_oscar_creation_error(httpx_mock):
+    httpx_mock.add_response(method="GET", url="http://some-url/fdl.yml", text=FDL_YAML)
+    httpx_mock.add_response(
+        method="GET", url="http://some-url/script.sh", text="#!/bin/sh\necho test\n"
+    )
+    client = _oscar_client()
     client.create_service.side_effect = RuntimeError("Bad Request")
 
     payload = VREPayload(
@@ -163,17 +173,16 @@ def test_oscar_creation_error(mock_get):
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
 
     with pytest.raises(ExternalServiceError) as exc:
-        vreoscar.post()
+        await vreoscar.post()
     assert "Error creating OSCAR service: Bad Request" == str(exc.value)
 
 
-def test_script_fetch_error():
+async def test_script_fetch_error():
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
@@ -185,26 +194,27 @@ def test_script_fetch_error():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
         payload=payload,
     )
     fdl = "functions:\n  oscar:\n    - cluster:\n" "        name: test-service\n"
 
-    with patch.object(vreoscar, "_fetch_file", side_effect=[fdl, RuntimeError()]):
+    with patch.object(
+        vreoscar, "_fetch_file", new=AsyncMock(side_effect=[fdl, RuntimeError()])
+    ):
         with pytest.raises(VREConfigurationError) as exc:
-            vreoscar._get_fdl_from_crate()
+            await vreoscar._get_fdl_from_crate()
 
     assert "Failed to fetch OSCAR script" == str(exc.value)
 
 
-def test_synchronous_service_uses_run():
+async def test_synchronous_service_uses_run():
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
             id="#workflow",
             type="SoftwareSourceCode",
-            url="https://github.com/grycap/oscar-hub/tree/main/crates/cowsay",
+            url=COWSAY_CRATE_URL,
         ),
         files=[
             FileReference(
@@ -216,11 +226,10 @@ def test_synchronous_service_uses_run():
         ],
         raw_crate={},
     )
-    client = MagicMock()
+    client = _oscar_client()
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
@@ -230,9 +239,9 @@ def test_synchronous_service_uses_run():
         "script": "#!/bin/sh\necho test\n",
     }
 
-    with patch.object(vreoscar, "_get_fdl_from_crate", return_value=fdl):
+    with patch.object(vreoscar, "_get_fdl_from_crate", new=AsyncMock(return_value=fdl)):
         with patch("app.vres.oscar.secrets.token_hex", return_value="a1b2c3d4"):
-            vreoscar.post()
+            await vreoscar.post()
 
     run_args = client.run_service.call_args
     assert run_args.args == ("cowsay-a1b2c3d4",)

@@ -1,0 +1,14 @@
+# Keep the build context small: none of this is needed inside the image
+# (the app ships app/, requirements.txt, entrypoint.sh; vre-rocrate/ is
+# copied in by the source_local role and must NOT be excluded).
+.git
+.venv
+.pytest_cache
+.mypy_cache
+.coverage
+.opencode
+**/__pycache__
+test
+plans
+ansible
+docs

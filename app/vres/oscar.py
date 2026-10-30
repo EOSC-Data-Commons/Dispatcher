@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -6,10 +7,10 @@ import tempfile
 from oscar_python.client import Client
 from urllib.parse import urljoin, urlparse
 
-import requests
 import yaml
 
 from .base_vre import VRE, vre_factory
+from app import http as app_http
 from app.exceptions import (
     VREConfigurationError,
     ExternalServiceError,
@@ -32,7 +33,7 @@ class VREOSCAR(VRE):
     def get_default_service(self):
         return OSCAR_DEFAULT_SERVICE
 
-    def _get_fdl_from_crate(self):
+    async def _get_fdl_from_crate(self):
         if self.fdl_json:
             return self.fdl_json
 
@@ -47,11 +48,11 @@ class VREOSCAR(VRE):
         script_url = urljoin(crate_base_url, "script.sh")
 
         try:
-            fdl = yaml.safe_load(self._fetch_file(fdl_url))
+            fdl = yaml.safe_load(await self._fetch_file(fdl_url))
         except yaml.YAMLError as ex:
             raise VREConfigurationError("Invalid FDL YAML in OSCAR Hub crate") from ex
         try:
-            script = self._fetch_file(script_url)
+            script = await self._fetch_file(script_url)
         except Exception as ex:
             raise VREConfigurationError("Failed to fetch OSCAR script") from ex
 
@@ -101,12 +102,12 @@ class VREOSCAR(VRE):
             raise VREConfigurationError("Missing service name in OSCAR FDL")
         return service
 
-    def _write_input_file(self, directory, file_reference):
+    async def _write_input_file(self, directory, file_reference):
         source = file_reference.url or file_reference.id
         filename = os.path.basename(urlparse(source).path) or file_reference.name
         content = file_reference.properties.get("content")
         if content is None:
-            content = self._fetch_file(source, as_binary=True)
+            content = await self._fetch_file(source, as_binary=True)
         if isinstance(content, str):
             content = content.encode()
         local_path = os.path.join(directory, filename)
@@ -114,10 +115,9 @@ class VREOSCAR(VRE):
             stream.write(content)
         return local_path
 
-    def _fetch_file(self, url, as_binary=False):
+    async def _fetch_file(self, url, as_binary=False):
         try:
-            response = requests.get(url, timeout=60)
-            response.raise_for_status()
+            response = await app_http.get(url, timeout=60)
             if as_binary:
                 return response.content
             return response.text
@@ -140,31 +140,36 @@ class VREOSCAR(VRE):
             return "asynchronous"
         return "synchronous"
 
-    def post(self):
-        fdl_json = self._get_fdl_from_crate()
+    async def post(self):
+        url = await self.setup_service()
+        fdl_json = await self._get_fdl_from_crate()
         self.fdl_json = fdl_json
         service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
         fdl_json["name"] = service_name
 
         logger.info(f"Creating OSCAR service {service_name}")
         logger.debug(f"FDL: {json.dumps(fdl_json)}")
-        url = self.svc_url
         client = self._oscar_client_factory(url, self.token)
         try:
-            client.create_service(fdl_json)
+            # oscar_python is a synchronous SDK — never block the event loop.
+            await asyncio.to_thread(client.create_service, fdl_json)
         except Exception as ex:
             raise ExternalServiceError(f"Error creating OSCAR service: {ex}") from ex
 
         if self._get_service_type(fdl_json) == "synchronous":
-            self._invoke_service(client, service_name, self.payload.oscar_input_files)
+            await self._invoke_service(client, service_name, self.payload.oscar_input_files)
         else:
-            self._upload_input_files(
+            await self._upload_input_files(
                 client, service_name, fdl_json, self.payload.oscar_input_files
             )
 
-        return f"{url}/system/services/{service_name}"
+        # Remember what we delivered: delete() prefers the dispatch hint
+        # (delivered_url kwarg) but falls back to this, so post-then-delete
+        # on one instance needs no FDL re-download either.
+        self.delivered_url = f"{url}/system/services/{service_name}"
+        return self.delivered_url
 
-    def _upload_input_files(self, client, service_name, service, files):
+    async def _upload_input_files(self, client, service_name, service, files):
         inputs = service.get("input")
         if not isinstance(inputs, list) or not inputs:
             raise VREConfigurationError("OSCAR service does not define an input path")
@@ -190,41 +195,61 @@ class VREOSCAR(VRE):
             provider = "minio.default"
 
         try:
-            storage_client = client.create_storage_client(service_name)
+            storage_client = await asyncio.to_thread(
+                client.create_storage_client, service_name
+            )
             for file_reference in files:
                 filename = (
                     os.path.basename(urlparse(file_reference.url).path)
                     or file_reference.name
                 )
-                storage_client._get_client(provider).upload_url(
-                    file_reference.url, os.path.join(input_path, filename)
+                destination = os.path.join(input_path, filename)
+                await asyncio.to_thread(
+                    lambda: storage_client._get_client(provider).upload_url(
+                        file_reference.url, destination
+                    )
                 )
         except Exception as ex:
             raise ExternalServiceError(
                 f"Error uploading OSCAR input file: {ex}"
             ) from ex
 
-    def _invoke_service(self, client, service_name, files):
+    async def _invoke_service(self, client, service_name, files):
         for file_reference in files:
             try:
                 with tempfile.TemporaryDirectory(
                     prefix="dispatcher-oscar-"
                 ) as directory:
-                    local_path = self._write_input_file(directory, file_reference)
-                    client.run_service(service_name, input=local_path, timeout=300)
+                    local_path = await self._write_input_file(directory, file_reference)
+                    await asyncio.to_thread(
+                        client.run_service,
+                        service_name,
+                        input=local_path,
+                        timeout=300,
+                    )
             except Exception as ex:
                 raise ExternalServiceError(
                     f"Error invoking OSCAR service: {ex}"
                 ) from ex
 
-    def delete(self):
-        fdl_json = self._get_fdl_from_crate()
-        service_name = fdl_json["name"]
+    async def delete(self):
+        # Prefer the delivered URL (dispatch.delete_flow hint, or remembered
+        # by post()): the service name is its basename, so teardown needs
+        # no FDL re-download and no setup_service round-trip. The crate
+        # fallback exists for direct same-instance use without either.
+        delivered = getattr(self, "delivered_url", None)
+        if delivered:
+            service_name = delivered.rstrip("/").rsplit("/", 1)[-1]
+            url = delivered.rsplit("/system/services/", 1)[0]
+        else:
+            fdl_json = await self._get_fdl_from_crate()
+            service_name = fdl_json["name"]
+            url = await self.setup_service()
 
         logger.info(f"Deleting OSCAR service {service_name}")
-        client = self._oscar_client_factory(self.svc_url, self.token)
+        client = self._oscar_client_factory(url, self.token)
         try:
-            client.remove_service(service_name)
+            await asyncio.to_thread(client.remove_service, service_name)
         except Exception as ex:
             raise ExternalServiceError(f"Error deleting OSCAR service: {ex}") from ex
 
