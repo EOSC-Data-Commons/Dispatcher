@@ -62,8 +62,11 @@ small at our restart frequency. v4 drops it.
   token per flow, we keep one **refresh token per user**, captured at login,
   and exchange it for a fresh access token whenever asynchronous cleanup
   needs IM credentials. See section 8.
-- Caller token reads move off a shared middleware singleton (which held the
-  *last login's* token — a real multi-user bug) to a per-user store.
+- Caller token reads no longer go through a shared middleware singleton
+  (which held the *last login's* token — a real multi-user bug). This is
+  already fixed on master by Auth Design 1: every protected route verifies
+  the request's own token via `app.security.oauth2_scheme`, so dispatch
+  and DELETE always carry the caller's token.
 
 Everything else from v3 stays. Section 9 lists those decisions so reviewers
 do not have to re-derive them.
@@ -131,11 +134,15 @@ keeps its `im_inf_id`, and dead records lose their VMs**.
 Cleanup does IM calls after the dispatch has ended. A plain access token
 (~1 h) could never cover that. Instead:
 
-1. **Capture at login.** A thin subclass of the `fastapi_oauth2` middleware
-   stores, after a successful login, the user's EGI `refresh_token` plus the
-   access token into the credentials table, keyed by OIDC `sub`. (EGI sends
-   the refresh token in the standard response when it is enabled for the
-   client registration.)
+1. **Capture at login.** Auth Design 1 (merged to master before this
+   plan's implementation) removed the `fastapi_oauth2` middleware
+   entirely; the login callback in `app/routers/auth.py` already calls
+   `security.on_login_tokens(sub, access_token, refresh_token)` — a seam
+   left empty for exactly this plan. D2 gives it a body: write the user's
+   EGI `refresh_token` plus the access token into the credentials table,
+   keyed by OIDC `sub`. (`offline_access` is already in
+   `app.checkin.LOGIN_SCOPE`, so Check-in issues refresh tokens; EGI sends
+   it in the standard response.)
 2. **Use for lifecycle calls.** When the janitor or an orphan-reap needs IM
    auth, it reads the user's row, exchanges the refresh token for a fresh
    access token (EGI Check-in token endpoint, `grant_type=refresh_token`,
@@ -146,10 +153,12 @@ Cleanup does IM calls after the dispatch has ended. A plain access token
    scan. User-facing calls (dispatch, DELETE) always use the fresh session
    token, so users never see cleanup failures.
 
-Bonus fix from this design: today `request.auth.provider.access_token` is a
-shared singleton that holds the token of *whoever logged in last*, so two
-concurrent users can receive each other's token. Reading from the
-credentials store per `sub` removes the race.
+Bonus fix from this design — already landed: master's Auth Design 1
+removed the shared `request.auth.provider.access_token` singleton; tokens
+are now verified per request (`oauth2_scheme`), so two concurrent users
+can no longer receive each other's token. The credentials store is read
+only by asynchronous cleanup (janitor, orphan reaps); user-facing calls
+always use the request's own token.
 
 Recorded fallback, if EGI does not hand refresh tokens to our client on the
 dev instance: an operator-owned IM service credential in settings. Rejected
@@ -188,7 +197,9 @@ Listed so nobody re-argues them in review:
 2. Task record loses crate/outputs/token/resume columns.
 3. Janitor simplifies to startup fail-fast + periodic stale/reap/TTL-off.
 4. IM cleanup auth = per-user refresh token captured at login.
-5. Caller access token now read from the credential store by `sub`.
+5. Caller access token is per-request (Auth Design 1 already verifies the
+   request's own token); the credential store is read only by asynchronous
+   cleanup, never by user-facing calls.
 6. Non-IM teardown keeps working via the record's delivered URL only
    (`delivered_url` hint) — crate is gone at DELETE time. (OSCAR today.)
 7. Startup orphans fail immediately, not after the stale timeout.
@@ -198,6 +209,15 @@ Listed so nobody re-argues them in review:
 Work on top of the current codebase, as separate commits per phase below;
 keep the test suite green throughout.
 
+- **R — re-land the prototype.** The v3 prototype lives off-branch (branch
+  `celery2async-prototype`, preserved from the `celery2async` stash; it was
+  written against pre-Auth-Design-1 master). First commit series: apply it,
+  resolve conflicts, and adapt its identity plumbing to Auth Design 1 —
+  drop `request.scope["user"]`/`scope["auth"]` reads; routers pass the
+  token from `Depends(oauth2_scheme)` and dispatch derives the owner via
+  `security.verify`. The bundled extras in the stash (AGENTS.md,
+  docs/agents/, the two plans comparisons, `test-config-render.sh`) do not
+  land. Suite green before D0 starts.
 - **D0 — slim the record.** Drop `crate_json, im_token, im_outputs,
   resume_stage` from `TaskRecord`, both backends, `_UPDATABLE_FIELDS`,
   tests. Suite green.
@@ -207,9 +227,10 @@ keep the test suite green throughout.
   `vre_runner`/`dispatch` lose resume params and the `im_token` record
   field. DELETE-time VRE teardown switched to the `delivered_url` hint
   (drop crate rebuilding on DELETE).
-- **D2 — credential store.** Protocol + SQLite + in-memory impls; login
-  capture through a subclassed middleware pair feeding it; switch
-  `caller_access_token` to read it per `sub`.
+- **D2 — credential store.** Protocol + SQLite + in-memory impls; capture
+  through the existing `security.on_login_tokens` seam (Auth Design 1
+  already requests `offline_access`); user-facing calls keep the
+  per-request token — only cleanup reads the store.
 - **D3 — refresh helper.** `exchange_refresh_token()` using the shared
   http/tenacity layer; rotation write-back.
 - **D4 — janitor.** Delete `_respawn` and the crate-rebuild import; startup =
@@ -266,4 +287,17 @@ green.
 
 ## 13. Repo state for the executor
 
-- Design notes: v1/v2/v3 live in `plans/` on `feature/async-execution`.
+- Design notes: v1/v2/v3/v4 live in `plans/` on `feature/async-execution`.
+- Base: master includes Auth Design 1 (`app/security.py`,
+  `app/checkin.py`, `app/routers/auth.py`) — per-request JWT verification,
+  the `on_login_tokens` login seam, and `offline_access` in the login
+  scope. Python 3.13, uv-managed `.venv`, pytest suite under `test/unit`.
+- The v3 prototype implementation is preserved off-branch on
+  `celery2async-prototype` (full stash, including the extras that stay
+  out of this branch). Phase R re-lands it here, adapted to Auth Design 1.
+- The async IM wire client is `imclient.AsyncIMClient` from the local
+  clone `../im-client`, branch `feature/async-client` (editable install;
+  the PyPI `im-client==1.8.4` release ships no async client).
+- Out of scope here: multi-instance operation (single uvicorn worker),
+  whole-flow retries, resume (archived in v3's design and the
+  `celery2async-prototype` branch).
