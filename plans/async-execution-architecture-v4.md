@@ -1,7 +1,14 @@
 # Async Execution Architecture (v4)
 
-**Status:** approved for implementation. Replaces the v3 design note
-(lives on `feature/async-execution`, commit `c37f584`).
+**Status:** implemented on `feature/async-execution` (phases R, D0–D6 as
+separate commits; the v3 prototype is preserved on
+`celery2async-prototype`). Outstanding before merge: the two live gates
+from D5 — one live EGI Check-in login verifying the credential row
+carries a refresh token, and one live IM smoke run (create → wait →
+outputs → destroy) — plus the D6 operator items that live outside the
+repo: scheduling off-host registry backups, executing (and documenting)
+the restore drill, and verifying the non-root container in a real
+deployment. Replaces the v3 design note.
 
 This note is self-contained. It describes what we will build, the decisions
 behind it, and the implementation order. Language note: the project glossary
