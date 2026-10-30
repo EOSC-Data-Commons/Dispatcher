@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     status_ttl: int = {{ task_store.status_ttl | default(86400) }}
     janitor_interval: int = {{ task_store.janitor_interval | default(60) }}
     stale_task_timeout: int = {{ task_store.stale_task_timeout | default(3600) }}
+    reap_failure_threshold: int = {{ task_store.reap_failure_threshold | default(5) }}
     # TTL-destroy of delivered VMs. Keep OFF by default (None). A filter default
     # like `| default(None)` renders as an EMPTY string under jinja2-cli (which
     # is a SyntaxError), so always use this if/else guard that emits a literal.
