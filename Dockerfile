@@ -1,6 +1,10 @@
 FROM python:3.13
 
-RUN groupadd -r celery && useradd -r -g celery celery
+# Non-root service user (v4 D6 token hygiene: the SQLite registry/credential
+# file is 600/700 and must not be root-readable). /data is the DB volume
+# mountpoint — docker copies its ownership into a fresh named volume.
+RUN groupadd -r dispatcher && useradd -r -g dispatcher dispatcher \
+    && mkdir -p /data && chown dispatcher:dispatcher /data
 WORKDIR /usr/src
 
 # Set environment variables
@@ -26,3 +30,5 @@ RUN if [ -d "/usr/src/vre-rocrate" ]; then \
     else \
     pip install --no-cache-dir -r requirements.txt; \
     fi
+
+USER dispatcher

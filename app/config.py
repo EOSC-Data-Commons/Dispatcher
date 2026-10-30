@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     janitor_interval: int = 60  # seconds between recovery manager scans
     stale_task_timeout: int = 3600  # seconds without heartbeat => "worker lost"
     infra_max_lifetime: int | None = None  # TTL-destroy of delivered VMs; OFF
+    reap_failure_threshold: int = 5  # reap attempts before escalating to the worklist
 
     # Shared HTTP client + per-call retry policy
     http_default_timeout: float = 30.0

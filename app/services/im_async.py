@@ -182,6 +182,19 @@ class AsyncIM:
             return
         try:
             await self._client.destroy(inf_id)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (404, 410):
+                # Already gone: idempotent success (v4 D6 — the janitor must
+                # stop retrying an infra that no longer exists).
+                logger.info(
+                    "Service %s already gone (HTTP %d).",
+                    inf_id,
+                    exc.response.status_code,
+                )
+                if inf_id == self.inf_id:
+                    self.inf_id = None
+                return
+            raise IMError(f"Failed to destroy service: {exc}") from exc
         except httpx.HTTPError as exc:
             raise IMError(f"Failed to destroy service: {exc}") from exc
         logger.info("Service %s destroyed successfully.", inf_id)

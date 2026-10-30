@@ -327,6 +327,58 @@ class TestDestroy:
 
         assert client.destroy_calls == []
 
+    async def test_destroy_404_is_idempotent_success(self):
+        """Already-gone infra (404/410) counts as destroyed (v4 D6): the
+        janitor must stop retrying instead of warning forever."""
+        import httpx
+
+        class _Gone(_FakeWireClient):
+            async def destroy(self, inf_id):
+                self.destroy_calls.append(inf_id)
+                request = httpx.Request("DELETE", f"http://im/infrastructures/{inf_id}")
+                response = httpx.Response(404, request=request)
+                raise httpx.HTTPStatusError("gone", request=request, response=response)
+
+        im = _make_im(_Gone())
+        im.inf_id = "inf-1"
+
+        await im.destroy()  # must not raise
+
+        assert im.inf_id is None
+
+    async def test_destroy_410_is_idempotent_success(self):
+        import httpx
+
+        class _Gone(_FakeWireClient):
+            async def destroy(self, inf_id):
+                self.destroy_calls.append(inf_id)
+                request = httpx.Request("DELETE", f"http://im/infrastructures/{inf_id}")
+                response = httpx.Response(410, request=request)
+                raise httpx.HTTPStatusError("gone", request=request, response=response)
+
+        im = _make_im(_Gone())
+        im.inf_id = "inf-1"
+
+        await im.destroy()  # must not raise
+
+        assert im.inf_id is None
+
+    async def test_destroy_other_http_error_still_raises_imerror(self):
+        import httpx
+
+        class _Failing(_FakeWireClient):
+            async def destroy(self, inf_id):
+                self.destroy_calls.append(inf_id)
+                request = httpx.Request("DELETE", f"http://im/infrastructures/{inf_id}")
+                response = httpx.Response(500, request=request)
+                raise httpx.HTTPStatusError("boom", request=request, response=response)
+
+        im = _make_im(_Failing())
+        im.inf_id = "inf-1"
+
+        with pytest.raises(IMError, match="Failed to destroy service"):
+            await im.destroy()
+
 
 class TestRunComposite:
     async def test_run_full_sequence(self, httpx_mock):

@@ -39,6 +39,7 @@ class RecoveryManager:
         interval: float | None = None,
         stale_timeout: float | None = None,
         infra_max_lifetime: float | None = None,
+        reap_failure_threshold: int | None = None,
     ):
         self._store = store
         self._registry = registry
@@ -53,7 +54,28 @@ class RecoveryManager:
             if infra_max_lifetime is not None
             else settings.infra_max_lifetime
         )
+        self._reap_failure_threshold = (
+            reap_failure_threshold
+            if reap_failure_threshold is not None
+            else settings.reap_failure_threshold
+        )
+        #: Per-record reap attempt counters (task_id -> consecutive
+        #: failures) and the alerting surface (D6): a reap-failure counter
+        #: plus the worklist of records stuck past the threshold.
+        self._reap_attempts: dict[str, int] = {}
+        self.reap_failures = 0
         self._stopped = asyncio.Event()
+
+    @property
+    def reap_worklist(self) -> list[str]:
+        """Records whose infra destroy kept failing past the threshold —
+        the visible worklist for operators (each entry is a task_id with
+        live paid infrastructure the janitor cannot reap)."""
+        return [
+            task_id
+            for task_id, attempts in self._reap_attempts.items()
+            if attempts >= self._reap_failure_threshold
+        ]
 
     def stop(self) -> None:
         self._stopped.set()
@@ -167,6 +189,24 @@ class RecoveryManager:
         if record.im_inf_id and not record.destroyed_at:
             await self._reap_infra(record, _utcnow())
 
+    def _count_reap_failure(self, record: TaskRecord, reason: str, *args) -> None:
+        """A reap did not happen (auth gap or destroy failure): count it,
+        retry next scan, and escalate to ERROR + the worklist past the
+        threshold — warning-forever is not alerting (v4 D6)."""
+        self.reap_failures += 1
+        attempts = self._reap_attempts.get(record.task_id, 0) + 1
+        self._reap_attempts[record.task_id] = attempts
+        log = (
+            logger.error if attempts >= self._reap_failure_threshold else logger.warning
+        )
+        log(
+            "Infra %s of task %s NOT reaped (attempt %d): " + reason,
+            record.im_inf_id,
+            record.task_id,
+            attempts,
+            *args,
+        )
+
     async def _reap_infra(
         self,
         record: TaskRecord,
@@ -180,12 +220,8 @@ class RecoveryManager:
         if self._credentials is not None and record.sub is not None:
             token = await exchange_refresh_token(self._credentials, record.sub)
             if token is None:
-                logger.warning(
-                    "No usable credentials for sub %s — destroy of infra %s "
-                    "(task %s) deferred to next scan",
-                    record.sub,
-                    record.im_inf_id,
-                    record.task_id,
+                self._count_reap_failure(
+                    record, "no usable credentials for sub %s", record.sub
                 )
                 return
         try:
@@ -195,13 +231,9 @@ class RecoveryManager:
             finally:
                 await im.aclose()
         except Exception as exc:
-            logger.warning(
-                "Failed to destroy infra %s of task %s: %s",
-                record.im_inf_id,
-                record.task_id,
-                exc,
-            )
+            self._count_reap_failure(record, "destroy failed: %s", exc)
             return
+        self._reap_attempts.pop(record.task_id, None)
         logger.info(
             "Reaped orphaned infra %s of task %s", record.im_inf_id, record.task_id
         )

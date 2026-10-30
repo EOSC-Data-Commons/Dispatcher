@@ -23,6 +23,7 @@ Two backends behind the :class:`CredentialStore` protocol, mirroring
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import Protocol, runtime_checkable
@@ -139,6 +140,10 @@ class SQLiteCredentialStore:
         await self._conn.execute("PRAGMA synchronous=FULL")
         await self._conn.executescript(_SCHEMA)
         await self._conn.commit()
+        if self._db_path != ":memory:":
+            # Same permission class as the task registry (v4 D6): the
+            # refresh tokens in this table impersonate their users.
+            os.chmod(self._db_path, 0o600)
 
     async def aclose(self) -> None:
         if self._conn is not None:

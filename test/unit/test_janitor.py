@@ -214,8 +214,45 @@ async def test_failed_destroy_failure_retries_next_scan(store, registry, caplog)
     record = await store.get("t-1")
     assert record.destroyed_at is None
     assert not fake.destroyed  # destroy kept failing
-    warnings = [r for r in caplog.records if "Failed to destroy infra" in r.message]
+    warnings = [r for r in caplog.records if "NOT reaped" in r.message]
     assert len(warnings) == 2  # retried on the next scan
+
+
+async def test_reap_failures_escalate_to_the_worklist(store, registry, caplog):
+    """Past reap_failure_threshold the log escalates to ERROR and the
+    record lands on the visible worklist — warning-forever is not
+    alerting (v4 D6)."""
+    await _add(store, status=TaskStatus.FAILURE, im_inf_id="infra-5")
+    fake = FakeAsyncIM(destroy_raises=RuntimeError("boom"))
+    janitor = _janitor(store, registry, fake, reap_failure_threshold=3)
+
+    with caplog.at_level("WARNING", logger="app.services.janitor"):
+        for _ in range(3):
+            await janitor.scan_once()
+
+    assert janitor.reap_failures == 3
+    assert janitor.reap_worklist == ["t-1"]
+    errors = [
+        r
+        for r in caplog.records
+        if r.levelname == "ERROR" and "NOT reaped" in r.message
+    ]
+    assert len(errors) == 1  # the third attempt escalated
+
+
+async def test_successful_reap_clears_the_worklist(store, registry):
+    await _add(store, status=TaskStatus.FAILURE, im_inf_id="infra-5")
+    fake = FakeAsyncIM(destroy_raises=RuntimeError("transient"))
+    janitor = _janitor(store, registry, fake, reap_failure_threshold=2)
+
+    await janitor.scan_once()  # fails
+
+    janitor._im_factory = lambda token: FakeAsyncIM()  # factory recovers
+    await janitor.scan_once()  # succeeds
+
+    assert janitor.reap_failures == 1
+    assert janitor.reap_worklist == []
+    assert (await store.get("t-1")).destroyed_at is not None
 
 
 async def test_failed_without_infra_needs_no_action(store, registry):
@@ -331,7 +368,7 @@ async def test_reap_with_failed_exchange_defers_destroy_to_next_scan(
     assert attempts == []  # destroy never attempted without credentials
     record = await store.get("t-1")
     assert record.destroyed_at is None
-    deferred = [r for r in caplog.records if "deferred to next scan" in r.message]
+    deferred = [r for r in caplog.records if "no usable credentials" in r.message]
     assert len(deferred) == 1
 
 

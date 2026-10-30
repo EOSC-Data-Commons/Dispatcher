@@ -118,6 +118,19 @@ async def test_sqlite_store_shares_the_status_store_file(tmp_path):
     await status.aclose()
 
 
+async def test_sqlite_file_hygiene_600(tmp_path):
+    """The credential file carries refresh tokens — owner-only (v4 D6)."""
+    import os
+    import stat
+
+    db = str(tmp_path / "creds.db")
+    store = SQLiteCredentialStore(db)
+    await store.connect()
+
+    assert stat.S_IMODE(os.stat(db).st_mode) == 0o600
+    await store.aclose()
+
+
 def test_in_memory_store_satisfies_protocol():
     assert isinstance(InMemoryCredentialStore(), CredentialStore)
     assert isinstance(SQLiteCredentialStore(":memory:"), CredentialStore)

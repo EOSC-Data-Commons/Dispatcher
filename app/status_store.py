@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -223,12 +224,33 @@ class SQLiteStatusStore:
         if self._conn is not None:
             return
         if self._db_path != ":memory:":
-            Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
+            path = Path(self._db_path)
+            parent_existed = path.parent.exists()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if not parent_existed:
+                # Token-file hygiene (v4 D6): the registry file shares the
+                # permission class of the credential store — one read of it
+                # impersonates every user to the VREs.
+                path.parent.chmod(0o700)
         self._conn = await aiosqlite.connect(self._db_path)
         self._conn.row_factory = aiosqlite.Row
         await self._conn.execute("PRAGMA journal_mode=WAL")
         await self._conn.execute("PRAGMA synchronous=FULL")
         await self._migrate()
+        if self._db_path != ":memory:":
+            os.chmod(self._db_path, 0o600)
+
+    async def backup_to(self, dest_path: str) -> None:
+        """Online backup to *dest_path* via SQLite's ``.backup`` API —
+        safe while writes are in flight. Scheduled off-host shipping of
+        the result is an operator concern (runbook; v4 D6)."""
+        if self._conn is None:
+            raise RuntimeError("Store not connected")
+        dest = await aiosqlite.connect(dest_path)
+        try:
+            await self._conn.backup(dest)
+        finally:
+            await dest.close()
 
     async def _migrate(self) -> None:
         assert self._conn is not None

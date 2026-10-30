@@ -272,6 +272,42 @@ class TestSQLiteSpecifics:
         assert fetched is not None
         assert fetched.task_id == "persisted"
 
+    async def test_online_backup_captures_rows(self, tmp_path):
+        """backup_to uses SQLite's online .backup API — safe while writes
+        are in flight (v4 D6 registry backup)."""
+        import aiosqlite
+
+        db_path = str(tmp_path / "tasks.db")
+        backup_path = str(tmp_path / "backup.db")
+        store = SQLiteStatusStore(db_path)
+        await store.connect()
+        await store.create(_record("t-1"))
+        await store.create(_record("t-2"))
+
+        await store.backup_to(backup_path)
+
+        # The backup is a complete, readable SQLite database.
+        async with aiosqlite.connect(backup_path) as conn:
+            async with conn.execute("SELECT COUNT(*) FROM tasks") as cur:
+                (count,) = await cur.fetchone()
+        assert count == 2
+        await store.aclose()
+
+    async def test_db_file_hygiene_600(self, tmp_path):
+        """Token-file hygiene (v4 D6): the registry file is owner-only
+        (0600), and a directory we created for it is 0700 — one read of
+        this file impersonates every user to the VREs."""
+        import os
+        import stat
+
+        db_path = str(tmp_path / "nested" / "deep" / "tasks.db")
+        store = SQLiteStatusStore(db_path)
+        await store.connect()
+
+        assert stat.S_IMODE(os.stat(db_path).st_mode) == 0o600
+        assert stat.S_IMODE(os.stat(os.path.dirname(db_path)).st_mode) == 0o700
+        await store.aclose()
+
     async def test_v1_fat_schema_migrates_and_keeps_data(self, tmp_path):
         """A prototype-era v1 database (with the resume columns) migrates
         to the v4 slim schema without losing rows."""
