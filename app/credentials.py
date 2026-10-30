@@ -28,7 +28,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Protocol, runtime_checkable
 
 import aiosqlite
+import httpx
 
+from app import http as app_http
+from app.checkin import token_endpoint
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -177,9 +180,7 @@ class SQLiteCredentialStore:
         return self._row_to_record(row) if row is not None else None
 
     async def delete(self, sub: str) -> None:
-        async with self._conn.execute(
-            "DELETE FROM credentials WHERE sub = ?", (sub,)
-        ):
+        async with self._conn.execute("DELETE FROM credentials WHERE sub = ?", (sub,)):
             pass
         await self._conn.commit()
 
@@ -207,7 +208,8 @@ class InMemoryCredentialStore:
             sub=sub,
             access_token=access_token,
             # Same COALESCE rule as the SQLite backend.
-            refresh_token=refresh_token or (previous.refresh_token if previous else None),
+            refresh_token=refresh_token
+            or (previous.refresh_token if previous else None),
             updated_at=now,
             expires_at=now + timedelta(seconds=ACCESS_TOKEN_TTL),
         )
@@ -221,3 +223,69 @@ class InMemoryCredentialStore:
 
     async def aclose(self) -> None:
         pass
+
+
+# ---------------------------------------------------------------------------
+# Refresh exchange (D3)
+# ---------------------------------------------------------------------------
+
+
+async def exchange_refresh_token(
+    store: CredentialStore,
+    sub: str,
+    *,
+    token_url: str | None = None,
+    client_id: str | None = None,
+    client_secret: str | None = None,
+) -> str | None:
+    """Exchange ``sub``'s stored refresh token for a fresh access token.
+
+    Reads the user's row, POSTs ``grant_type=refresh_token`` to the
+    Check-in token endpoint through the shared http/tenacity layer
+    (transient failures retry; an ``invalid_grant`` 4xx fails fast), and
+    writes the rotated refresh token back to the store (EGI rotates on
+    every exchange; a provider that reuses tokens keeps the old one via
+    the upsert COALESCE).
+
+    Returns the fresh access token, or None when the user has no captured
+    refresh token or the exchange was rejected (rotated out / revoked) —
+    callers log and retry on the next scan (v4 §8.4).
+    """
+    record = await store.get(sub)
+    if record is None or record.refresh_token is None:
+        logger.warning(
+            "No refresh token captured for %s — cannot exchange credentials", sub
+        )
+        return None
+
+    url = token_url or token_endpoint()
+    form = {
+        "grant_type": "refresh_token",
+        "refresh_token": record.refresh_token,
+        "client_id": client_id or settings.client_id,
+        "client_secret": client_secret or settings.client_secret,
+    }
+    try:
+        response = await app_http.post(url, data=form, raise_for_status=False)
+    except httpx.HTTPError as exc:
+        logger.warning("Refresh-token exchange for %s failed: %s", sub, exc)
+        return None
+
+    if response.status_code != 200:
+        logger.warning(
+            "Refresh-token exchange for %s rejected (HTTP %d): %s",
+            sub,
+            response.status_code,
+            response.text,
+        )
+        return None
+
+    payload = response.json()
+    access_token = payload.get("access_token")
+    if not access_token:
+        logger.warning("Refresh-token exchange for %s returned no access_token", sub)
+        return None
+
+    await store.upsert(sub, access_token, payload.get("refresh_token"))
+    logger.info("Refreshed credentials for %s (rotation written back)", sub)
+    return access_token

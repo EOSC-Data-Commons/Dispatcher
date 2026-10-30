@@ -1,5 +1,6 @@
-"""Unit tests for the per-user credential store (v4 plan, D2)."""
+"""Unit tests for the per-user credential store (v4 plan, D2/D3)."""
 
+import httpx
 import pytest
 
 from app.credentials import (
@@ -7,8 +8,13 @@ from app.credentials import (
     CredentialStore,
     InMemoryCredentialStore,
     SQLiteCredentialStore,
+    exchange_refresh_token,
 )
 from app.status_store import InMemoryStatusStore, SQLiteStatusStore
+
+_DEV_TOKEN_ENDPOINT = (
+    "https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/token"
+)
 
 
 def _stores():
@@ -115,3 +121,109 @@ async def test_sqlite_store_shares_the_status_store_file(tmp_path):
 def test_in_memory_store_satisfies_protocol():
     assert isinstance(InMemoryCredentialStore(), CredentialStore)
     assert isinstance(SQLiteCredentialStore(":memory:"), CredentialStore)
+
+
+# ---------------------------------------------------------------------------
+# exchange_refresh_token (D3)
+# ---------------------------------------------------------------------------
+
+
+async def test_exchange_returns_access_token_and_writes_rotation_back(httpx_mock):
+    store = InMemoryCredentialStore()
+    await store.upsert("sub-1", "old-access", "old-refresh")
+    httpx_mock.add_response(
+        method="POST",
+        url=_DEV_TOKEN_ENDPOINT,
+        json={"access_token": "new-access", "refresh_token": "new-refresh"},
+    )
+
+    token = await exchange_refresh_token(store, "sub-1")
+
+    assert token == "new-access"
+    record = await store.get("sub-1")
+    assert record.access_token == "new-access"
+    assert record.refresh_token == "new-refresh"
+
+
+async def test_exchange_sends_oauth_refresh_grant(httpx_mock):
+    store = InMemoryCredentialStore()
+    await store.upsert("sub-1", "old-access", "old-refresh")
+    httpx_mock.add_response(
+        method="POST",
+        url=_DEV_TOKEN_ENDPOINT,
+        json={"access_token": "new-access", "refresh_token": "new-refresh"},
+    )
+
+    await exchange_refresh_token(store, "sub-1", client_id="cid", client_secret="cs")
+
+    import urllib.parse
+
+    body = urllib.parse.parse_qs(httpx_mock.get_requests()[0].read().decode())
+    assert body["grant_type"] == ["refresh_token"]
+    assert body["refresh_token"] == ["old-refresh"]
+    assert body["client_id"] == ["cid"]
+    assert body["client_secret"] == ["cs"]
+
+
+async def test_exchange_without_rotation_keeps_old_refresh_token(httpx_mock):
+    """A provider that reuses refresh tokens: None response field must not
+    blank the stored one (upsert COALESCE)."""
+    store = InMemoryCredentialStore()
+    await store.upsert("sub-1", "old-access", "old-refresh")
+    httpx_mock.add_response(
+        method="POST",
+        url=_DEV_TOKEN_ENDPOINT,
+        json={"access_token": "new-access"},
+    )
+
+    token = await exchange_refresh_token(store, "sub-1")
+
+    assert token == "new-access"
+    assert (await store.get("sub-1")).refresh_token == "old-refresh"
+
+
+async def test_exchange_without_stored_credentials_makes_no_call(httpx_mock):
+    store = InMemoryCredentialStore()
+
+    assert await exchange_refresh_token(store, "sub-1") is None
+    assert httpx_mock.get_requests() == []
+
+
+async def test_exchange_without_refresh_token_makes_no_call(httpx_mock):
+    store = InMemoryCredentialStore()
+    await store.upsert("sub-1", "access-only", None)
+
+    assert await exchange_refresh_token(store, "sub-1") is None
+    assert httpx_mock.get_requests() == []
+
+
+async def test_exchange_on_rejected_grant_returns_none_and_keeps_row(httpx_mock):
+    """Rotated-out / revoked refresh token: log + None, retry next scan —
+    the row must survive untouched."""
+    store = InMemoryCredentialStore()
+    await store.upsert("sub-1", "old-access", "old-refresh")
+    httpx_mock.add_response(
+        method="POST",
+        url=_DEV_TOKEN_ENDPOINT,
+        status_code=400,
+        json={"error": "invalid_grant"},
+    )
+
+    assert await exchange_refresh_token(store, "sub-1") is None
+
+    record = await store.get("sub-1")
+    assert record.access_token == "old-access"
+    assert record.refresh_token == "old-refresh"
+
+
+async def test_exchange_on_transport_error_returns_none(httpx_mock):
+    store = InMemoryCredentialStore()
+    await store.upsert("sub-1", "old-access", "old-refresh")
+    for _ in range(4):  # transport errors are retried (conftest: 4 attempts)
+        httpx_mock.add_exception(
+            httpx.ConnectError("connection refused"),
+            method="POST",
+            url=_DEV_TOKEN_ENDPOINT,
+        )
+
+    assert await exchange_refresh_token(store, "sub-1") is None
