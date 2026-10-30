@@ -2,7 +2,9 @@ FROM python:3.13
 
 # Non-root service user (v4 D6 token hygiene: the SQLite registry/credential
 # file is 600/700 and must not be root-readable). /data is the DB volume
-# mountpoint — docker copies its ownership into a fresh named volume.
+# mountpoint. NOTE: writable volumes that pre-date this user (or fresh
+# volumes docker initializes as root) need a one-time chown on the host —
+# see plans/async-execution-architecture-v4.md D6.
 RUN groupadd -r dispatcher && useradd -r -g dispatcher dispatcher \
     && mkdir -p /data && chown dispatcher:dispatcher /data
 WORKDIR /usr/src

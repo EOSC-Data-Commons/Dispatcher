@@ -271,6 +271,20 @@ keep the test suite green throughout.
     class as the tokens (an unprotected backup undoes the permissions).
     Row TTL and refresh rotation (already in D2/D3) keep the number of
     live tokens small.
+    **Upgrade runbook (one-time, per host):** a data volume written by a
+    pre-non-root deployment contains root-owned `dispatcher.db` — the new
+    `dispatcher` user then gets `attempt to write a readonly database` at
+    startup. Fix the ownership once with the deployed image itself:
+
+    ```
+    docker run --rm --user root \
+      -v <project>_dispatcher-data:/data <dispatcher-image> \
+      chown -R dispatcher:dispatcher /data
+    ```
+
+    then restart web. Fresh volumes inherit the image's `/data` ownership
+    and need nothing; the git-repos volume is chmod 777'd by git-fcgi at
+    its startup.
 
 Delete the resume-lifecycle test suites when their code goes; keep the rest
 of the suite, and its v3 invariants (stage/result semantics, delete hooks),
