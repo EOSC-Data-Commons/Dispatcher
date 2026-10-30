@@ -1,10 +1,9 @@
 """Shared flow executor: one asyncio orchestrator per flow, zero Celery.
 
-Spawned as an ``asyncio.Task`` by the dispatching handler (and by the
-recovery manager for resume); the live handle sits in the process-local
-task registry.  Status transitions (PENDING -> PROGRESS -> SUCCESS |
-FAILURE) are written to the :class:`StatusStore` — every write refreshes
-``updated_at``, the janitor's heartbeat signal.
+Spawned as an ``asyncio.Task`` by the dispatching handler; the live handle
+sits in the process-local task registry.  Status transitions (PENDING ->
+PROGRESS -> SUCCESS | FAILURE) are written to the :class:`StatusStore` —
+every write refreshes ``updated_at``, the janitor's heartbeat signal.
 
 A flow interrupted by ``DELETE`` (task cancellation) propagates
 ``CancelledError`` untouched: the DELETE handler owns the final status
@@ -30,17 +29,16 @@ async def execute_flow(
     registry: dict[str, asyncio.Task],
     token: str,
     payload: VREPayload,
-    resume_eligible: bool = False,
-    resume_inf_id: str | None = None,
     im_factory: Callable[[str | None], AsyncIMProtocol] | None = None,
 ) -> None:
     """Run a single VRE flow end to end and record its outcome.
 
     The payload is always built by the *caller* of this function — never
     here: the dispatching handler builds it so an invalid crate fails the
-    request synchronously with 400, and the recovery manager rebuilds it
-    from the record's crate_json at respawn. Exactly one build site per
-    entry point.
+    request synchronously with 400. Exactly one build site.
+
+    A restart kills the flow outright (v4: no resume): the janitor marks
+    the orphaned record FAILED("worker lost") and reaps its infra.
 
     Args:
         task_id: The task record id (also the registry key).
@@ -48,10 +46,6 @@ async def execute_flow(
         registry: Live-task registry (entry removed on completion).
         token: Caller's access token ("" for anonymous flows).
         payload: Pre-built flow payload (REQUIRED).
-        resume_eligible: Metadata-only IM flows get ``resume_stage=IM_WAIT``
-            at create; zip+IM flows degrade to FAILED on restart.
-        resume_inf_id: Set by the janitor continuation: the IM server kept
-            provisioning; re-poll instead of re-creating.
         im_factory: Injectable IM factory (tests inject FakeAsyncIM).
     """
     try:
@@ -62,8 +56,6 @@ async def execute_flow(
             status_store=store,
             payload=payload,
             im_factory=im_factory,
-            resume_eligible=resume_eligible,
-            resume_inf_id=resume_inf_id,
         )
         result = await vre.post()
         # Terminal-success transitions clear the progress stage: the flow is

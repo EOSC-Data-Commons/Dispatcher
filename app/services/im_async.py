@@ -9,7 +9,7 @@ async-execution design note:
   written on every poll iteration so the janitor's liveness check keeps
   working during 30–60 min deployments,
 - failure handling (fetch contmsg to logs, destroy, raise),
-- the ``run(rp, heartbeat)`` / ``resume(inf_id, heartbeat)`` composites.
+- the ``run(rp, heartbeat)`` composite (create → wait → outputs).
 
 The wire client is ``imclient.AsyncIMClient`` from the IM repo (installed
 editable); it raises ``httpx.HTTPStatusError``/``httpx.TransportError`` on
@@ -280,20 +280,6 @@ class AsyncIM:
             # Persisted the instant create() returns: a VM can never exist
             # before its record does.
             await on_inf_created(inf_id)
-        await self.wait_for_ready(heartbeat)
-        await heartbeat(constants.IM_SEQUENCE_FINISHED)
-        outputs = await self.get_service_outputs()
-        await heartbeat(constants.IM_SEQUENCE_SUCCESSFUL)
-        return outputs
-
-    async def resume(
-        self, inf_id: str, heartbeat: Heartbeat | None = None
-    ) -> Mapping[str, Any]:
-        """Continuation after a worker restart: the server kept provisioning;
-        re-poll state, then fetch outputs (no second create)."""
-        heartbeat = heartbeat or _noop_heartbeat
-        self.inf_id = inf_id
-        await heartbeat(constants.IM_SEQUENCE_STARTED)
         await self.wait_for_ready(heartbeat)
         await heartbeat(constants.IM_SEQUENCE_FINISHED)
         outputs = await self.get_service_outputs()

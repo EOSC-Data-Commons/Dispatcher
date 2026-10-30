@@ -43,13 +43,6 @@ class TaskStatus(str, Enum):
     DESTROYED = "DESTROYED"
 
 
-class ResumeStage(str, Enum):
-    """Marks flows reconstructible after a worker restart."""
-
-    NONE = "NONE"
-    IM_WAIT = "IM_WAIT"
-
-
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -78,25 +71,20 @@ def _dump_or_none(value: Any) -> str | None:
 class TaskRecord:
     """One row of the ``tasks`` table, in Python form.
 
-    ``im_token`` persists the caller's access token for IM lifecycle
-    operations after a worker restart (resume + orphan-reap). It is only set
-    for resume-eligible IM flows; the expiring-token limitation this implies
-    is documented in the design note's open discussion.
-    """
+    Slim by design (v4): no crate, no IM outputs, no per-flow token, no
+    resume stage — those existed only for v3's restart-resume, which is
+    dropped. ``im_inf_id`` stays: it is the infrastructure registry that
+    lets cleanup find (and destroy) a half-deployed VM after a crash."""
 
     task_id: str
-    sub: str | None = None  # owner identity: "{provider}:{oidc-sub}"
-    owner: dict[str, Any] | None = None  # {"sub", "name", "email"} | None
+    sub: str | None = None  # owner identity: OIDC sub (anonymous flows: None)
+    owner: dict[str, Any] | None = None  # {"sub", "name"} | None
     kind: str = ""
     status: TaskStatus = TaskStatus.PENDING
     stage: str | None = None
     result: dict[str, Any] | None = None
     error: str | None = None
-    crate: dict[str, Any] | None = None  # crate metadata only; bytes never stored
     im_inf_id: str | None = None
-    im_outputs: dict[str, Any] | None = None
-    im_token: str | None = None
-    resume_stage: ResumeStage = ResumeStage.NONE
     destroyed_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -124,8 +112,6 @@ _UPDATABLE_FIELDS = frozenset(
         "result",
         "error",
         "im_inf_id",
-        "im_outputs",
-        "resume_stage",
         "destroyed_at",
     }
 )
@@ -194,16 +180,25 @@ CREATE INDEX IF NOT EXISTS idx_tasks_sub ON tasks(sub);
 CREATE INDEX IF NOT EXISTS idx_tasks_state ON tasks(status, updated_at);
 """
 
+#: v4 slim: the v3 resume columns go (drop the crate, the IM outputs, the
+#: per-flow token, the resume stage). No deployment carried them outside
+#: prototype databases.
+_MIGRATION_V2 = """
+ALTER TABLE tasks DROP COLUMN crate_json;
+ALTER TABLE tasks DROP COLUMN im_outputs_json;
+ALTER TABLE tasks DROP COLUMN im_token;
+ALTER TABLE tasks DROP COLUMN resume_stage;
+"""
+
 #: Ordered migration list: ``_MIGRATIONS[v]`` migrates schema version
 #: ``v`` -> ``v + 1``; version is tracked in ``PRAGMA user_version``.
-_MIGRATIONS: list[str] = [_SCHEMA_V1]
+_MIGRATIONS: list[str] = [_SCHEMA_V1, _MIGRATION_V2]
 
 _INSERT_SQL = """
 INSERT INTO tasks (
   task_id, sub, owner_json, kind, status, stage, result_json, error,
-  crate_json, im_inf_id, im_outputs_json, im_token, resume_stage,
-  destroyed_at, created_at, updated_at, expires_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  im_inf_id, destroyed_at, created_at, updated_at, expires_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 _COLUMN_OF_FIELD = {
@@ -212,8 +207,6 @@ _COLUMN_OF_FIELD = {
     "result": "result_json",
     "error": "error",
     "im_inf_id": "im_inf_id",
-    "im_outputs": "im_outputs_json",
-    "resume_stage": "resume_stage",
     "destroyed_at": "destroyed_at",
 }
 
@@ -267,11 +260,7 @@ class SQLiteStatusStore:
             stage=row["stage"],
             result=_json_or_none(row["result_json"]),
             error=row["error"],
-            crate=_json_or_none(row["crate_json"]),
             im_inf_id=row["im_inf_id"],
-            im_outputs=_json_or_none(row["im_outputs_json"]),
-            im_token=row["im_token"],
-            resume_stage=ResumeStage(row["resume_stage"] or ResumeStage.NONE),
             destroyed_at=_dt_or_none(row["destroyed_at"]),
             created_at=_dt(row["created_at"]),
             updated_at=_dt(row["updated_at"]),
@@ -292,11 +281,7 @@ class SQLiteStatusStore:
                 record.stage,
                 _dump_or_none(record.result),
                 record.error,
-                _dump_or_none(record.crate),
                 record.im_inf_id,
-                _dump_or_none(record.im_outputs),
-                record.im_token,
-                record.resume_stage.value,
                 _iso(record.destroyed_at),
                 _iso(record.created_at),
                 _iso(record.updated_at),
@@ -344,9 +329,9 @@ class SQLiteStatusStore:
         values: list[Any] = []
         for attr, value in fields.items():
             column = _COLUMN_OF_FIELD[attr]
-            if attr in ("result", "im_outputs"):
+            if attr == "result":
                 value = _dump_or_none(value)
-            elif attr in ("status", "resume_stage"):
+            elif attr == "status":
                 value = value.value
             elif attr == "destroyed_at":
                 value = _iso(value) if isinstance(value, datetime) else value

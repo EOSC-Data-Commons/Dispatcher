@@ -17,7 +17,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.routers import anonymous_requests, requests
 from app.security import oauth2_scheme
-from app.status_store import InMemoryStatusStore, ResumeStage, TaskRecord, TaskStatus
+from app.status_store import InMemoryStatusStore, TaskRecord, TaskStatus
 from fakes import FakeAsyncIM
 from fixtures.jwt_helper import generate_rsa_key, make_token, patch_jwks
 
@@ -33,10 +33,9 @@ def _load_crate():
 IDENTITY = "oidc-sub-1234"
 OTHER_IDENTITY = "someone-else"
 
-#: The RSA key of the current test and the token its app mints (set by the
-#: autouse fixture / _make_app; never read across tests).
+#: The RSA key of the current test (set by the autouse fixture; never read
+#: across tests).
 _RSA_KEY: dict = {}
-_LAST_TOKEN: dict = {}
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +46,6 @@ def _auth_key(monkeypatch):
     _RSA_KEY["key"] = rsa_key
     yield
     _RSA_KEY.clear()
-    _LAST_TOKEN.clear()
 
 
 def _make_app(store, registry, identity=IDENTITY):
@@ -64,7 +62,6 @@ def _make_app(store, registry, identity=IDENTITY):
             _RSA_KEY["key"],
             claims_over={"sub": identity, "preferred_username": "Jane Doe"},
         )
-    _LAST_TOKEN["token"] = token
 
     app.include_router(requests.router)
     app.include_router(anonymous_requests.router)
@@ -127,7 +124,6 @@ async def test_post_metadata_returns_202_task_id(store, registry, httpx_mock):
     await _finished(registry, task_id)
     record = await store.get(task_id)
     assert record.status == TaskStatus.SUCCESS
-    assert record.crate == _load_crate()
     assert record.sub == IDENTITY
     assert record.owner == {
         "sub": IDENTITY,
@@ -191,16 +187,13 @@ async def test_post_zip_returns_202(store, registry, httpx_mock):
 
     record = await store.get(task_id)
     assert record.status == TaskStatus.SUCCESS
-    # zip+IM flow: infra is registered but NOT resume-eligible, and no
-    # token is persisted (bytes are never stored; degrade + resubmit).
+    # zip+IM flow: the infra registry still gets its im_inf_id (cleanup's
+    # handle to the VM); the record itself stays slim (v4: no crate, no
+    # token — restart means FAILED + resubmit).
     assert record.im_inf_id == "fake-inf-1"
-    assert record.resume_stage == ResumeStage.NONE
-    assert record.im_token is None
 
 
-async def test_post_metadata_im_flow_is_resume_eligible_and_persists_token(
-    store, registry, httpx_mock
-):
+async def test_post_metadata_im_flow_registers_infra(store, registry, httpx_mock):
     httpx_mock.add_response(
         method="POST", url=GALAXY_LANDING, status_code=201, json={"uuid": "u-1"}
     )
@@ -214,8 +207,6 @@ async def test_post_metadata_im_flow_is_resume_eligible_and_persists_token(
     record = await store.get(task_id)
     assert record.status == TaskStatus.SUCCESS
     assert record.im_inf_id == "fake-inf-1"
-    # Resume-eligible flows persist the caller's own (verified) token.
-    assert record.im_token == _LAST_TOKEN["token"]
 
 
 async def test_post_zip_invalid_zip_is_400(store, registry):
@@ -343,7 +334,6 @@ async def test_delete_delivered_flow_marks_destroyed_and_destroys_infra(
             status=TaskStatus.SUCCESS,
             result={"url": "https://vre.example"},
             im_inf_id="infra-1",
-            im_token="dispatch-token",
         )
     )
     app = _make_app(store, registry)
@@ -364,17 +354,14 @@ async def test_delete_delivered_flow_marks_destroyed_and_destroys_infra(
 
 async def test_delete_non_im_flow_invokes_vre_teardown(store, registry, monkeypatch):
     """DELETE on a delivered non-IM flow must call the VRE's own delete()
-    (e.g. OSCAR cluster service teardown), best-effort."""
+    (e.g. OSCAR cluster service teardown), best-effort. The crate is gone
+    at DELETE time: the VRE is built by kind + the delivered URL hint."""
     seen = {"deleted": 0}
 
     class _Spy:
         async def delete(self):
             seen["deleted"] += 1
 
-    monkeypatch.setattr(
-        "app.routers.utils.dispatch.VREPayloadBuilder.build",
-        staticmethod(lambda crate: object()),
-    )
     monkeypatch.setattr(
         "app.routers.utils.dispatch.vre_factory",
         lambda **kwargs: _Spy(),
@@ -384,7 +371,7 @@ async def test_delete_non_im_flow_invokes_vre_teardown(store, registry, monkeypa
             task_id="t-1",
             sub=IDENTITY,
             status=TaskStatus.SUCCESS,
-            crate={"@graph": []},
+            result={"url": "https://vre.example/system/services/cowsay"},
             kind="oscar",
         )
     )
@@ -417,9 +404,8 @@ async def test_delete_im_backed_flow_skips_vre_teardown(
             task_id="t-1",
             sub=IDENTITY,
             status=TaskStatus.SUCCESS,
-            crate={"@graph": []},
+            result={"url": "https://vre.example"},
             im_inf_id="infra-1",
-            im_token="t",
         )
     )
     app = _make_app(store, registry)
@@ -517,8 +503,6 @@ async def test_anonymous_post_creates_owner_less_record(store, registry, httpx_m
     assert record.sub is None
     assert record.owner is None
     assert record.status == TaskStatus.SUCCESS
-    # anonymous IM flows carry no credentials for resume either
-    assert record.im_token is None
 
 
 async def test_anonymous_records_excluded_from_owner_listing(store, registry):

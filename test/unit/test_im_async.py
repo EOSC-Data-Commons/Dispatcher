@@ -363,34 +363,6 @@ class TestRunComposite:
         assert client.destroy_calls == ["inf-1"]
 
 
-class TestResume:
-    async def test_resume_skips_create_waits_and_fetches_outputs(self):
-        client = _FakeWireClient(outputs={"url": "http://vre.example"})
-        im = _make_im(client)
-        heartbeats = []
-
-        async def heartbeat(stage):
-            heartbeats.append(stage)
-
-        outputs = await im.resume("inf-resumed", heartbeat=heartbeat)
-
-        assert client.create_calls == []  # never a second create
-        assert im.inf_id == "inf-resumed"
-        assert ("inf-resumed", "state") in client.prop_calls
-        assert ("inf-resumed", "outputs") in client.prop_calls
-        assert outputs == {"url": "http://vre.example"}
-        assert heartbeats[-1] == "IM sequence successful"
-
-    async def test_resume_failure_destroys_existing_infra(self):
-        client = _FakeWireClient(states=[{"state": "failed"}])
-        im = _make_im(client)
-
-        with pytest.raises(IMError, match="Current state: failed"):
-            await im.resume("inf-resumed")
-
-        assert client.destroy_calls == ["inf-resumed"]
-
-
 class TestClose:
     async def test_aclose_closes_client(self):
         client = _FakeWireClient()

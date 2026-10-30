@@ -75,12 +75,6 @@ def _build_payload(crate: dict, file_bytes_map: dict[str, bytes] | None):
         raise HTTPException(status_code=400, detail=f"Invalid RO-Crate: {exc}")
 
 
-def _is_im_backed(payload) -> bool:
-    """Whether the payload's workflow targets an IM-deployed runtime."""
-    rp = payload.workflow.runtime_platform
-    return rp is not None and not isinstance(rp, str) and rp.install_url is not None
-
-
 async def dispatch_flow(
     request: Request,
     token: str,
@@ -109,20 +103,11 @@ async def dispatch_flow(
     else:
         sub, owner = caller_identity(token)
 
-    # Resume eligibility: metadata-only IM flows. A zip+IM flow executes
-    # normally but degrades to FAILED + orphan-reap on restart (file bytes
-    # are never persisted). The user token is persisted for resume-eligible
-    # flows only — IM lifecycle ops after a restart need it (see the design
-    # note's open discussion on expiring tokens).
-    resume_eligible = file_bytes_map is None and _is_im_backed(payload)
-
     record = TaskRecord(
         task_id=uuid.uuid4().hex,
         sub=sub,
         owner=owner,
         kind=payload.programming_language,
-        crate=crate,
-        im_token=(token or None) if resume_eligible else None,
     )
     await store.create(record)
 
@@ -133,7 +118,6 @@ async def dispatch_flow(
             registry=registry,
             token=token,
             payload=payload,
-            resume_eligible=resume_eligible,
         )
     )
     registry[record.task_id] = task
@@ -208,23 +192,25 @@ async def delete_vre_remote_state_best_effort(
     ``post()`` on shared infrastructure — e.g. OSCAR cluster services),
     best-effort: failures are logged, never raised.
 
-    Skipped for IM-backed flows: the infra destroy just above handles their
-    teardown (the VRE state lives on the VM itself), and calling ``delete()``
-    would needlessly resurrect an IM deployment via ``setup_service()``.
+    The crate is gone at DELETE time (v4: never persisted), so the VRE is
+    constructed by ``kind`` with the delivered URL as the only hint.
+    Skipped for IM-backed flows: the infra destroy just above handles
+    their teardown (the VRE state lives on the VM itself), and calling
+    ``delete()`` would needlessly resurrect an IM deployment via
+    ``setup_service()``.
     """
-    if record.im_inf_id or record.crate is None:
+    if record.im_inf_id or not record.result or not record.result.get("url"):
         return
     try:
-        payload = VREPayloadBuilder.build(record.crate)
         vre = vre_factory(
             token=token,
             request_id=record.task_id,
             status_store=store,
-            payload=payload,
-            # Teardown hint: the URL post() already delivered. Lets VREs skip
-            # re-deriving their remote resource (e.g. OSCAR needs no FDL
-            # re-download to learn its service name).
-            delivered_url=(record.result or {}).get("url") if record.result else None,
+            kind=record.kind,
+            # Teardown hint: the URL post() already delivered. Lets VREs
+            # skip re-deriving their remote resource (e.g. OSCAR needs no
+            # FDL re-download to learn its service name).
+            delivered_url=record.result.get("url"),
         )
         await vre.delete()
         logger.info(

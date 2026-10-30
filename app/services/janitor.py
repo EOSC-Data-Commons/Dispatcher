@@ -1,29 +1,27 @@
 """Recovery manager (janitor): startup scan + periodic loop.
 
-Per the async-execution design note's durability model ("resume, don't queue"):
+Durability model (v4: no resume — a restart kills the flow):
 
-- PROGRESS + resume_stage=IM_WAIT + im_inf_id + no live local task ⇒
-  **respawn continuation**: rebuild the payload from crate_json, re-poll IM
-  state (the server kept provisioning), fetch outputs, run VRE steps →
-  SUCCESS, with the same failure semantics as a live flow.
-- Stale (updated_at older than stale_task_timeout), non-resumable ⇒
-  FAILED("worker lost").
-- FAILED with im_inf_id & undestroyed ⇒ destroy (covers post-IM crashes and
-  zip+IM degrade; token expiry here is the design note's documented
-  limitation and surfaces as a warning each scan).
+- Stale (updated_at older than stale_task_timeout) PENDING/PROGRESS with
+  no live local task ⇒ FAILED("worker lost") + reap its infra.
+- FAILED with im_inf_id & undestroyed ⇒ destroy (covers post-IM crashes
+  and zip+IM degrade).
 - infra_max_lifetime set ⇒ TTL-destroy of delivered VMs — OFF by default.
-- T2 (Jupyter/MDDash) resume is out of scope: restart ⇒ FAILED + resubmit.
+- T2 (Jupyter/MDDash) restart ⇒ FAILED + resubmit, same as every flow.
+
+Destroy auth (v4 §8): the per-flow token is gone with the record slim,
+so reaps exchange the owner's refresh token (credential store, D2/D3)
+for a fresh access token; no/rotated-out refresh token ⇒ log and retry
+next scan.
 """
 
 import asyncio
 import logging
 from datetime import datetime
 
-from vre_rocrate import VREPayloadBuilder
-
 from app.config import settings
-from app.status_store import ResumeStage, StatusStore, TaskRecord, TaskStatus, _utcnow
-from app.vre_runner import execute_flow
+from app.credentials import CredentialStore, exchange_refresh_token
+from app.status_store import StatusStore, TaskRecord, TaskStatus, _utcnow
 from app.vres.base_vre import AsyncIMProtocol, default_im_factory
 from typing import Callable
 
@@ -36,6 +34,7 @@ class RecoveryManager:
         store: StatusStore,
         registry: dict[str, asyncio.Task],
         *,
+        credential_store: CredentialStore | None = None,
         im_factory: Callable[[str | None], AsyncIMProtocol] | None = None,
         interval: float | None = None,
         stale_timeout: float | None = None,
@@ -43,6 +42,7 @@ class RecoveryManager:
     ):
         self._store = store
         self._registry = registry
+        self._credentials = credential_store
         self._im_factory = im_factory or default_im_factory
         self._interval = interval if interval is not None else settings.janitor_interval
         self._stale_timeout = (
@@ -90,13 +90,6 @@ class RecoveryManager:
 
     async def _reconcile(self, record: TaskRecord, now: datetime) -> None:
         if record.status in (TaskStatus.PENDING, TaskStatus.PROGRESS):
-            if (
-                record.status == TaskStatus.PROGRESS
-                and record.resume_stage == ResumeStage.IM_WAIT
-                and record.im_inf_id
-            ):
-                await self._respawn(record)
-                return
             if self._is_stale(record, now):
                 await self._mark_worker_lost(record)
         elif (
@@ -128,45 +121,6 @@ class RecoveryManager:
     # Actions
     # ------------------------------------------------------------------
 
-    async def _respawn(self, record: TaskRecord) -> None:
-        """Respawn an IM-in-flight continuation (resume, don't queue)."""
-        try:
-            # The respawn path is this entry point's single payload-build site:
-            # the recovery manager rebuilds from the persisted crate_json, just
-            # as the dispatching handler builds from the request body.
-            payload = VREPayloadBuilder.build(record.crate)
-        except Exception as exc:
-            logger.error(
-                "Task %s marked FAILED: crate no longer builds a payload "
-                "on resume (%s)",
-                record.task_id,
-                exc,
-            )
-            await self._store.update(
-                record.task_id,
-                status=TaskStatus.FAILURE,
-                error=f"invalid crate on resume: {exc}",
-            )
-            return
-        logger.info(
-            "Respawning continuation of task %s from infra %s",
-            record.task_id,
-            record.im_inf_id,
-        )
-        task = asyncio.create_task(
-            execute_flow(
-                record.task_id,
-                store=self._store,
-                registry=self._registry,
-                token=record.im_token or "",
-                payload=payload,
-                resume_eligible=True,
-                resume_inf_id=record.im_inf_id,
-                im_factory=self._im_factory,
-            )
-        )
-        self._registry[record.task_id] = task
-
     async def _mark_worker_lost(self, record: TaskRecord) -> None:
         logger.warning(
             "Task %s marked FAILED: stale heartbeat (worker lost)", record.task_id
@@ -186,9 +140,22 @@ class RecoveryManager:
         destroyed_status: TaskStatus | None = None,
     ) -> None:
         """Best-effort infra destroy; repeated on later scans when the call
-        fails (e.g. expired user token — documented limitation)."""
+        fails. Auth via the owner's refresh token (v4 §8): the per-flow
+        token is gone with the record slim."""
+        token: str | None = None
+        if self._credentials is not None and record.sub is not None:
+            token = await exchange_refresh_token(self._credentials, record.sub)
+            if token is None:
+                logger.warning(
+                    "No usable credentials for sub %s — destroy of infra %s "
+                    "(task %s) deferred to next scan",
+                    record.sub,
+                    record.im_inf_id,
+                    record.task_id,
+                )
+                return
         try:
-            im = self._im_factory(record.im_token)
+            im = self._im_factory(token)
             try:
                 await im.destroy(record.im_inf_id)
             finally:

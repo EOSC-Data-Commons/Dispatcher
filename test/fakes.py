@@ -31,7 +31,6 @@ class FakeAsyncIM:
         self._destroy_raises = destroy_raises
         self.inf_id: str | None = None
         self.created_with: list[RuntimePlatform] = []
-        self.resumed_with: list[str] = []
         self.destroyed: list[str] = []
         self.heartbeats: list[str] = []
         self.closed = False
@@ -66,14 +65,6 @@ class FakeAsyncIM:
             result = on_inf_created(self.inf_id)
             if hasattr(result, "__await__"):
                 await result
-        await self._wait(heartbeat)
-        return self._outputs
-
-    async def resume(
-        self, inf_id: str, heartbeat: Callable | None = None
-    ) -> Mapping[str, Any]:
-        self.resumed_with.append(inf_id)
-        self.inf_id = inf_id
         await self._wait(heartbeat)
         return self._outputs
 

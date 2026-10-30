@@ -5,8 +5,8 @@ import aiosqlite
 import pytest
 
 from app.status_store import (
+    _MIGRATIONS as _MIGRATIONS_IMPORT,
     InMemoryStatusStore,
-    ResumeStage,
     SQLiteStatusStore,
     TaskRecord,
     TaskStatus,
@@ -26,9 +26,7 @@ async def store(request, tmp_path):
 
 def _record(task_id="task-1", **kwargs) -> TaskRecord:
     kwargs.setdefault("sub", "egi:1234-abcd")
-    kwargs.setdefault(
-        "owner", {"sub": "egi:1234-abcd", "name": "Jane", "email": "j@x.io"}
-    )
+    kwargs.setdefault("owner", {"sub": "egi:1234-abcd", "name": "Jane"})
     kwargs.setdefault("kind", "galaxy")
     return TaskRecord(task_id=task_id, **kwargs)
 
@@ -36,7 +34,6 @@ def _record(task_id="task-1", **kwargs) -> TaskRecord:
 class TestCRUD:
     async def test_create_and_get_roundtrip(self, store):
         record = _record(
-            crate={"@graph": []},
             result={"url": "https://vre.example"},
             stage="booting",
             error="oops",
@@ -54,7 +51,6 @@ class TestCRUD:
         assert fetched.stage == "booting"
         assert fetched.result == {"url": "https://vre.example"}
         assert fetched.error == "oops"
-        assert fetched.crate == {"@graph": []}
         assert fetched.created_at is not None
         assert fetched.updated_at is not None
         assert fetched.expires_at is not None
@@ -71,7 +67,6 @@ class TestCRUD:
         assert fetched.sub is None
         assert fetched.owner is None
         assert fetched.im_inf_id is None
-        assert fetched.resume_stage == ResumeStage.NONE
 
     async def test_update_status_stage_result_error(self, store):
         await store.create(_record())
@@ -90,20 +85,18 @@ class TestCRUD:
         assert fetched.status == TaskStatus.FAILURE
         assert fetched.error == "kaput"
 
-    async def test_update_result_and_outputs_json(self, store):
+    async def test_update_result_json(self, store):
         await store.create(_record())
 
         await store.update(
             "task-1",
             status=TaskStatus.SUCCESS,
             result={"url": "https://vre.example"},
-            im_outputs={"url": "https://vre.example", "extra": 42},
         )
 
         fetched = await store.get("task-1")
         assert fetched.status == TaskStatus.SUCCESS
         assert fetched.result["url"] == "https://vre.example"
-        assert fetched.im_outputs == {"url": "https://vre.example", "extra": 42}
 
     async def test_update_unknown_task_returns_none(self, store):
         assert await store.update("nope", status=TaskStatus.FAILURE) is None
@@ -193,26 +186,13 @@ class TestTTL:
 
 
 class TestInfraFields:
-    async def test_im_fields_persist(self, store):
+    async def test_im_inf_id_persists(self, store):
         await store.create(_record())
 
-        await store.update(
-            "task-1",
-            im_inf_id="infra-42",
-            resume_stage=ResumeStage.IM_WAIT,
-        )
+        await store.update("task-1", im_inf_id="infra-42")
 
         fetched = await store.get("task-1")
         assert fetched.im_inf_id == "infra-42"
-        assert fetched.resume_stage == ResumeStage.IM_WAIT
-
-    async def test_im_token_persisted_for_resume(self, store):
-        record = _record(im_token="bearer-xyz")
-
-        await store.create(record)
-        fetched = await store.get("task-1")
-
-        assert fetched.im_token == "bearer-xyz"
 
     async def test_destroyed_at_marked(self, store):
         from app.status_store import _utcnow
@@ -274,7 +254,7 @@ class TestSQLiteSpecifics:
                 (version,) = await cur.fetchone()
 
         await store.aclose()
-        assert version == 1
+        assert version == len(_MIGRATIONS_IMPORT)
 
     async def test_reconnect_runs_migrations_idempotently(self, tmp_path):
         db_path = str(tmp_path / "idempotent.db")
@@ -291,3 +271,47 @@ class TestSQLiteSpecifics:
         await store2.aclose()
         assert fetched is not None
         assert fetched.task_id == "persisted"
+
+    async def test_v1_fat_schema_migrates_and_keeps_data(self, tmp_path):
+        """A prototype-era v1 database (with the resume columns) migrates
+        to the v4 slim schema without losing rows."""
+        import aiosqlite
+
+        from app.status_store import _SCHEMA_V1
+
+        db_path = str(tmp_path / "legacy.db")
+        async with aiosqlite.connect(db_path) as conn:
+            await conn.executescript(_SCHEMA_V1)
+            await conn.execute("PRAGMA user_version = 1")
+            await conn.execute(
+                "INSERT INTO tasks (task_id, kind, status, crate_json, im_token,"
+                " resume_stage, created_at, updated_at, expires_at)"
+                " VALUES ('legacy-1', 'galaxy', 'SUCCESS', '{}', 'tok', 'NONE',"
+                " '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00',"
+                " '2099-01-01T00:00:00+00:00')"
+            )
+            await conn.commit()
+
+        store = SQLiteStatusStore(db_path)
+        await store.connect()
+
+        fetched = await store.get("legacy-1")
+        assert fetched is not None
+        assert fetched.status == TaskStatus.SUCCESS
+        # The dropped columns are gone: updating must not mention them.
+        updated = await store.update("legacy-1", im_inf_id="infra-x")
+        assert updated.im_inf_id == "infra-x"
+        await store.aclose()
+
+        async with aiosqlite.connect(db_path) as conn:
+            async with conn.execute("PRAGMA user_version") as cur:
+                (version,) = await cur.fetchone()
+            async with conn.execute("PRAGMA table_info(tasks)") as cur:
+                columns = {row[1] for row in await cur.fetchall()}
+        assert version == len(_MIGRATIONS_IMPORT)
+        assert not columns & {
+            "crate_json",
+            "im_outputs_json",
+            "im_token",
+            "resume_stage",
+        }

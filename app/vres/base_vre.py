@@ -7,7 +7,7 @@ from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 from vre_rocrate import RuntimePlatform, VREPayload
 
 from app.exceptions import IMError, VREConfigurationError
-from app.status_store import ResumeStage, StatusStore, TaskStatus
+from app.status_store import StatusStore, TaskStatus
 
 from .utils.health import check_service_alive
 
@@ -37,10 +37,6 @@ class AsyncIMProtocol(Protocol):
         on_inf_created: Callable[[str], Any] | None = None,
     ) -> Mapping[str, Any]: ...
 
-    async def resume(
-        self, inf_id: str, heartbeat: Callable[[str], Any] | None = None
-    ) -> Mapping[str, Any]: ...
-
     async def destroy(self, inf_id: str | None = None) -> None: ...
 
     async def aclose(self) -> None: ...
@@ -63,8 +59,6 @@ class VRE(ABC):
         status_store: StatusStore | None = None,
         im_factory: Callable[[str | None], AsyncIMProtocol] | None = None,
         payload: VREPayload | None = None,
-        resume_eligible: bool = False,
-        resume_inf_id: str | None = None,
         **kwargs,
     ) -> None:
         self.payload = payload
@@ -72,12 +66,6 @@ class VRE(ABC):
         self._status_store = status_store
         self._request_id = request_id
         self._im_factory = im_factory or default_im_factory
-        # Resume machinery: `resume_eligible` marks metadata-only IM flows
-        # (zip+IM flows degrade to FAILED + orphan-reap on restart);
-        # `resume_inf_id` is set by the janitor when respawning a flow whose
-        # infrastructure kept provisioning across a worker restart.
-        self._resume_eligible = resume_eligible
-        self._resume_inf_id = resume_inf_id
         # Lazily resolved on first post(); tests assign `svc_url` directly.
         self.svc_url: str | None = None
         self._deployed_via_im = False
@@ -140,29 +128,23 @@ class VRE(ABC):
                     "Injected IM factory must return an object implementing AsyncIMProtocol"
                 )
             try:
-                if self._resume_inf_id is not None:
-                    outputs = await im_client.resume(
-                        self._resume_inf_id, heartbeat=self.update_task_status
-                    )
-                else:
-                    outputs = await im_client.run(
-                        dest,
-                        heartbeat=self.update_task_status,
-                        on_inf_created=self._on_inf_created,
-                    )
+                outputs = await im_client.run(
+                    dest,
+                    heartbeat=self.update_task_status,
+                    on_inf_created=self._on_inf_created,
+                )
             finally:
                 await im_client.aclose()
             if outputs is None:
                 raise VREConfigurationError("Failed to deploy service via IM")
             self._deployed_via_im = True
-            # IM sequence over: flow can no longer be resumed at IM_WAIT.
-            await self._persist_infra_finish(dict(outputs))
             return outputs.get("url", self.get_default_service())
 
         raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
 
     async def _on_inf_created(self, inf_id: str) -> None:
-        """Persisted the instant create() returns: im_inf_id + resume stage.
+        """Persisted the instant create() returns: im_inf_id only (the
+        infrastructure registry — cleanup's handle to the VM).
 
         A missing store here silently breaks the infra-registry invariant
         ("no VM without a record") — it must always be audible."""
@@ -174,27 +156,7 @@ class VRE(ABC):
                 inf_id,
             )
             return
-        resume_stage = (
-            ResumeStage.IM_WAIT if self._resume_eligible else ResumeStage.NONE
-        )
-        await self._status_store.update(
-            self._request_id, im_inf_id=inf_id, resume_stage=resume_stage
-        )
-
-    async def _persist_infra_finish(self, outputs: dict) -> None:
-        """Record IM outputs and close the IM_WAIT resume stage."""
-        if self._status_store is None:
-            logger.warning(
-                "No status store: skipping infra-finish bookkeeping for "
-                "task %s (resume stage would stay open)",
-                self._request_id,
-            )
-            return
-        await self._status_store.update(
-            self._request_id,
-            resume_stage=ResumeStage.NONE,
-            im_outputs=outputs,
-        )
+        await self._status_store.update(self._request_id, im_inf_id=inf_id)
 
     async def update_task_status(self, stage: str) -> None:
         """Progress write into the status store; also the IM heartbeat —
@@ -247,11 +209,19 @@ class VREFactory:
         request_id: str,
         status_store: StatusStore | None = None,
         payload: VREPayload | None = None,
+        kind: str | None = None,
         **kwargs,
     ):
+        """Construct a VRE. Dispatch passes ``payload`` (the language is
+        read from it); DELETE-time teardown passes ``kind`` instead — the
+        crate is gone by then, and the VRE only needs its ``delivered_url``
+        hint (v4 D1)."""
         if payload is None:
-            raise ValueError("payload is required")
-        elang = payload.programming_language
+            if kind is None:
+                raise ValueError("payload is required (or kind for teardown)")
+            elang = kind
+        else:
+            elang = payload.programming_language
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
         logger.debug(f"elang {elang}")

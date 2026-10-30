@@ -1,28 +1,23 @@
 """Unit tests for app.services.janitor — the recovery manager."""
 
 import asyncio
-import json
 from datetime import timedelta
 
 import pytest
 
+from app.credentials import InMemoryCredentialStore
 from app.services.janitor import RecoveryManager
 from app.status_store import (
     InMemoryStatusStore,
-    ResumeStage,
     TaskRecord,
     TaskStatus,
     _utcnow,
 )
 from fakes import FakeAsyncIM
 
-GALAXY_TOSCA_CRATE = "test/fixtures/galaxy_tosca_rocrate.json"
-GALAXY_LANDING = "https://vre.example/api/workflow_landings"
-
-
-def _load_crate():
-    with open(GALAXY_TOSCA_CRATE) as f:
-        return json.load(f)
+DEV_TOKEN_ENDPOINT = (
+    "https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/token"
+)
 
 
 @pytest.fixture
@@ -35,8 +30,19 @@ def registry():
     return {}
 
 
-def _janitor(store, registry, fake_im, **kwargs):
-    return RecoveryManager(store, registry, im_factory=lambda token: fake_im, **kwargs)
+@pytest.fixture
+def credentials():
+    return InMemoryCredentialStore()
+
+
+def _janitor(store, registry, fake_im, credentials=None, **kwargs):
+    return RecoveryManager(
+        store,
+        registry,
+        credential_store=credentials,
+        im_factory=lambda token: fake_im,
+        **kwargs,
+    )
 
 
 async def _add(store, **kwargs):
@@ -45,43 +51,8 @@ async def _add(store, **kwargs):
     return record
 
 
-async def test_respawns_im_wait_continuation_and_reaches_success(
-    store, registry, httpx_mock
-):
-    httpx_mock.add_response(
-        method="POST", url=GALAXY_LANDING, status_code=201, json={"uuid": "u-1"}
-    )
-    await _add(
-        store,
-        status=TaskStatus.PROGRESS,
-        crate=_load_crate(),
-        im_inf_id="infra-77",
-        im_token="dispatch-token",
-        resume_stage=ResumeStage.IM_WAIT,
-    )
-    fake = FakeAsyncIM(outputs={"url": "https://vre.example"})
-    janitor = _janitor(store, registry, fake)
-
-    await janitor.scan_once()
-    task = registry.get("t-1")
-    assert task is not None, "continuation must be respawned into the registry"
-    await task
-
-    assert fake.resumed_with == ["infra-77"]
-    record = await store.get("t-1")
-    assert record.status == TaskStatus.SUCCESS
-    assert record.result == {
-        "url": "https://vre.example/workflow_landings/u-1?public=False"
-    }
-
-
 async def test_live_local_task_is_left_alone(store, registry):
-    await _add(
-        store,
-        status=TaskStatus.PROGRESS,
-        im_inf_id="infra-1",
-        resume_stage=ResumeStage.IM_WAIT,
-    )
+    await _add(store, status=TaskStatus.PROGRESS, im_inf_id="infra-1")
     fake = FakeAsyncIM()
     janitor = _janitor(store, registry, fake)
 
@@ -93,7 +64,7 @@ async def test_live_local_task_is_left_alone(store, registry):
         never.cancel()
         await asyncio.gather(never, return_exceptions=True)
 
-    assert fake.resumed_with == []
+    assert fake.destroyed == []
     record = await store.get("t-1")
     assert record.status == TaskStatus.PROGRESS
 
@@ -122,16 +93,10 @@ async def test_fresh_progress_is_not_marked_lost(store, registry, monkeypatch):
     assert record.status == TaskStatus.PROGRESS
 
 
-async def test_stale_non_resumable_with_infra_destroys_infra(
+async def test_stale_progress_with_infra_marks_lost_and_reaps(
     store, registry, monkeypatch
 ):
-    await _add(
-        store,
-        status=TaskStatus.PROGRESS,
-        im_inf_id="infra-9",
-        im_token="tok",
-        resume_stage=ResumeStage.NONE,  # zip+IM flows degrade, never resume
-    )
+    await _add(store, status=TaskStatus.PROGRESS, im_inf_id="infra-9")
     fake = FakeAsyncIM()
     janitor = _janitor(store, registry, fake, stale_timeout=1)
     aged = _utcnow() + timedelta(seconds=2)
@@ -147,12 +112,7 @@ async def test_stale_non_resumable_with_infra_destroys_infra(
 
 
 async def test_failed_with_infra_is_reaped(store, registry):
-    await _add(
-        store,
-        status=TaskStatus.FAILURE,
-        im_inf_id="infra-5",
-        im_token="tok",
-    )
+    await _add(store, status=TaskStatus.FAILURE, im_inf_id="infra-5")
     fake = FakeAsyncIM()
     janitor = _janitor(store, registry, fake)
 
@@ -165,12 +125,7 @@ async def test_failed_with_infra_is_reaped(store, registry):
 
 
 async def test_failed_destroy_failure_retries_next_scan(store, registry, caplog):
-    await _add(
-        store,
-        status=TaskStatus.FAILURE,
-        im_inf_id="infra-5",
-        im_token="tok",
-    )
+    await _add(store, status=TaskStatus.FAILURE, im_inf_id="infra-5")
     fake = FakeAsyncIM(destroy_raises=RuntimeError("401 Unauthorized"))
     janitor = _janitor(store, registry, fake)
 
@@ -196,12 +151,7 @@ async def test_failed_without_infra_needs_no_action(store, registry):
 
 
 async def test_delivered_infra_survives_when_ttl_off(store, registry):
-    await _add(
-        store,
-        status=TaskStatus.SUCCESS,
-        im_inf_id="infra-1",
-        im_token="tok",
-    )
+    await _add(store, status=TaskStatus.SUCCESS, im_inf_id="infra-1")
     fake = FakeAsyncIM()
     janitor = _janitor(store, registry, fake)  # infra_max_lifetime=None default
 
@@ -213,12 +163,7 @@ async def test_delivered_infra_survives_when_ttl_off(store, registry):
 
 
 async def test_delivered_infra_ttl_destroy_when_enabled(store, registry, monkeypatch):
-    await _add(
-        store,
-        status=TaskStatus.SUCCESS,
-        im_inf_id="infra-old",
-        im_token="tok",
-    )
+    await _add(store, status=TaskStatus.SUCCESS, im_inf_id="infra-old")
     fake = FakeAsyncIM()
     janitor = _janitor(store, registry, fake, infra_max_lifetime=60)
     aged = _utcnow() + timedelta(seconds=120)
@@ -233,12 +178,7 @@ async def test_delivered_infra_ttl_destroy_when_enabled(store, registry, monkeyp
 
 
 async def test_delivered_infra_within_ttl_untouched(store, registry):
-    await _add(
-        store,
-        status=TaskStatus.SUCCESS,
-        im_inf_id="infra-young",
-        im_token="tok",
-    )
+    await _add(store, status=TaskStatus.SUCCESS, im_inf_id="infra-young")
     fake = FakeAsyncIM()
     janitor = _janitor(store, registry, fake, infra_max_lifetime=3600)
 
@@ -247,54 +187,113 @@ async def test_delivered_infra_within_ttl_untouched(store, registry):
     assert fake.destroyed == []
 
 
-async def test_respawn_without_token_fails_flow_and_later_reaps_infra(
-    store, registry, httpx_mock
+# ---------------------------------------------------------------------------
+# Reap auth via the refresh-token exchange (v4 §8, D3/D4)
+# ---------------------------------------------------------------------------
+
+
+async def test_reap_exchanges_refresh_token_for_im_credentials(
+    store, registry, credentials, httpx_mock
 ):
-    """Expiring-token limitation: resume without a usable token fails; the
-    leftover infra is then destroyed (best-effort) on a later scan."""
-    await _add(
-        store,
-        status=TaskStatus.PROGRESS,
-        crate=_load_crate(),
-        im_inf_id="infra-77",
-        im_token=None,
-        resume_stage=ResumeStage.IM_WAIT,
+    """A reap for an owner-bound record exchanges the owner's refresh
+    token and hands the fresh access token to the IM factory."""
+    await _add(store, status=TaskStatus.FAILURE, im_inf_id="infra-5", sub="sub-1")
+    await credentials.upsert("sub-1", "old-access", "old-refresh")
+    httpx_mock.add_response(
+        method="POST",
+        url=DEV_TOKEN_ENDPOINT,
+        json={"access_token": "fresh-access", "refresh_token": "fresh-refresh"},
     )
 
-    class _NoToken(FakeAsyncIM):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            from app.exceptions import IMError
+    seen_tokens = []
 
-            self._init_error = IMError("Access token not provided for IM.")
+    def factory(token):
+        seen_tokens.append(token)
+        return FakeAsyncIM()
 
-    def _factory(token):
-        if not token:
-            from app.exceptions import IMError
-
-            raise IMError("Access token not provided for IM.")
-        return FakeAsyncIM(outputs={"url": "https://vre.example"})
-
-    janitor = RecoveryManager(store, registry, im_factory=_factory)
-
+    janitor = RecoveryManager(
+        store, registry, credential_store=credentials, im_factory=factory
+    )
     await janitor.scan_once()
-    task = registry.get("t-1")
-    assert task is not None
-    await task  # flow fails without a token
 
+    assert seen_tokens == ["fresh-access"]
     record = await store.get("t-1")
-    assert record.status == TaskStatus.FAILURE
+    assert record.destroyed_at is not None
+    # Rotation written back to the credential store.
+    rotated = await credentials.get("sub-1")
+    assert rotated.access_token == "fresh-access"
+    assert rotated.refresh_token == "fresh-refresh"
 
-    fake2 = FakeAsyncIM()
-    janitor2 = _janitor(store, registry, fake2)
-    # second scan: FAILED + infra => reaped (factory now yields a working fake)
-    await RecoveryManager(
-        store,
-        registry,
-        im_factory=lambda token: fake2,
-    ).scan_once()
 
-    assert fake2.destroyed == ["infra-77"]
+async def test_reap_with_failed_exchange_defers_destroy_to_next_scan(
+    store, registry, credentials, httpx_mock, caplog
+):
+    """No/rotated-out refresh token: log + skip, retry next scan (v4 §8.4)."""
+    await _add(store, status=TaskStatus.FAILURE, im_inf_id="infra-5", sub="sub-1")
+    await credentials.upsert("sub-1", "old-access", "old-refresh")
+    httpx_mock.add_response(
+        method="POST",
+        url=DEV_TOKEN_ENDPOINT,
+        status_code=400,
+        json={"error": "invalid_grant"},
+    )
+
+    attempts = []
+
+    def factory(token):
+        attempts.append(token)
+        return FakeAsyncIM()
+
+    janitor = RecoveryManager(
+        store, registry, credential_store=credentials, im_factory=factory
+    )
+    with caplog.at_level("WARNING", logger="app.services.janitor"):
+        await janitor.scan_once()
+
+    assert attempts == []  # destroy never attempted without credentials
+    record = await store.get("t-1")
+    assert record.destroyed_at is None
+    deferred = [r for r in caplog.records if "deferred to next scan" in r.message]
+    assert len(deferred) == 1
+
+
+async def test_reap_without_captured_credentials_defers_destroy(
+    store, registry, credentials
+):
+    """Owner never logged in since the credential store landed: no row —
+    defer (retry next scan), never destroy blind."""
+    await _add(store, status=TaskStatus.FAILURE, im_inf_id="infra-5", sub="sub-1")
+
+    attempts = []
+
+    def factory(token):
+        attempts.append(token)
+        return FakeAsyncIM()
+
+    janitor = RecoveryManager(
+        store, registry, credential_store=credentials, im_factory=factory
+    )
+    await janitor.scan_once()
+
+    assert attempts == []
+    assert (await store.get("t-1")).destroyed_at is None
+
+
+async def test_reap_of_anonymous_record_uses_no_token(store, registry):
+    """Anonymous flows never had credentials; the destroy is attempted
+    anyway (sub is None — there is nothing to exchange)."""
+    await _add(store, status=TaskStatus.FAILURE, im_inf_id="infra-5")  # sub=None
+    seen_tokens = []
+
+    def factory(token):
+        seen_tokens.append(token)
+        return FakeAsyncIM()
+
+    janitor = RecoveryManager(store, registry, im_factory=factory)
+    await janitor.scan_once()
+
+    assert seen_tokens == [None]
+    assert (await store.get("t-1")).destroyed_at is not None
 
 
 async def test_run_periodic_scans_then_stops(store, registry):
