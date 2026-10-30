@@ -1,6 +1,5 @@
 # test/unit/test_galaxy.py
 import pytest
-import requests_mock
 from app import constants
 from app.exceptions import (
     GalaxyAPIError,
@@ -12,7 +11,7 @@ from fixtures.dummy_crate import DummyEntity, DummyCrate, WORKFLOW_URL
 
 
 # TODO FILE1, FILE2 move somewhere else, split to 2 tests
-def test_request_state_keys_are_workflow_input_names():
+async def test_request_state_keys_are_workflow_input_names():
     """request_state keys must be workflow input names, never file names."""
     from vre_rocrate import (
         VREPayload,
@@ -47,16 +46,16 @@ def test_request_state_keys_are_workflow_input_names():
         ],
         raw_crate={},
     )
-    vre = VREGalaxy(token="t", request_id=0, update_state=None, payload=package)
+    vre = VREGalaxy(token="t", request_id=0, status_store=None, payload=package)
 
-    request_state = vre._prepare_workflow_data()["request_state"]
+    request_state = (await vre._prepare_workflow_data())["request_state"]
     assert set(request_state.keys()) == {"reads"}
     assert request_state["reads"]["location"].endswith(".fastq")
 
 
-def test_prepare_workflow_data_success(galaxy_vre):
+async def test_prepare_workflow_data_success(galaxy_vre):
     """_prepare_workflow_data must return the exact dict that Galaxy expects."""
-    payload = galaxy_vre._prepare_workflow_data()
+    payload = await galaxy_vre._prepare_workflow_data()
     assert payload["public"] is constants.GALAXY_PUBLIC_DEFAULT
     assert payload["workflow_target_type"] == constants.GALAXY_WORKFLOW_TARGET_TYPE
     assert payload["workflow_id"] == WORKFLOW_URL
@@ -70,9 +69,9 @@ def test_prepare_workflow_data_success(galaxy_vre):
         assert spec["location"].endswith(".fastq")
 
 
-def test_prepare_workflow_onedata_success(galaxy_vre_onedata):
+async def test_prepare_workflow_onedata_success(galaxy_vre_onedata):
     """_prepare_workflow_data must return the exact dict that Galaxy expects."""
-    payload = galaxy_vre_onedata._prepare_workflow_data()
+    payload = await galaxy_vre_onedata._prepare_workflow_data()
 
     request_state = payload["request_state"]
 
@@ -83,16 +82,16 @@ def test_prepare_workflow_onedata_success(galaxy_vre_onedata):
     )
 
 
-def test_post_happy_path(galaxy_vre, requests_mock):
+async def test_post_happy_path(galaxy_vre, httpx_mock):
     data = {"uuid": "final-uuid-42"}
-    requests_mock.post(
-        galaxy_vre._get_api_url(),
-        headers=galaxy_vre._get_headers(),
+    httpx_mock.add_response(
+        method="POST",
+        url=galaxy_vre._get_api_url(),
         status_code=201,
         json=data,
     )
 
-    final_url = galaxy_vre.post()
+    final_url = await galaxy_vre.post()
 
     assert (
         final_url
@@ -100,7 +99,7 @@ def test_post_happy_path(galaxy_vre, requests_mock):
     )
 
 
-def test_missing_workflow_url_causes_exception(galaxy_vre):
+async def test_missing_workflow_url_causes_exception(galaxy_vre):
     from vre_rocrate import VREPayload, WorkflowDescriptor
 
     galaxy_vre.payload = VREPayload(
@@ -111,30 +110,32 @@ def test_missing_workflow_url_causes_exception(galaxy_vre):
     )
 
     with pytest.raises(WorkflowURLError):
-        galaxy_vre.post()
+        await galaxy_vre.post()
 
 
-def test_missing_uuid_in_response_causes_exception(galaxy_vre, requests_mock):
+async def test_missing_uuid_in_response_causes_exception(galaxy_vre, httpx_mock):
     """When the API response does not contain a UUID, ``post`` raises GalaxyAPIError."""
     empty_response = {}
 
-    requests_mock.post(
-        galaxy_vre._get_api_url(),
-        headers=galaxy_vre._get_headers(),
+    httpx_mock.add_response(
+        method="POST",
+        url=galaxy_vre._get_api_url(),
         status_code=201,
         json=empty_response,
     )
 
     with pytest.raises(GalaxyAPIError):
-        galaxy_vre.post()
+        await galaxy_vre.post()
 
 
-def test_api_error_causes_custom_exception(galaxy_vre, requests_mock):
+async def test_api_error_causes_custom_exception(galaxy_vre, httpx_mock):
     """When the API fails, ``post`` raises GalaxyAPIError."""
-    requests_mock.post(galaxy_vre._get_api_url(), status_code=400)
+    httpx_mock.add_response(
+        method="POST", url=galaxy_vre._get_api_url(), status_code=400
+    )
 
     with pytest.raises(GalaxyAPIError):
-        galaxy_vre.post()
+        await galaxy_vre.post()
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +166,7 @@ def _galaxy_vre_for_url(url, tool_version=None):
     vre = VREGalaxy(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=VREPayload(
             vre_type="galaxy",
             programming_language="galaxy",
@@ -182,97 +183,104 @@ def _galaxy_vre_for_url(url, tool_version=None):
     return vre
 
 
-def test_workflowhub_page_url_resolved_to_trs_version(requests_mock):
+async def test_workflowhub_page_url_resolved_to_trs_version(httpx_mock):
     """A bare workflowhub page URL is resolved to a versioned TRS URL."""
     vre = _galaxy_vre_for_url(WORKFLOWHUB_PAGE_URL, tool_version="1.0")
-    requests_mock.get(WORKFLOWHUB_VERSIONS_URL, json=WORKFLOWHUB_VERSIONS)
+    httpx_mock.add_response(url=WORKFLOWHUB_VERSIONS_URL, json=WORKFLOWHUB_VERSIONS)
 
-    payload = vre._prepare_workflow_data()
+    payload = await vre._prepare_workflow_data()
 
     assert payload["workflow_id"] == WORKFLOWHUB_RESOLVED_URL
     assert payload["workflow_target_type"] == constants.GALAXY_WORKFLOW_TARGET_TYPE
 
 
-def test_workflowhub_resolution_end_to_end(requests_mock):
+async def test_workflowhub_resolution_end_to_end(httpx_mock):
     """post() resolves the TRS version before calling the Galaxy API."""
+    import json as _json
+
     vre = _galaxy_vre_for_url(WORKFLOWHUB_PAGE_URL, tool_version="1.0")
-    requests_mock.get(WORKFLOWHUB_VERSIONS_URL, json=WORKFLOWHUB_VERSIONS)
-    post_mock = requests_mock.post(
-        vre._get_api_url(), status_code=201, json={"uuid": "uuid-123"}
+    httpx_mock.add_response(url=WORKFLOWHUB_VERSIONS_URL, json=WORKFLOWHUB_VERSIONS)
+    httpx_mock.add_response(
+        method="POST",
+        url=vre._get_api_url(),
+        status_code=201,
+        json={"uuid": "uuid-123"},
     )
 
-    final_url = vre.post()
+    final_url = await vre.post()
 
     assert final_url.endswith("workflow_landings/uuid-123?public=False")
-    assert post_mock.last_request.json()["workflow_id"] == WORKFLOWHUB_RESOLVED_URL
+    post_req = httpx_mock.get_requests()[-1]
+    assert _json.loads(post_req.read())["workflow_id"] == WORKFLOWHUB_RESOLVED_URL
 
 
-def test_non_workflowhub_url_passes_through_untouched(requests_mock):
+async def test_non_workflowhub_url_passes_through_untouched(httpx_mock):
     """Direct descriptor URLs are posted verbatim — no WorkflowHub call.
 
-    (requests_mock intercepts everything, so any unregistered GET would fail
+    (httpx_mock intercepts everything, so any unregistered GET would fail
     the test; nothing is registered here on purpose.)"""
     vre = _galaxy_vre_for_url(
         "https://workflow.example.org/myworkflow.ga", tool_version="1.0"
     )
 
-    payload = vre._prepare_workflow_data()
+    payload = await vre._prepare_workflow_data()
 
     assert payload["workflow_id"] == "https://workflow.example.org/myworkflow.ga"
 
 
-def test_workflowhub_trs_url_passes_through_untouched(requests_mock):
+async def test_workflowhub_trs_url_passes_through_untouched(httpx_mock):
     """Already-versioned TRS URLs must not trigger a second resolution."""
     trs_url = WORKFLOWHUB_VERSIONS_URL + "/9"
     vre = _galaxy_vre_for_url(trs_url, tool_version="1.0")
 
-    payload = vre._prepare_workflow_data()
+    payload = await vre._prepare_workflow_data()
 
     assert payload["workflow_id"] == trs_url
 
 
-def test_workflowhub_raw_descriptor_url_passes_through_untouched(requests_mock):
+async def test_workflowhub_raw_descriptor_url_passes_through_untouched(httpx_mock):
     """Concrete workflowhub raw-descriptor URLs (…/git/{v}/raw/…) stay as-is."""
     raw_url = "https://workflowhub.eu/workflows/1747/git/1/raw/workflow_simple.json"
     vre = _galaxy_vre_for_url(raw_url, tool_version="1.0")
 
-    payload = vre._prepare_workflow_data()
+    payload = await vre._prepare_workflow_data()
 
     assert payload["workflow_id"] == raw_url
 
 
-def test_latest_version_used_when_tool_version_missing(requests_mock):
+async def test_latest_version_used_when_tool_version_missing(httpx_mock):
     """Without a pinned version, the newest (max numeric id) version is used."""
     vre = _galaxy_vre_for_url(WORKFLOWHUB_PAGE_URL, tool_version=None)
-    requests_mock.get(WORKFLOWHUB_VERSIONS_URL, json=WORKFLOWHUB_VERSIONS)
+    httpx_mock.add_response(url=WORKFLOWHUB_VERSIONS_URL, json=WORKFLOWHUB_VERSIONS)
 
-    payload = vre._prepare_workflow_data()
+    payload = await vre._prepare_workflow_data()
 
     assert payload["workflow_id"] == WORKFLOWHUB_VERSIONS_URL + "/3"
 
 
-def test_unknown_tool_version_raises(requests_mock):
+async def test_unknown_tool_version_raises(httpx_mock):
     """A pinned version name that WorkflowHub doesn't know is a config error."""
     vre = _galaxy_vre_for_url(WORKFLOWHUB_PAGE_URL, tool_version="9.9")
-    requests_mock.get(WORKFLOWHUB_VERSIONS_URL, json=WORKFLOWHUB_VERSIONS)
+    httpx_mock.add_response(url=WORKFLOWHUB_VERSIONS_URL, json=WORKFLOWHUB_VERSIONS)
 
     with pytest.raises(WorkflowConfigurationError):
-        vre._prepare_workflow_data()
+        await vre._prepare_workflow_data()
 
 
-def test_workflowhub_empty_version_list_raises(requests_mock):
+async def test_workflowhub_empty_version_list_raises(httpx_mock):
     """An empty TRS versions list leaves nothing to resolve to."""
     vre = _galaxy_vre_for_url(WORKFLOWHUB_PAGE_URL, tool_version="1.0")
-    requests_mock.get(WORKFLOWHUB_VERSIONS_URL, json=[])
+    httpx_mock.add_response(url=WORKFLOWHUB_VERSIONS_URL, json=[])
 
     with pytest.raises(WorkflowConfigurationError):
-        vre._prepare_workflow_data()
+        await vre._prepare_workflow_data()
 
 
-def test_workflowhub_http_error_raises(requests_mock):
+async def test_workflowhub_http_error_raises(httpx_mock):
     """A failing WorkflowHub lookup surfaces as an external-source error."""
     vre = _galaxy_vre_for_url(WORKFLOWHUB_PAGE_URL, tool_version="1.0")
-    requests_mock.get(WORKFLOWHUB_VERSIONS_URL, status_code=500)
+    for _ in range(4):  # 5xx responses are retried per-call
+        httpx_mock.add_response(url=WORKFLOWHUB_VERSIONS_URL, status_code=500)
 
     with pytest.raises(ExternalDataSourceError):
-        vre._prepare_workflow_data()
+        await vre._prepare_workflow_data()

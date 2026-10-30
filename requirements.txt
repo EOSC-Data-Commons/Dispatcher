@@ -1,26 +1,32 @@
 asgiref==3.8.1
-aiohttp
 aiofiles==23.1.0
-celery==5.4.0
 #Jinja2==3.1.2
 #jinja2-cli
-pytest==7.2.2
-redis==4.5.4
+pytest>=8,<10
 requests
 PyYAML>=6.0,<7.0
 oscar-python>=2.2.0,<3.0.0
 uvicorn==0.21.1
-httpx==0.23.3
+httpx>=0.27,<1
+tenacity>=8.2
+aiosqlite>=0.22,<1
 fastapi-sso==0.23.0
 PyJWT[crypto]>=2.10.1
 fastapi[standard]>=0.113.0,<0.114.0
 pydantic>=2.7.0,<3.0.0
-im-client==1.8.4
+# The async IM client (imclient.AsyncIMClient) is consumed from the IM repo:
+# currently its local branch feature/async-client at ../im-client
+# (install editable: `pip install -e ../im-client`). The PyPI release
+# im-client==1.8.4 only ships the synchronous client used by the removed
+# Celery path; keep the pin documented here until an async-capable release
+# exists on PyPI.
+# im-client==1.8.4
 pydantic-settings
 cryptography
-pytest-asyncio>=0.20.0
+pytest-asyncio>=1.0
 black>=25.1.0
 GitPython>=3.1.46
+pytest-httpx>=0.30
 requests-mock>=1.12.1
 # Pin to a version tag of vre_rocrate (never @master).
 # Bump when bumping the dispatcher release; develop against lib master via editable install.

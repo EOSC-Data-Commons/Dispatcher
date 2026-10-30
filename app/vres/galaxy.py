@@ -1,8 +1,9 @@
 from .base_vre import VRE, vre_factory
-import requests
+import httpx
 import logging
 from urllib.parse import urlsplit
 from app import exceptions
+from app import http as app_http
 from vre_rocrate import GALAXY_PROGRAMMING_LANGUAGE
 from app.constants import (
     GALAXY_DEFAULT_SERVICE,
@@ -22,16 +23,17 @@ class VREGalaxy(VRE):
         # Galaxy exposes an unauthenticated lightweight version endpoint
         return f"{self.svc_url}/api/version"
 
-    def post(self):
-        data = self._prepare_workflow_data()
-        response_data = self._send_workflow_request(data)
+    async def post(self):
+        await self.setup_service()
+        data = await self._prepare_workflow_data()
+        response_data = await self._send_workflow_request(data)
         landing_id = self._extract_landing_id(response_data)
         return self._build_final_url(landing_id)
 
-    def _prepare_workflow_data(self):
+    async def _prepare_workflow_data(self):
         """Prepare the workflow data for the API request."""
         workflow_files = self._get_workflow_files()
-        workflow_url = self._get_workflow_url()
+        workflow_url = await self._get_workflow_url()
 
         return {
             "public": GALAXY_PUBLIC_DEFAULT,
@@ -50,7 +52,7 @@ class VREGalaxy(VRE):
         """
         return self.payload.input_file_bindings()
 
-    def _get_workflow_url(self):
+    async def _get_workflow_url(self):
         """Extract workflow URL from the VRE payload."""
         workflow_url = self.payload.workflow_url
         if workflow_url is None:
@@ -60,7 +62,7 @@ class VREGalaxy(VRE):
         tool_id = self._workflowhub_tool_id(workflow_url)
         if tool_id is None:
             return workflow_url
-        resolved = self._resolve_trs_url(tool_id)
+        resolved = await self._resolve_trs_url(tool_id)
         logger.info(f"{self.__class__.__name__}: resolved {workflow_url} -> {resolved}")
         return resolved
 
@@ -80,13 +82,12 @@ class VREGalaxy(VRE):
             return parts[1]
         return None
 
-    def _resolve_trs_url(self, tool_id):
+    async def _resolve_trs_url(self, tool_id):
         """Resolve a WorkflowHub tool id to a versioned TRS URL."""
         api_url = f"{WORKFLOWHUB_TRS_API}/tools/{tool_id}/versions"
         try:
-            response = requests.get(api_url, headers=self._get_headers(), timeout=30)
-            response.raise_for_status()
-        except requests.RequestException as e:
+            response = await app_http.get(api_url, headers=self._get_headers())
+        except httpx.HTTPError as e:
             logger.error(f"{self.__class__.__name__}: WorkflowHub lookup failed: {e}")
             raise exceptions.ExternalDataSourceError(
                 "WorkflowHub TRS lookup failed"
@@ -143,7 +144,7 @@ class VREGalaxy(VRE):
 
         return result
 
-    def _send_workflow_request(self, data):
+    async def _send_workflow_request(self, data):
         """Send the workflow request to the Galaxy API."""
         headers = self._get_headers()
 
@@ -152,9 +153,8 @@ class VREGalaxy(VRE):
         logger.info(f"{self.__class__.__name__}: calling {api_url} with {data}")
 
         try:
-            response = requests.post(api_url, headers=headers, json=data)
-            response.raise_for_status()
-        except requests.RequestException as e:
+            response = await app_http.post(api_url, headers=headers, json=data)
+        except httpx.HTTPError as e:
             logger.error(f"{self.__class__.__name__}: API request failed: {e}")
             raise exceptions.GalaxyAPIError("Galaxy API call failed") from e
         return response.json()

@@ -71,6 +71,19 @@ only what is dispatcher-domain:
 - tests inject `FakeAsyncIM` (scripted state transitions) — everything stays
   green without the external package.
 
+**Consumption decisions agreed post-review (recorded so the IM-repo PR and
+this repo stay aligned):** the dispatcher creates with `asyncr=True` (never
+block the create call on allocation; the wait loop polls with heartbeat);
+`im_ssl_verify` config **defaults True** (library default stays `False`
+for upstream harmony); the library's `wait()` carried the heartbeat-related
+shape upstream instead — `on_poll(state)` callback (sync or async) and
+`max_unknown` parameter — while the own wait loop stays dispatcher-side
+(liveness depends on it). Deliberate non-actions: `contmsg` fetch on failure
+stays caller-owned; `destroy(force=...)` stays an attribute-poke
+(`client.options.force = True`) rather than a signature param; no doc
+artifacts (glossary/ADRs) added to the im-client repo; the library version
+string is NOT bumped in the feature branch (upstream owns releases).
+
 ### State: two stores, two durability requirements
 
 - **Live tasks** — dict in the uvicorn process (`task_id → asyncio.Task`).
@@ -278,7 +291,8 @@ Branch: `feature/async-execution` (exists). Two PRs + one integration gate.
   TOSCA crate, DELETE-during-provisioning, kill-restart-during-IM ⇒ resume).
 - **Integration gate (before PR-2 merge):** install IM repo's async client,
   wire `im_factory` default, delete `app/services/im.py`, drop
-  `im-client`/`radl`, one live IM integration run.
+  `im-client`/`radl`, **one live IM smoke run** (`create → wait → outputs →
+  destroy`, on a real IM with real credentials).
 
 Rollout: drain-then-deploy (no in-flight migration; single pilot instance),
 consumers notified of the contract changes.

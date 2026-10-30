@@ -1,11 +1,15 @@
+import asyncio
+import logging
 import sys
-from app.services.im import IM
-from vre_rocrate import RuntimePlatform, VREPayload
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
-from app.exceptions import VREConfigurationError
+
+from vre_rocrate import RuntimePlatform, VREPayload
+
+from app.exceptions import IMError, VREConfigurationError
+from app.status_store import ResumeStage, StatusStore, TaskStatus
+
 from .utils.health import check_service_alive
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -15,30 +19,68 @@ class ROCrateValidationError(Exception):
 
 
 @runtime_checkable
-class IMClientProtocol(Protocol):
-    """Minimal contract of the external IM client used by VRE.setup_service."""
+class AsyncIMProtocol(Protocol):
+    """IM contract consumed by VRE service resolution.
 
-    def run_service(self, rp: RuntimePlatform) -> Mapping[str, Any] | None: ...
+    The concrete async wire client lives in the IM repo
+    (``imclient.AsyncIMClient``); the dispatcher-side wrapper
+    (:class:`app.services.im_async.AsyncIM`) adapts it to this protocol.
+    Tests inject ``FakeAsyncIM`` with scripted state transitions.
+    """
+
+    inf_id: str | None
+
+    async def run(
+        self,
+        rp: RuntimePlatform,
+        heartbeat: Callable[[str], Any] | None = None,
+        on_inf_created: Callable[[str], Any] | None = None,
+    ) -> Mapping[str, Any]: ...
+
+    async def resume(
+        self, inf_id: str, heartbeat: Callable[[str], Any] | None = None
+    ) -> Mapping[str, Any]: ...
+
+    async def destroy(self, inf_id: str | None = None) -> None: ...
+
+    async def aclose(self) -> None: ...
+
+
+def default_im_factory(token: str | None) -> AsyncIMProtocol:
+    """Instantiate the real dispatcher-side async IM wrapper; raises a clean
+    :class:`IMError` when the async IM client package is not installed so
+    development is never blocked on the IM repo's release."""
+    from app.services.im_async import AsyncIM
+
+    return AsyncIM(token)
 
 
 class VRE(ABC):
     def __init__(
         self,
         token: str,
-        request_id: int,
-        update_state: Callable,
-        im_factory: Callable[[str | None], IMClientProtocol] | None = None,
+        request_id: str,
+        status_store: StatusStore | None = None,
+        im_factory: Callable[[str | None], AsyncIMProtocol] | None = None,
         payload: VREPayload | None = None,
+        resume_eligible: bool = False,
+        resume_inf_id: str | None = None,
         **kwargs,
     ) -> None:
         self.payload = payload
         self.token = token
-        self._update_state = update_state
+        self._status_store = status_store
         self._request_id = request_id
-        self._im_factory = im_factory or self._default_im_factory
+        self._im_factory = im_factory or default_im_factory
+        # Resume machinery: `resume_eligible` marks metadata-only IM flows
+        # (zip+IM flows degrade to FAILED + orphan-reap on restart);
+        # `resume_inf_id` is set by the janitor when respawning a flow whose
+        # infrastructure kept provisioning across a worker restart.
+        self._resume_eligible = resume_eligible
+        self._resume_inf_id = resume_inf_id
+        # Lazily resolved on first post(); tests assign `svc_url` directly.
+        self.svc_url: str | None = None
         self._deployed_via_im = False
-        self.svc_url = self.setup_service().rstrip("/")
-        self.check_health()
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -54,19 +96,26 @@ class VRE(ABC):
         """
         return self.svc_url
 
-    def check_health(self) -> None:
-        """Fail fast if the VRE provider for the resolved service is unavailable.
+    async def check_health(self) -> None:
+        """Fail fast if the VRE provider for the resolved service is
+        unavailable.
 
         Skipped for services deployed via the Infrastructure Manager — their
-        URL does not exist before deployment.
+        URL does not exist before deployment. The sync probe runs in a
+        worker thread so the event loop is never blocked.
         """
         if self._deployed_via_im:
             return
-        check_service_alive(self.get_healthcheck_url())
+        await asyncio.to_thread(check_service_alive, self.get_healthcheck_url())
 
-    def setup_service(self) -> str:
-        rp = self._get_runtime_platform()
-        return self._resolve_service_url(rp)
+    async def setup_service(self) -> str:
+        """Resolve the service URL once (may run the whole IM sequence),
+        then probe the provider if the URL is direct (not IM-deployed)."""
+        if self.svc_url is None:
+            rp = self._get_runtime_platform()
+            self.svc_url = (await self._resolve_service_url(rp)).rstrip("/")
+            await self.check_health()
+        return self.svc_url
 
     def _get_runtime_platform(self) -> str | RuntimePlatform | None:
         """Read runtimePlatform from the VRE payload workflow descriptor."""
@@ -74,7 +123,7 @@ class VRE(ABC):
             return self.payload.workflow.runtime_platform
         return None
 
-    def _resolve_service_url(self, dest: str | RuntimePlatform | None) -> str:
+    async def _resolve_service_url(self, dest: str | RuntimePlatform | None) -> str:
         if dest is None:
             return self.get_default_service()
 
@@ -84,32 +133,95 @@ class VRE(ABC):
 
         # RuntimePlatform with installUrl – delegate to Infrastructure Manager.
         if dest.install_url is not None:
-            logger.error(f"IM dest {dest}")
-            im_client = self._im_factory(self.token, self.update_task_status)  # type: ignore[arg-type]
-            if not isinstance(im_client, IMClientProtocol):
+            logger.debug(f"IM dest {dest}")
+            im_client = self._im_factory(self.token)
+            if not isinstance(im_client, AsyncIMProtocol):
                 raise TypeError(
-                    "Injected IM factory must return an object implementing IMClientProtocol"
+                    "Injected IM factory must return an object implementing AsyncIMProtocol"
                 )
-            outputs = im_client.run_service(dest)
+            try:
+                if self._resume_inf_id is not None:
+                    outputs = await im_client.resume(
+                        self._resume_inf_id, heartbeat=self.update_task_status
+                    )
+                else:
+                    outputs = await im_client.run(
+                        dest,
+                        heartbeat=self.update_task_status,
+                        on_inf_created=self._on_inf_created,
+                    )
+            finally:
+                await im_client.aclose()
             if outputs is None:
                 raise VREConfigurationError("Failed to deploy service via IM")
             self._deployed_via_im = True
+            # IM sequence over: flow can no longer be resumed at IM_WAIT.
+            await self._persist_infra_finish(dict(outputs))
             return outputs.get("url", self.get_default_service())
 
         raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
 
-    def update_task_status(self, stage):
-        self._update_state(state="PROGRESS", meta={"stage": stage})
+    async def _on_inf_created(self, inf_id: str) -> None:
+        """Persisted the instant create() returns: im_inf_id + resume stage.
 
-    @staticmethod
-    def _default_im_factory(
-        token: str | None, update_task_status: Callable[[str], None]
-    ) -> IMClientProtocol:
-        return IM(token, update_task_status)
+        A missing store here silently breaks the infra-registry invariant
+        ("no VM without a record") — it must always be audible."""
+        if self._status_store is None:
+            logger.warning(
+                "No status store: skipping infra bookkeeping for task %s "
+                "(inf_id=%s would not be recorded)",
+                self._request_id,
+                inf_id,
+            )
+            return
+        resume_stage = (
+            ResumeStage.IM_WAIT if self._resume_eligible else ResumeStage.NONE
+        )
+        await self._status_store.update(
+            self._request_id, im_inf_id=inf_id, resume_stage=resume_stage
+        )
+
+    async def _persist_infra_finish(self, outputs: dict) -> None:
+        """Record IM outputs and close the IM_WAIT resume stage."""
+        if self._status_store is None:
+            logger.warning(
+                "No status store: skipping infra-finish bookkeeping for "
+                "task %s (resume stage would stay open)",
+                self._request_id,
+            )
+            return
+        await self._status_store.update(
+            self._request_id,
+            resume_stage=ResumeStage.NONE,
+            im_outputs=outputs,
+        )
+
+    async def update_task_status(self, stage: str) -> None:
+        """Progress write into the status store; also the IM heartbeat —
+        every write refreshes ``updated_at`` (the janitor's liveness signal)."""
+        if self._status_store is None:
+            logger.debug("No status store: progress stage %r not recorded", stage)
+            return
+        await self._status_store.update(
+            self._request_id, status=TaskStatus.PROGRESS, stage=stage
+        )
 
     @abstractmethod
-    def post(self):
+    async def post(self):
         pass
+
+    async def delete(self) -> None:
+        """Tear down remote state left behind by ``post()`` (services, jobs,
+        servers on shared infrastructure), if the VRE creates any.
+
+        Part of every VRE's contract alongside :meth:`post`: VREs that
+        provision remote state MUST override it with real teardown; VREs that
+        only produce a URL inherit this no-op. Called best-effort by
+        ``dispatch.delete_flow`` (errors are logged there, never raised).
+        """
+        logger.debug(
+            "delete() not implemented for %s — nothing to do", type(self).__name__
+        )
 
 
 class VREFactory:
@@ -132,8 +244,8 @@ class VREFactory:
     def __call__(
         self,
         token: str,
-        request_id: int,
-        update_state: Callable,
+        request_id: str,
+        status_store: StatusStore | None = None,
         payload: VREPayload | None = None,
         **kwargs,
     ):
@@ -147,7 +259,7 @@ class VREFactory:
         return self.table[elang](
             token=token,
             request_id=request_id,
-            update_state=update_state,
+            status_store=status_store,
             payload=payload,
             **kwargs,
         )
