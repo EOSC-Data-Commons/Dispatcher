@@ -69,6 +69,84 @@ async def test_live_local_task_is_left_alone(store, registry):
     assert record.status == TaskStatus.PROGRESS
 
 
+# ---------------------------------------------------------------------------
+# Startup scan: the restart rule (v4 D4)
+# ---------------------------------------------------------------------------
+
+
+async def test_startup_scan_fails_pending_immediately_no_grace_period(
+    store, registry, monkeypatch
+):
+    """A PENDING record at startup is an orphan by definition: FAILED
+    immediately — the stale timeout must NOT apply (no second worker can
+    own the flow)."""
+    await _add(store, status=TaskStatus.PENDING)
+    janitor = _janitor(store, registry, FakeAsyncIM(), stale_timeout=3600)
+
+    await janitor.startup_scan()
+
+    record = await store.get("t-1")
+    assert record.status == TaskStatus.FAILURE
+    assert record.error == "worker lost"
+
+
+async def test_startup_scan_fails_progress_and_reaps_infra(store, registry):
+    await _add(store, status=TaskStatus.PROGRESS, im_inf_id="infra-9")
+    fake = FakeAsyncIM()
+    janitor = _janitor(store, registry, fake)
+
+    await janitor.startup_scan()
+
+    record = await store.get("t-1")
+    assert record.status == TaskStatus.FAILURE
+    assert record.error == "worker lost"
+    assert fake.destroyed == ["infra-9"]
+    assert record.destroyed_at is not None
+
+
+async def test_startup_scan_leaves_delivered_flows_alone(store, registry):
+    """SUCCESS records (delivered VMs) are not torn down at startup —
+    only the periodic TTL rule (off by default) may touch them."""
+    await _add(store, status=TaskStatus.SUCCESS, im_inf_id="infra-live")
+    fake = FakeAsyncIM()
+    janitor = _janitor(store, registry, fake)
+
+    await janitor.startup_scan()
+
+    assert fake.destroyed == []
+    record = await store.get("t-1")
+    assert record.status == TaskStatus.SUCCESS
+
+
+async def test_startup_scan_reaps_leftover_failed_infra(store, registry):
+    """FAILED-but-undestroyed from the previous run: retried at startup."""
+    await _add(store, status=TaskStatus.FAILURE, im_inf_id="infra-5")
+    fake = FakeAsyncIM()
+    janitor = _janitor(store, registry, fake)
+
+    await janitor.startup_scan()
+
+    assert fake.destroyed == ["infra-5"]
+    assert (await store.get("t-1")).destroyed_at is not None
+
+
+async def test_startup_scan_skips_live_tasks(store, registry):
+    await _add(store, status=TaskStatus.PROGRESS, im_inf_id="infra-1")
+    fake = FakeAsyncIM()
+    janitor = _janitor(store, registry, fake)
+
+    never = asyncio.create_task(asyncio.Event().wait())
+    registry["t-1"] = never
+    try:
+        await janitor.startup_scan()
+    finally:
+        never.cancel()
+        await asyncio.gather(never, return_exceptions=True)
+
+    assert fake.destroyed == []
+    assert (await store.get("t-1")).status == TaskStatus.PROGRESS
+
+
 async def test_stale_pending_marks_worker_lost(store, registry, monkeypatch):
     await _add(store, status=TaskStatus.PENDING)
     janitor = _janitor(store, registry, FakeAsyncIM(), stale_timeout=1)

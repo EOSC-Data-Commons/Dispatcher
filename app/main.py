@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
     app.state.tasks: dict[str, asyncio.Task] = {}
 
     recovery = RecoveryManager(store, app.state.tasks, credential_store=credentials)
-    await recovery.scan_once()  # startup: reap pre-restart orphans
+    await recovery.startup_scan()  # restart rule: orphans fail fast, infra reaped
     janitor = asyncio.create_task(recovery.run_periodic())
     try:
         yield

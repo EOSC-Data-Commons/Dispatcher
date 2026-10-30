@@ -2,17 +2,17 @@
 
 Durability model (v4: no resume — a restart kills the flow):
 
-- Stale (updated_at older than stale_task_timeout) PENDING/PROGRESS with
-  no live local task ⇒ FAILED("worker lost") + reap its infra.
-- FAILED with im_inf_id & undestroyed ⇒ destroy (covers post-IM crashes
-  and zip+IM degrade).
-- infra_max_lifetime set ⇒ TTL-destroy of delivered VMs — OFF by default.
-- T2 (Jupyter/MDDash) restart ⇒ FAILED + resubmit, same as every flow.
+- At startup, a PENDING/PROGRESS record with no live local task is an
+  orphan by definition ⇒ FAILED("worker lost") immediately, its infra
+  reaped. No grace period: no second worker can own the flow.
+- Periodic: stale in-flight flows (task disappeared without writing an
+  outcome) ⇒ same FAILED("worker lost"); FAILED with im_inf_id &
+  undestroyed ⇒ destroy, retrying on later scans when the call fails;
+  infra_max_lifetime set ⇒ TTL-destroy of delivered VMs — OFF by default.
 
-Destroy auth (v4 §8): the per-flow token is gone with the record slim,
-so reaps exchange the owner's refresh token (credential store, D2/D3)
-for a fresh access token; no/rotated-out refresh token ⇒ log and retry
-next scan.
+Destroy auth (v4 §8): reaps exchange the owner's refresh token
+(credential store, D2/D3) for a fresh access token; no/rotated-out
+refresh token ⇒ log and retry next scan.
 """
 
 import asyncio
@@ -59,7 +59,8 @@ class RecoveryManager:
         self._stopped.set()
 
     async def run_periodic(self) -> None:
-        """Startup scan, then a scan every ``janitor_interval`` seconds."""
+        """A scan every ``janitor_interval`` seconds (the startup scan is
+        :meth:`startup_scan`, run once from the app lifespan)."""
         while not self._stopped.is_set():
             try:
                 await self.scan_once()
@@ -70,8 +71,41 @@ class RecoveryManager:
             except asyncio.TimeoutError:
                 pass
 
+    async def startup_scan(self) -> None:
+        """The restart rule (v4): a PENDING/PROGRESS record with no live
+        local task is an orphan *by definition* — the process that ran it
+        just restarted, and no second worker can own the flow. Marked
+        FAILED("worker lost") immediately (no stale grace period); its
+        infra is reaped. Leftover FAILED-but-undestroyed infra from the
+        previous run is reaped here too (retrying on later scans if the
+        destroy call fails)."""
+        records = await self._store.list_active()
+        orphans = 0
+        for record in records:
+            if self._registry.get(record.task_id) is not None:
+                continue
+            try:
+                if record.status in (TaskStatus.PENDING, TaskStatus.PROGRESS):
+                    await self._mark_worker_lost(record)
+                    orphans += 1
+                elif (
+                    record.status == TaskStatus.FAILURE
+                    and record.im_inf_id
+                    and not record.destroyed_at
+                ):
+                    await self._reap_infra(record, _utcnow())
+            except Exception:
+                logger.exception("Startup reconcile failed for task %s", record.task_id)
+        if orphans:
+            logger.warning(
+                "Startup scan: %d orphaned flow(s) marked FAILED (worker lost)",
+                orphans,
+            )
+
     async def scan_once(self) -> None:
-        """One reconciliation pass over the active (non-TTL-expired) records."""
+        """One periodic reconciliation pass over the active (non-expired)
+        records: stale in-flight flows (task disappeared without writing an
+        outcome), reap retries, TTL destroys."""
         records = await self._store.list_active()
         now = _utcnow()
         for record in records:
