@@ -136,9 +136,7 @@ class VREOSCAR(VRE):
         )
 
     def _get_service_type(self, fdl_json):
-        if "input" in fdl_json:
-            return "asynchronous"
-        return "synchronous"
+        return "input" in fdl_json
 
     def post(self):
         fdl_json = self._get_fdl_from_crate()
@@ -146,25 +144,24 @@ class VREOSCAR(VRE):
         service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
         fdl_json["name"] = service_name
 
-        logger.info(f"Creating OSCAR service {service_name}")
+        self.update_task_status(f"Creating OSCAR service {service_name}")
         logger.debug(f"FDL: {json.dumps(fdl_json)}")
-        url = self.svc_url
-        client = self._oscar_client_factory(url, self.token)
+        client = self._oscar_client_factory(self.svc_url, self.token)
         try:
             client.create_service(fdl_json)
         except Exception as ex:
             raise ExternalServiceError(f"Error creating OSCAR service: {ex}") from ex
 
+        self.update_task_status(f"Invoking OSCAR service {service_name}")
         if self._get_service_type(fdl_json) == "synchronous":
             self._invoke_service(client, service_name, self.payload.oscar_input_files)
         else:
-            self._upload_input_files(
-                client, service_name, fdl_json, self.payload.oscar_input_files
-            )
+            self._upload_input_files(client, service_name, fdl_json)
 
-        return f"{url}/system/services/{service_name}"
+        return self.svc_url
 
-    def _upload_input_files(self, client, service_name, service, files):
+    def _upload_input_files(self, client, service_name, service):
+        files = self.payload.oscar_input_files
         inputs = service.get("input")
         if not isinstance(inputs, list) or not inputs:
             raise VREConfigurationError("OSCAR service does not define an input path")
@@ -189,20 +186,18 @@ class VREOSCAR(VRE):
         if provider == "minio":
             provider = "minio.default"
 
-        try:
-            storage_client = client.create_storage_client(service_name)
-            for file_reference in files:
-                filename = (
-                    os.path.basename(urlparse(file_reference.url).path)
-                    or file_reference.name
-                )
-                storage_client._get_client(provider).upload_url(
-                    file_reference.url, os.path.join(input_path, filename)
-                )
-        except Exception as ex:
-            raise ExternalServiceError(
-                f"Error uploading OSCAR input file: {ex}"
-            ) from ex
+        storage_client = client.create_storage_client(service_name)
+        for file_reference in files:
+            filename = (
+                os.path.basename(urlparse(file_reference.url).path)
+                or file_reference.name
+            )
+            logger.debug(f"Uploading OSCAR input file {filename}")
+            success = storage_client._get_client(provider).upload_url(
+                file_reference.url, os.path.join(input_path, filename)
+            )
+            if not success:
+                logger.error(f"Error uploading OSCAR input file {filename}")
 
     def _invoke_service(self, client, service_name, files):
         for file_reference in files:
@@ -211,11 +206,13 @@ class VREOSCAR(VRE):
                     prefix="dispatcher-oscar-"
                 ) as directory:
                     local_path = self._write_input_file(directory, file_reference)
-                    client.run_service(service_name, input=local_path, timeout=300)
+                    resp = client.run_service(
+                        service_name, input=local_path, timeout=300
+                    )
+                    resp.raise_for_status()
+                    logger.debug(f"OSCAR service {service_name} invoked successfully")
             except Exception as ex:
-                raise ExternalServiceError(
-                    f"Error invoking OSCAR service: {ex}"
-                ) from ex
+                logger.error(f"Error invoking OSCAR service: {ex}")
 
     def delete(self):
         fdl_json = self._get_fdl_from_crate()
