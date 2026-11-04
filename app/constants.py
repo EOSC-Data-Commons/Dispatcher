@@ -11,6 +11,7 @@ SCIPION_DEFAULT_SERVICE = "https://scipion.i2pc.es/"
 
 OSCAR_DEFAULT_SERVICE = "https://oscar.vre.eosc-data-commons.eu"
 OSCAR_RUN_TIMEOUT = 300
+OSCAR_DEFAULT_TIMEOUT = 60
 
 VIP_DEFAULT_SERVICE = "https://vip.creatis.insa-lyon.fr"
 VIP_DEFAULT_RESULTS_LOCATION = "/vip/Home"

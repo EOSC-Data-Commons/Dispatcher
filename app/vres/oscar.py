@@ -19,12 +19,9 @@ from app.exceptions import (
     ExternalDataSourceError,
 )
 from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
-from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_RUN_TIMEOUT
+from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_RUN_TIMEOUT, OSCAR_DEFAULT_TIMEOUT
 
 logger = logging.getLogger(__name__)
-
-OSCAR_DEFAULT_TIMEOUT = 60
-OSCAR_DEFAULT_MINIO_ENDPOINT = "http://minio-service.minio:9000"
 
 
 @runtime_checkable
@@ -136,9 +133,7 @@ class OscarClient:
         if not bucket or not key:
             raise ValueError(f"Invalid remote path '{remote_path}'")
 
-        endpoint = creds.get("endpoint") or (
-            OSCAR_DEFAULT_MINIO_ENDPOINT if provider_type == "minio" else None
-        )
+        endpoint = creds.get("endpoint")
         s3 = boto3.client(
             "s3",
             endpoint_url=endpoint,
