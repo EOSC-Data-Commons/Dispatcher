@@ -50,7 +50,7 @@ def test_lifecycle(mock_get):
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        update_state=MagicMock(),
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
@@ -95,7 +95,7 @@ def test_lifecycle(mock_get):
         result = vreoscar.post()
 
     service_name = "cowsay-a1b2c3d4"
-    assert result == f"{OSCAR_DEFAULT_SERVICE}/system/services/{service_name}"
+    assert result == OSCAR_DEFAULT_SERVICE
     created_service = client.create_service.call_args.args[0]
     assert created_service["name"] == service_name
     assert created_service["script"] == fdl["script"]
@@ -126,7 +126,7 @@ def test_fdl_in_rocrate():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        update_state=MagicMock(),
         payload=payload,
     )
 
@@ -163,7 +163,7 @@ def test_oscar_creation_error(mock_get):
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        update_state=MagicMock(),
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
@@ -185,7 +185,7 @@ def test_script_fetch_error():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        update_state=MagicMock(),
         payload=payload,
     )
     fdl = "functions:\n  oscar:\n    - cluster:\n" "        name: test-service\n"
@@ -220,7 +220,7 @@ def test_synchronous_service_uses_run():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        update_state=MagicMock(),
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
