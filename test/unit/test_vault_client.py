@@ -21,7 +21,7 @@ def mock_extract_user():
     """Mock extract_user_from_token to return a fixed TokenUser."""
     with patch(
         "app.vres.utils.vault.extract_user_from_token",
-        return_value=TokenUser(email="user@example.com", name="Test User"),
+        return_value=TokenUser(sub="user@example.com", name="Test User"),
     ) as mock:
         yield mock
 
@@ -227,8 +227,8 @@ def test_read_request_exception_raises_vault_error(mock_extract_user):
         assert "Vault read request failed" in str(exc.value)
 
 
-def test_user_email_used_as_sub_in_path(mock_extract_user):
-    """The user's email (sub claim) is URL-encoded when building the KV path."""
+def test_user_sub_used_in_path(mock_extract_user):
+    """The user's sub claim is URL-encoded when building the KV path."""
     with requests_mock.Mocker() as m:
         m.post(
             "https://vault.example.com/v1/auth/jwt/login",
@@ -245,12 +245,8 @@ def test_user_email_used_as_sub_in_path(mock_extract_user):
     assert "user%40example.com" in get_req.url
 
 
-def test_token_user_has_no_sub_attribute(mock_extract_user):
-    """Regression test: TokenUser does not have a 'sub' attribute.
-
-    This test verifies that the code uses user.email (which holds the sub
-    claim value) rather than a non-existent user.sub attribute.
-    """
-    user = TokenUser(email="sub@example.com", name="Name")
-    assert not hasattr(user, "sub")
-    assert user.email == "sub@example.com"
+def test_token_user_exposes_sub_claim(mock_extract_user):
+    """TokenUser.sub carries the verified token's sub claim — the
+    email-shaped EGI user id — which callers use as the user identity."""
+    user = TokenUser(sub="sub@example.com", name="Name")
+    assert user.sub == "sub@example.com"

@@ -1,10 +1,12 @@
 import logging
 from typing import Annotated, Dict
 
-from fastapi import APIRouter, Body, Depends, Request
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 
-from .utils import parse_zipfile, oauth2_scheme
+from app.security import oauth2_scheme
+
+from .utils import parse_zipfile
 from celery.result import AsyncResult
 from app.celery.tasks import vre_from_zipfile, vre_from_rocrate
 
@@ -35,11 +37,8 @@ def status(token: Annotated[str, Depends(oauth2_scheme)], task_id: str = ""):
 def zip_rocrate(
     token: Annotated[str, Depends(oauth2_scheme)],
     parsed_zipfile: Annotated[tuple[Dict, dict[str, bytes]], Depends(parse_zipfile)],
-    request: Request = None,
 ):
-    task = vre_from_zipfile.apply_async(
-        args=[parsed_zipfile, request.auth.provider.access_token]
-    )
+    task = vre_from_zipfile.apply_async(args=[parsed_zipfile, token])
     logger.info(f"Task created: {task.id}")
     return JSONResponse({"task_id": task.id})
 
@@ -48,8 +47,7 @@ def zip_rocrate(
 def metadata_rocrate(
     token: Annotated[str, Depends(oauth2_scheme)],
     data: Dict = Body(...),
-    request: Request = None,
 ):
-    task = vre_from_rocrate.apply_async(args=[data, request.auth.provider.access_token])
+    task = vre_from_rocrate.apply_async(args=[data, token])
     logger.info(f"Task created: {task.id}")
     return JSONResponse({"task_id": task.id})

@@ -4,7 +4,7 @@ services:
 
   web:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level {{ logging.level|lower | default('info') }} --reload 
+    command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level {{ logging.level|lower | default('info') }}
     volumes:
       - ./app:/usr/src/app
       - ./nginx/certbot/conf:{{nginx.cert}}
@@ -13,6 +13,16 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:{{ redis.port }}/0
 #    env_file:
 #      - .env
+    restart: unless-stopped
+    # Liveness probe: docker only knows "process up"; this makes a wedged
+    # event loop observable. python one-liner because the image has no curl;
+    # unverified TLS because web serves its own certificate on localhost.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,ssl; urllib.request.urlopen('https://localhost:{{ api.port }}/healthz', context=ssl._create_unverified_context())"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       - redis
 
@@ -42,8 +52,10 @@ services:
       - ./nginx/ocm.json:/etc/nginx/.well-known/ocm
       - fcgi-socket:/nginx/temp
     depends_on:
-      - web
-      - git-fcgi
+      web:
+        condition: service_healthy
+      git-fcgi:
+        condition: service_started
     
   git-fcgi:
     image: alpine:latest
@@ -72,6 +84,18 @@ services:
       sh -c 'certbot certonly --reinstall --webroot --webroot-path=/var/www/certbot --non-interactive --agree-tos -d {{ inventory_hostname }}' 
     depends_on: 
       - nginx
+
+  # Optional actuator: compose itself never restarts an unhealthy container.
+  # Uncomment to let autoheal restart anything whose healthcheck flips to
+  # unhealthy (needs docker.sock access):
+#  autoheal:
+#    image: willfarrell/autoheal
+#    environment:
+#      - AUTOHEAL_CONTAINER_LABEL=all
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock
+#    restart: unless-stopped
+
 networks:
   default:
 volumes:
