@@ -16,7 +16,7 @@ from app.exceptions import (
     ExternalDataSourceError,
 )
 from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
-from app.constants import OSCAR_DEFAULT_SERVICE
+from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_RUN_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +135,7 @@ class VREOSCAR(VRE):
             }
         )
 
-    def _get_service_type(self, fdl_json):
+    def _service_is_async(self, fdl_json):
         return "input" in fdl_json
 
     def post(self):
@@ -153,10 +153,10 @@ class VREOSCAR(VRE):
             raise ExternalServiceError(f"Error creating OSCAR service: {ex}") from ex
 
         self.update_task_status(f"Invoking OSCAR service {service_name}")
-        if self._get_service_type(fdl_json) == "synchronous":
-            self._invoke_service(client, service_name, self.payload.oscar_input_files)
-        else:
+        if self._service_is_async(fdl_json):
             self._upload_input_files(client, service_name, fdl_json)
+        else:
+            self._invoke_service(client, service_name, self.payload.oscar_input_files)
 
         return self.svc_url
 
@@ -207,7 +207,7 @@ class VREOSCAR(VRE):
                 ) as directory:
                     local_path = self._write_input_file(directory, file_reference)
                     resp = client.run_service(
-                        service_name, input=local_path, timeout=300
+                        service_name, input=local_path, timeout=OSCAR_RUN_TIMEOUT
                     )
                     resp.raise_for_status()
                     logger.debug(f"OSCAR service {service_name} invoked successfully")
@@ -217,6 +217,8 @@ class VREOSCAR(VRE):
     def delete(self):
         fdl_json = self._get_fdl_from_crate()
         service_name = fdl_json["name"]
+        # TOOD: this is not the name used in the service creation, which includes a random suffix.
+        # We need to store the actual service name somewhere to be able to delete it.
 
         logger.info(f"Deleting OSCAR service {service_name}")
         client = self._oscar_client_factory(self.svc_url, self.token)
