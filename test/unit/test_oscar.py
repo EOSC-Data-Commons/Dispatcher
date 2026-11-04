@@ -3,10 +3,10 @@
 import json
 import os
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
 from app.constants import OSCAR_DEFAULT_SERVICE
-from app.vres.oscar import VREOSCAR
+from app.vres.oscar import VREOSCAR, OscarClient
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from vre_rocrate import (
     VREPayload,
@@ -44,9 +44,7 @@ def test_lifecycle(mock_get):
         ],
         raw_crate={},
     )
-    client = MagicMock()
-    storage_client = client.create_storage_client.return_value
-    storage_provider_client = storage_client._get_client.return_value
+    client = create_autospec(OscarClient, instance=True)
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
@@ -99,13 +97,12 @@ def test_lifecycle(mock_get):
     created_service = client.create_service.call_args.args[0]
     assert created_service["name"] == service_name
     assert created_service["script"] == fdl["script"]
-    client.create_storage_client.assert_called_once_with(service_name)
-    storage_client._get_client.assert_called_once_with("minio.default")
-    storage_provider_client.upload_url.assert_called_once_with(
+    client.upload_url.assert_called_once_with(
+        service_name,
+        "minio.default",
         "https://example-files.online-convert.com/document/txt/example.txt",
         "cowsay/input/example.txt",
     )
-    storage_client.upload_file.assert_not_called()
     requested_urls = [call.args[0] for call in mock_get.call_args_list]
     assert any(url.endswith("fdl.yml") for url in requested_urls)
     assert any(url.endswith("script.sh") for url in requested_urls)
@@ -113,6 +110,23 @@ def test_lifecycle(mock_get):
 
     vreoscar.delete()
     client.remove_service.assert_called_once_with(service_name)
+
+
+def test_invalid_client_factory():
+    payload = VREPayload(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
+        raw_crate={},
+    )
+    with pytest.raises(VREConfigurationError):
+        VREOSCAR(
+            token="dummy_token",
+            request_id=0,
+            update_state=MagicMock(),
+            payload=payload,
+            oscar_client_factory=lambda _url, _token: object(),
+        )
 
 
 def test_fdl_in_rocrate():
@@ -149,7 +163,7 @@ def test_oscar_creation_error(mock_get):
         return response
 
     mock_get.side_effect = get_side_effect
-    client = MagicMock()
+    client = create_autospec(OscarClient, instance=True)
     client.create_service.side_effect = RuntimeError("Bad Request")
 
     payload = VREPayload(
@@ -216,7 +230,7 @@ def test_synchronous_service_uses_run():
         ],
         raw_crate={},
     )
-    client = MagicMock()
+    client = create_autospec(OscarClient, instance=True)
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
@@ -236,6 +250,83 @@ def test_synchronous_service_uses_run():
 
     run_args = client.run_service.call_args
     assert run_args.args == ("cowsay-a1b2c3d4",)
-    assert os.path.basename(run_args.kwargs["input"]) == "input.txt"
+    assert os.path.basename(run_args.kwargs["input_path"]) == "input.txt"
     assert run_args.kwargs["timeout"] == 300
-    client.create_storage_client.assert_not_called()
+    client.upload_url.assert_not_called()
+
+
+ENDPOINT = "https://oscar.example.org"
+
+
+def test_client_create_service(requests_mock):
+    requests_mock.get(f"{ENDPOINT}/system/services/svc", status_code=404)
+    post = requests_mock.post(f"{ENDPOINT}/system/services", status_code=201)
+    OscarClient(ENDPOINT, "tok").create_service({"name": "svc"})
+    assert post.last_request.headers["Authorization"] == "Bearer tok"
+    assert post.last_request.json() == {"name": "svc"}
+
+
+def test_client_create_existing_service(requests_mock):
+    requests_mock.get(f"{ENDPOINT}/system/services/svc", status_code=200)
+    with pytest.raises(ValueError):
+        OscarClient(ENDPOINT, "tok").create_service({"name": "svc"})
+
+
+def test_client_remove_and_run_service(requests_mock, tmp_path):
+    delete = requests_mock.delete(f"{ENDPOINT}/system/services/svc")
+    run = requests_mock.post(f"{ENDPOINT}/run/svc", text="ok")
+    client = OscarClient(ENDPOINT, "tok")
+    client.remove_service("svc")
+    assert delete.called
+    input_file = tmp_path / "in.txt"
+    input_file.write_bytes(b"hello")
+    client.run_service("svc", input_path=str(input_file), timeout=5)
+    assert run.last_request.body == b"aGVsbG8="
+
+
+@patch("app.vres.oscar.boto3.client")
+def test_client_upload_url(mock_boto, requests_mock):
+    requests_mock.get(
+        f"{ENDPOINT}/system/services/svc", json={"storage_providers": {}}
+    )
+    requests_mock.get(
+        f"{ENDPOINT}/system/config",
+        json={
+            "minio_provider": {
+                "endpoint": "https://minio.example.org",
+                "region": "",
+                "verify": True,
+                "access_key": "ak",
+                "secret_key": "sk",
+            }
+        },
+    )
+    requests_mock.get(
+        "https://files.example.org/a.txt",
+        content=b"data",
+        headers={"content-type": "text/plain"},
+    )
+    ok = OscarClient(ENDPOINT, "tok").upload_url(
+        "svc", "minio.default", "https://files.example.org/a.txt", "bucket/in/a.txt"
+    )
+    assert ok is True
+    assert mock_boto.call_args.kwargs["endpoint_url"] == "https://minio.example.org"
+    assert mock_boto.call_args.kwargs["region_name"] is None
+    upload = mock_boto.return_value.upload_fileobj
+    assert upload.call_args.args[1:] == ("bucket", "in/a.txt")
+    assert upload.call_args.kwargs["ExtraArgs"] == {"ContentType": "text/plain"}
+
+
+def test_client_upload_url_download_error(requests_mock):
+    requests_mock.get(
+        f"{ENDPOINT}/system/services/svc", json={"storage_providers": {}}
+    )
+    requests_mock.get(
+        f"{ENDPOINT}/system/config", json={"minio_provider": {"endpoint": ""}}
+    )
+    requests_mock.get("https://files.example.org/a.txt", status_code=404)
+    with patch("app.vres.oscar.boto3.client"):
+        ok = OscarClient(ENDPOINT, "tok").upload_url(
+            "svc", "minio.default", "https://files.example.org/a.txt", "b/a.txt"
+        )
+    assert ok is False
