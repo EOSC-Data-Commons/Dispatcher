@@ -107,15 +107,15 @@ class OscarClient:
     def _get_storage_credentials(self, service_name, provider):
         """Resolve credentials for a '<type>.<name>' storage provider."""
         provider_type, _, provider_name = provider.partition(".")
+        if provider_type == "minio" and provider_name == "default":
+            # Get default MinIO credentials the cluster config.
+            return self._request("GET", "/system/config").json()["minio_provider"]
         service = self.get_service(service_name).json()
         credentials = (
             (service.get("storage_providers") or {})
             .get(provider_type, {})
             .get(provider_name)
         )
-        if credentials is None and provider_type == "minio" and provider_name == "default":
-            config = self._request("GET", "/system/config").json()
-            credentials = config["minio_provider"]
         if credentials is None:
             raise ValueError(
                 f'Storage provider "{provider}" is not defined in service "{service_name}"'
@@ -336,14 +336,12 @@ class VREOSCAR(VRE):
                 or file_reference.name
             )
             logger.debug(f"Uploading OSCAR input file {filename}")
-            success = self.client.upload_url(
+            self.client.upload_url(
                 service_name,
                 provider,
                 file_reference.url,
                 os.path.join(input_path, filename),
             )
-            if not success:
-                logger.error(f"Error uploading OSCAR input file {filename}")
 
     def _invoke_service(self, service_name, files):
         for file_reference in files:
