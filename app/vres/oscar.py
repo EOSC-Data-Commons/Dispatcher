@@ -89,7 +89,10 @@ class OscarClient:
         )
 
     def remove_service(self, name):
-        return self._request("DELETE", f"/system/services/{name}")
+        try:
+            return self._request("DELETE", f"/system/services/{name}")
+        except Exception as ex:
+            logger.error(f"Error deleting OSCAR service {name}: {ex}")
 
     def run_service(self, name, input_path=None, timeout=None):
         """Synchronously invoke a service sending a file as base64 body."""
