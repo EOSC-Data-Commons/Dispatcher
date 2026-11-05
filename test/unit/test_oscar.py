@@ -109,6 +109,7 @@ def test_lifecycle(mock_get):
     assert any(url.endswith("script.sh") for url in requested_urls)
     assert not any(url.endswith("ro-crate-metadata.json") for url in requested_urls)
 
+
 def test_invalid_client_factory():
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
@@ -283,9 +284,7 @@ def test_client_remove_and_run_service(requests_mock, tmp_path):
 
 @patch("app.vres.oscar.boto3.client")
 def test_client_upload_url(mock_boto, requests_mock):
-    requests_mock.get(
-        f"{ENDPOINT}/system/services/svc", json={"storage_providers": {}}
-    )
+    requests_mock.get(f"{ENDPOINT}/system/services/svc", json={"storage_providers": {}})
     requests_mock.get(
         f"{ENDPOINT}/system/config",
         json={
@@ -315,9 +314,7 @@ def test_client_upload_url(mock_boto, requests_mock):
 
 
 def test_client_upload_url_download_error(requests_mock):
-    requests_mock.get(
-        f"{ENDPOINT}/system/services/svc", json={"storage_providers": {}}
-    )
+    requests_mock.get(f"{ENDPOINT}/system/services/svc", json={"storage_providers": {}})
     requests_mock.get(
         f"{ENDPOINT}/system/config", json={"minio_provider": {"endpoint": ""}}
     )
@@ -335,18 +332,37 @@ def test_async_uploads_attempt_all_files_and_raise_when_one_fails():
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
         files=[
-            FileReference(id="https://files.example.org/one.txt", name="one.txt", encoding_format="text/plain", url="https://files.example.org/one.txt"),
-            FileReference(id="https://files.example.org/two.txt", name="two.txt", encoding_format="text/plain", url="https://files.example.org/two.txt"),
+            FileReference(
+                id="https://files.example.org/one.txt",
+                name="one.txt",
+                encoding_format="text/plain",
+                url="https://files.example.org/one.txt",
+            ),
+            FileReference(
+                id="https://files.example.org/two.txt",
+                name="two.txt",
+                encoding_format="text/plain",
+                url="https://files.example.org/two.txt",
+            ),
         ],
         raw_crate={},
     )
     client = create_autospec(OscarClient, instance=True)
     client.upload_url.side_effect = [RuntimeError("upload failed"), None]
-    vre = VREOSCAR(token="tok", request_id=0, update_state=MagicMock(), payload=payload,
-                   oscar_client_factory=lambda _url, _token: client)
+    vre = VREOSCAR(
+        token="tok",
+        request_id=0,
+        update_state=MagicMock(),
+        payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
+    )
 
-    with pytest.raises(ExternalServiceError, match="One or more OSCAR input files failed to upload"):
-        vre._upload_input_files("svc", {"input": [{"provider": "minio", "path": "bucket/in"}]})
+    with pytest.raises(
+        ExternalServiceError, match="One or more OSCAR input files failed to upload"
+    ):
+        vre._upload_input_files(
+            "svc", {"input": [{"provider": "minio", "path": "bucket/in"}]}
+        )
 
     assert client.upload_url.call_count == 2
 
@@ -357,18 +373,35 @@ def test_async_upload_exception_does_not_skip_later_files():
         programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
         files=[
-            FileReference(id="https://files.example.org/one.txt", name="one.txt", encoding_format="text/plain", url="https://files.example.org/one.txt"),
-            FileReference(id="https://files.example.org/two.txt", name="two.txt", encoding_format="text/plain", url="https://files.example.org/two.txt"),
+            FileReference(
+                id="https://files.example.org/one.txt",
+                name="one.txt",
+                encoding_format="text/plain",
+                url="https://files.example.org/one.txt",
+            ),
+            FileReference(
+                id="https://files.example.org/two.txt",
+                name="two.txt",
+                encoding_format="text/plain",
+                url="https://files.example.org/two.txt",
+            ),
         ],
         raw_crate={},
     )
     client = create_autospec(OscarClient, instance=True)
     client.upload_url.side_effect = [RuntimeError("upload failed"), True]
-    vre = VREOSCAR(token="tok", request_id=0, update_state=MagicMock(), payload=payload,
-                   oscar_client_factory=lambda _url, _token: client)
+    vre = VREOSCAR(
+        token="tok",
+        request_id=0,
+        update_state=MagicMock(),
+        payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
+    )
 
     with pytest.raises(ExternalServiceError):
-        vre._upload_input_files("svc", {"input": [{"provider": "minio", "path": "bucket/in"}]})
+        vre._upload_input_files(
+            "svc", {"input": [{"provider": "minio", "path": "bucket/in"}]}
+        )
 
     assert client.upload_url.call_count == 2
 
@@ -381,12 +414,19 @@ def test_post_removes_created_service_after_invocation_failure():
         raw_crate={},
     )
     client = create_autospec(OscarClient, instance=True)
-    vre = VREOSCAR(token="tok", request_id=0, update_state=MagicMock(), payload=payload,
-                   oscar_client_factory=lambda _url, _token: client)
+    vre = VREOSCAR(
+        token="tok",
+        request_id=0,
+        update_state=MagicMock(),
+        payload=payload,
+        oscar_client_factory=lambda _url, _token: client,
+    )
     fdl = {"name": "svc", "input": [{"provider": "minio", "path": "bucket/in"}]}
-    with patch.object(vre, "_get_fdl_from_crate", return_value=fdl), \
-         patch("app.vres.oscar.secrets.token_hex", return_value="deadbeef"), \
-         patch.object(vre, "_upload_input_files", side_effect=ExternalServiceError("upload failed")):
+    with patch.object(vre, "_get_fdl_from_crate", return_value=fdl), patch(
+        "app.vres.oscar.secrets.token_hex", return_value="deadbeef"
+    ), patch.object(
+        vre, "_upload_input_files", side_effect=ExternalServiceError("upload failed")
+    ):
         with pytest.raises(ExternalServiceError, match="upload failed"):
             vre.post()
 
