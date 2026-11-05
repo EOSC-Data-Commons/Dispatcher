@@ -13,3 +13,4 @@ ansible.log
 *.zip
 .coverage
 .roo/
+plans/
