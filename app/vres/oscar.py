@@ -40,7 +40,7 @@ class OscarClientProtocol(Protocol):
 
     def upload_url(
         self, service_name: str, provider: str, url: str, remote_path: str
-    ) -> bool: ...
+    ): ...
 
 
 class OscarClient:
@@ -147,20 +147,15 @@ class OscarClient:
             aws_secret_access_key=creds.get("secret_key"),
         )
         logger.debug(f"Uploading from URL '{url}' to bucket '{bucket}' key '{key}'")
-        try:
-            with requests.get(url, stream=True, timeout=(5, 60)) as response:
-                response.raise_for_status()
-                response.raw.decode_content = True
-                content_type = response.headers.get(
-                    "content-type", "application/octet-stream"
-                )
-                s3.upload_fileobj(
-                    response.raw, bucket, key, ExtraArgs={"ContentType": content_type}
-                )
-            return True
-        except (requests.RequestException, BotoCoreError, ClientError) as ex:
-            logger.error(f"Error uploading URL {url}: {ex}")
-            return False
+        with requests.get(url, stream=True, timeout=(5, 60)) as response:
+            response.raise_for_status()
+            response.raw.decode_content = True
+            content_type = response.headers.get(
+                "content-type", "application/octet-stream"
+            )
+            s3.upload_fileobj(
+                response.raw, bucket, key, ExtraArgs={"ContentType": content_type}
+            )
 
 
 class VREOSCAR(VRE):
@@ -296,10 +291,17 @@ class VREOSCAR(VRE):
             raise ExternalServiceError(f"Error creating OSCAR service: {ex}") from ex
 
         self.update_task_status(f"Invoking OSCAR service {service_name}")
-        if self._service_is_async(fdl_json):
-            self._upload_input_files(service_name, fdl_json)
-        else:
-            self._invoke_service(service_name, self.payload.oscar_input_files)
+        try:
+            if self._service_is_async(fdl_json):
+                self._upload_input_files(service_name, fdl_json)
+            else:
+                self._invoke_service(service_name, self.payload.oscar_input_files)
+        except Exception as ex:
+            logger.error(
+                f"Deleting OSCAR service {service_name} due to invocation errors: {ex}"
+            )
+            self.client.remove_service(service_name)
+            raise ex
 
         return self.svc_url
 
@@ -329,20 +331,29 @@ class VREOSCAR(VRE):
         if provider == "minio":
             provider = "minio.default"
 
+        all_upload_successful = True
         for file_reference in files:
             filename = (
                 os.path.basename(urlparse(file_reference.url).path)
                 or file_reference.name
             )
             logger.debug(f"Uploading OSCAR input file {filename}")
-            self.client.upload_url(
-                service_name,
-                provider,
-                file_reference.url,
-                os.path.join(input_path, filename),
-            )
+            try:
+                self.client.upload_url(
+                    service_name,
+                    provider,
+                    file_reference.url,
+                    os.path.join(input_path, filename),
+                )
+            except Exception as ex:
+                all_upload_successful = False
+                logger.error(f"Error uploading OSCAR input file {filename}: {ex}")
+
+        if not all_upload_successful:
+            raise ExternalServiceError("One or more OSCAR input files failed to upload")
 
     def _invoke_service(self, service_name, files):
+        all_invoke_successful = True
         for file_reference in files:
             try:
                 with tempfile.TemporaryDirectory(
@@ -357,7 +368,11 @@ class VREOSCAR(VRE):
                     resp.raise_for_status()
                     logger.debug(f"OSCAR service {service_name} invoked successfully")
             except Exception as ex:
+                all_invoke_successful = False
                 logger.error(f"Error invoking OSCAR service: {ex}")
+
+        if not all_invoke_successful:
+            raise ExternalServiceError("One or more OSCAR service invocations failed")
 
     def delete(self):
         fdl_json = self._get_fdl_from_crate()
