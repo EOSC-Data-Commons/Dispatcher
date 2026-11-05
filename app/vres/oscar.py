@@ -19,7 +19,11 @@ from app.exceptions import (
     ExternalDataSourceError,
 )
 from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
-from app.constants import OSCAR_DEFAULT_SERVICE, OSCAR_RUN_TIMEOUT, OSCAR_DEFAULT_TIMEOUT
+from app.constants import (
+    OSCAR_DEFAULT_SERVICE,
+    OSCAR_RUN_TIMEOUT,
+    OSCAR_DEFAULT_TIMEOUT,
+)
 
 logger = logging.getLogger(__name__)
 
