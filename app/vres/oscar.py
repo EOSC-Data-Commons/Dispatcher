@@ -374,17 +374,5 @@ class VREOSCAR(VRE):
         if not all_invoke_successful:
             raise ExternalServiceError("One or more OSCAR service invocations failed")
 
-    def delete(self):
-        fdl_json = self._get_fdl_from_crate()
-        service_name = fdl_json["name"]
-        # TOOD: this is not the name used in the service creation, which includes a random suffix.
-        # We need to store the actual service name somewhere to be able to delete it.
-
-        logger.info(f"Deleting OSCAR service {service_name}")
-        try:
-            self.client.remove_service(service_name)
-        except Exception as ex:
-            raise ExternalServiceError(f"Error deleting OSCAR service: {ex}") from ex
-
 
 vre_factory.register(OSCAR_PROGRAMMING_LANGUAGE, VREOSCAR)

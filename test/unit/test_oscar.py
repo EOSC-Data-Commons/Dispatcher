@@ -109,10 +109,6 @@ def test_lifecycle(mock_get):
     assert any(url.endswith("script.sh") for url in requested_urls)
     assert not any(url.endswith("ro-crate-metadata.json") for url in requested_urls)
 
-    vreoscar.delete()
-    client.remove_service.assert_called_once_with(service_name)
-
-
 def test_invalid_client_factory():
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
