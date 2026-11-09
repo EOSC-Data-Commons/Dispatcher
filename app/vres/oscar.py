@@ -157,7 +157,9 @@ class VREOSCAR(VRE):
             raise ExternalServiceError(f"Error creating OSCAR service: {ex}") from ex
 
         if self._get_service_type(fdl_json) == "synchronous":
-            await self._invoke_service(client, service_name, self.payload.oscar_input_files)
+            await self._invoke_service(
+                client, service_name, self.payload.oscar_input_files
+            )
         else:
             await self._upload_input_files(
                 client, service_name, fdl_json, self.payload.oscar_input_files

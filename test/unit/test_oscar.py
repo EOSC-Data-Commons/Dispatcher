@@ -15,7 +15,9 @@ from vre_rocrate import (
 )
 
 COWSAY_CRATE_URL = "https://github.com/grycap/oscar-hub/tree/main/crates/cowsay"
-COWSAY_RAW_BASE = "https://raw.githubusercontent.com/grycap/oscar-hub/main/crates/cowsay/"
+COWSAY_RAW_BASE = (
+    "https://raw.githubusercontent.com/grycap/oscar-hub/main/crates/cowsay/"
+)
 
 FDL_YAML = """functions:
   oscar:
@@ -54,7 +56,9 @@ async def test_lifecycle(httpx_mock):
     directory, service created and fed via MinIO upload, then torn down
     through the remembered delivered URL."""
     fdl = load_json("../fixtures/cowsay.json")
-    httpx_mock.add_response(method="GET", url=f"{COWSAY_RAW_BASE}fdl.yml", text=FDL_YAML)
+    httpx_mock.add_response(
+        method="GET", url=f"{COWSAY_RAW_BASE}fdl.yml", text=FDL_YAML
+    )
     httpx_mock.add_response(
         method="GET", url=f"{COWSAY_RAW_BASE}script.sh", text=fdl["script"]
     )
