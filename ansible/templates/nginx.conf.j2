@@ -75,6 +75,17 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
+        # Dispatcher liveness probe, exposed for external monitors
+        # (uptime checks, load balancers). No CORS/OPTIONS handling: this
+        # route answers to machines, not browsers.
+        location = /healthz {
+            proxy_pass https://web:{{api.port}}/healthz;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
         location /requests {
             add_header 'Access-Control-Allow-Origin' $cors_origin always;
             add_header 'Access-Control-Allow-Credentials' 'true' always;

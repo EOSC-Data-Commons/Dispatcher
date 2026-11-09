@@ -16,13 +16,14 @@ from app.vres.vip import VREVIP
 from app.vres.scipion import VREScipion
 from app.vres.utils.health import check_service_alive
 from vre_rocrate import (
-    RequestPackage,
+    VREPayload,
     WorkflowDescriptor,
     RuntimePlatform,
     GALAXY_PROGRAMMING_LANGUAGE,
     VIP_PROGRAMMING_LANGUAGE,
     SCIPION_PROGRAMMING_LANGUAGE,
 )
+import requests_mock
 
 
 @pytest.fixture
@@ -33,8 +34,8 @@ def enable_healthcheck():
     settings.vre_healthcheck_enabled = False
 
 
-def _package(lang_id: str, runtime_platform=None) -> RequestPackage:
-    return RequestPackage(
+def _payload(lang_id: str, runtime_platform=None) -> VREPayload:
+    return VREPayload(
         vre_type=lang_id,
         programming_language=lang_id,
         workflow=WorkflowDescriptor(
@@ -81,7 +82,7 @@ def test_galaxy_probes_version_endpoint(requests_mock, enable_healthcheck):
         token="t",
         request_id=0,
         update_state=None,
-        request_package=_package(GALAXY_PROGRAMMING_LANGUAGE),
+        payload=_payload(GALAXY_PROGRAMMING_LANGUAGE),
     )
     assert requests_mock.call_count == 1
 
@@ -94,7 +95,7 @@ def test_vip_probes_public_pipelines(requests_mock, enable_healthcheck):
         token="t",
         request_id=0,
         update_state=None,
-        request_package=_package(VIP_PROGRAMMING_LANGUAGE),
+        payload=_payload(VIP_PROGRAMMING_LANGUAGE),
     )
     assert requests_mock.call_count == 1
 
@@ -106,7 +107,7 @@ def test_default_hook_probes_service_root(requests_mock, enable_healthcheck):
         token="t",
         request_id=0,
         update_state=None,
-        request_package=_package(SCIPION_PROGRAMMING_LANGUAGE),
+        payload=_payload(SCIPION_PROGRAMMING_LANGUAGE),
     )
     assert requests_mock.call_count == 1
 
@@ -121,7 +122,7 @@ def test_init_fails_fast_when_provider_down(requests_mock, enable_healthcheck):
             token="t",
             request_id=0,
             update_state=None,
-            request_package=_package(GALAXY_PROGRAMMING_LANGUAGE),
+            payload=_payload(GALAXY_PROGRAMMING_LANGUAGE),
         )
 
 
@@ -131,7 +132,7 @@ def test_crate_specified_service_url_is_probed(requests_mock, enable_healthcheck
         token="t",
         request_id=0,
         update_state=None,
-        request_package=_package(
+        payload=_payload(
             GALAXY_PROGRAMMING_LANGUAGE,
             runtime_platform="https://galaxy.example.org/",
         ),
@@ -142,7 +143,9 @@ def test_crate_specified_service_url_is_probed(requests_mock, enable_healthcheck
 
 def test_im_deployed_service_skips_healthcheck(requests_mock, enable_healthcheck):
     """IM-deployed services do not exist at resolution time — no probe."""
-    package = RequestPackage(
+    requests_mock.get("https://deployed.example.org", status_code=200)
+
+    payload = VREPayload(
         vre_type=GALAXY_PROGRAMMING_LANGUAGE,
         programming_language=GALAXY_PROGRAMMING_LANGUAGE,
         workflow=WorkflowDescriptor(
@@ -161,7 +164,7 @@ def test_im_deployed_service_skips_healthcheck(requests_mock, enable_healthcheck
         token="t",
         request_id=0,
         update_state=None,
-        request_package=package,
+        payload=payload,
         im_factory=im_factory,
     )
     assert requests_mock.call_count == 0

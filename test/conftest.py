@@ -567,7 +567,7 @@ def mock_token_user():
     with patch(
         "app.vres.sciencemesh.extract_user_from_token",
         return_value=TokenUser(
-            email=SCIENCEMESH_SENDER_EMAIL,
+            sub=SCIENCEMESH_SENDER_EMAIL,
             name=SCIENCEMESH_SENDER_NAME,
         ),
     ) as mock:
