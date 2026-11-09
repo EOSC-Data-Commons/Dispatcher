@@ -6,12 +6,12 @@ import os.path
 from git import Repo
 
 
-def test_post_happy_path(binder_vre):
+async def test_post_happy_path(binder_vre):
     local_git_url = (
         f"https://{settings.host}{settings.git_url_prefix}/{binder_vre._request_id}"
     )
 
-    final_url = binder_vre.post()
+    final_url = await binder_vre.post()
 
     assert (
         final_url
@@ -19,50 +19,50 @@ def test_post_happy_path(binder_vre):
     )
 
 
-def test_post_dir_created(binder_vre, tmpdir):
-    binder_vre.post()
+async def test_post_dir_created(binder_vre, tmpdir):
+    await binder_vre.post()
 
     assert os.path.isdir(f"{tmpdir}/{binder_vre._request_id}")
 
 
-def test_post_git_repo_initialized(binder_vre, tmpdir):
-    binder_vre.post()
+async def test_post_git_repo_initialized(binder_vre, tmpdir):
+    await binder_vre.post()
 
     assert os.path.isdir(f"{tmpdir}/{binder_vre._request_id}/.git")
 
 
-def test_post_git_deamon_export_created(binder_vre, tmpdir):
-    binder_vre.post()
+async def test_post_git_deamon_export_created(binder_vre, tmpdir):
+    await binder_vre.post()
 
     assert os.path.isfile(
         f"{tmpdir}/{binder_vre._request_id}/.git/git-daemon-export-ok"
     )
 
 
-def test_post_git_commit(binder_vre, tmpdir):
-    binder_vre.post()
+async def test_post_git_commit(binder_vre, tmpdir):
+    await binder_vre.post()
     repo = Repo(f"{tmpdir}/{binder_vre._request_id}")
 
     assert repo.head.commit.message == "on the fly"
 
 
-def test_post_permission_denied(binder_vre):
+async def test_post_permission_denied(binder_vre):
     settings.git_repos = "/"
 
     with pytest.raises(PermissionError):
-        binder_vre.post()
+        await binder_vre.post()
 
 
-def test_post_not_found(binder_vre, tmpdir):
+async def test_post_not_found(binder_vre, tmpdir):
     settings.git_repos = f"{tmpdir}/../abc"
 
     with pytest.raises(FileNotFoundError):
-        binder_vre.post()
+        await binder_vre.post()
 
 
-def test_post_with_zenodo_doi(binder_vre_with_doi):
+async def test_post_with_zenodo_doi(binder_vre_with_doi):
     """Verify DOI-based Binder URL is constructed correctly."""
-    result = binder_vre_with_doi.post()
+    result = await binder_vre_with_doi.post()
 
     assert result == "https://mybinder.org/v2/zenodo/10.5281/zenodo.12345678/"
 
@@ -190,15 +190,15 @@ def test_build_binder_url_unsupported_raises_exception(binder_vre_github_only):
         binder_vre_github_only._build_binder_url("https://gitlab.com/example/repo")
 
 
-def test_post_repository_only_github(binder_vre_github_only):
+async def test_post_repository_only_github(binder_vre_github_only):
     """Test post() in repository-only mode with GitHub URL."""
-    result = binder_vre_github_only.post()
+    result = await binder_vre_github_only.post()
     assert result == "https://mybinder.org/v2/gh/example/notebook-repo/HEAD"
 
 
-def test_post_repository_only_zenodo(binder_vre_zenodo_url):
+async def test_post_repository_only_zenodo(binder_vre_zenodo_url):
     """Test post() in repository-only mode with Zenodo URL."""
-    result = binder_vre_zenodo_url.post()
+    result = await binder_vre_zenodo_url.post()
     assert result == "https://mybinder.org/v2/zenodo/10.5281/zenodo.12345678/"
 
 

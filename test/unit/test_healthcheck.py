@@ -15,6 +15,7 @@ from app.vres.galaxy import VREGalaxy
 from app.vres.vip import VREVIP
 from app.vres.scipion import VREScipion
 from app.vres.utils.health import check_service_alive
+from fakes import FakeAsyncIM
 from vre_rocrate import (
     VREPayload,
     WorkflowDescriptor,
@@ -76,72 +77,72 @@ def test_disabled_is_noop(requests_mock):
     assert requests_mock.call_count == 0
 
 
-def test_galaxy_probes_version_endpoint(requests_mock, enable_healthcheck):
+async def test_galaxy_probes_version_endpoint(requests_mock, enable_healthcheck):
     requests_mock.get("https://usegalaxy.eu/api/version", status_code=200)
-    VREGalaxy(
+    vre = VREGalaxy(
         token="t",
         request_id=0,
-        update_state=None,
         payload=_payload(GALAXY_PROGRAMMING_LANGUAGE),
     )
+    await vre.setup_service()
     assert requests_mock.call_count == 1
 
 
-def test_vip_probes_public_pipelines(requests_mock, enable_healthcheck):
+async def test_vip_probes_public_pipelines(requests_mock, enable_healthcheck):
     requests_mock.get(
         "https://vip.creatis.insa-lyon.fr/rest/pipelines?public", status_code=200
     )
-    VREVIP(
+    vre = VREVIP(
         token="t",
         request_id=0,
-        update_state=None,
         payload=_payload(VIP_PROGRAMMING_LANGUAGE),
     )
+    await vre.setup_service()
     assert requests_mock.call_count == 1
 
 
-def test_default_hook_probes_service_root(requests_mock, enable_healthcheck):
+async def test_default_hook_probes_service_root(requests_mock, enable_healthcheck):
     """VREs without a provider-specific endpoint probe the service root."""
     requests_mock.get("https://scipion.i2pc.es", status_code=200)
-    VREScipion(
+    vre = VREScipion(
         token="t",
         request_id=0,
-        update_state=None,
         payload=_payload(SCIPION_PROGRAMMING_LANGUAGE),
     )
+    await vre.setup_service()
     assert requests_mock.call_count == 1
 
 
-def test_init_fails_fast_when_provider_down(requests_mock, enable_healthcheck):
+async def test_setup_fails_fast_when_provider_down(requests_mock, enable_healthcheck):
     requests_mock.get(
         "https://usegalaxy.eu/api/version",
         exc=real_requests.ConnectionError("connection refused"),
     )
-    with pytest.raises(VREUnavailableError):
-        VREGalaxy(
-            token="t",
-            request_id=0,
-            update_state=None,
-            payload=_payload(GALAXY_PROGRAMMING_LANGUAGE),
-        )
-
-
-def test_crate_specified_service_url_is_probed(requests_mock, enable_healthcheck):
-    requests_mock.get("https://galaxy.example.org/api/version", status_code=200)
-    VREGalaxy(
+    vre = VREGalaxy(
         token="t",
         request_id=0,
-        update_state=None,
+        payload=_payload(GALAXY_PROGRAMMING_LANGUAGE),
+    )
+    with pytest.raises(VREUnavailableError):
+        await vre.setup_service()
+
+
+async def test_crate_specified_service_url_is_probed(requests_mock, enable_healthcheck):
+    requests_mock.get("https://galaxy.example.org/api/version", status_code=200)
+    vre = VREGalaxy(
+        token="t",
+        request_id=0,
         payload=_payload(
             GALAXY_PROGRAMMING_LANGUAGE,
             runtime_platform="https://galaxy.example.org/",
         ),
     )
-    # trailing slash stripped by __init__, Galaxy endpoint appended
+    await vre.setup_service()
+    # trailing slash stripped on resolution, Galaxy endpoint appended
     assert requests_mock.call_count == 1
 
 
-def test_im_deployed_service_skips_healthcheck(requests_mock, enable_healthcheck):
+async def test_im_deployed_service_skips_healthcheck(requests_mock, enable_healthcheck):
     """IM-deployed services do not exist at resolution time — no probe."""
     requests_mock.get("https://deployed.example.org", status_code=200)
 
@@ -157,14 +158,13 @@ def test_im_deployed_service_skips_healthcheck(requests_mock, enable_healthcheck
         ),
         raw_crate={},
     )
-    im_factory = lambda token, update: Mock(  # noqa: E731
-        run_service=Mock(return_value={"url": "https://deployed.example.org"})
-    )
-    VREGalaxy(
+    vre = VREGalaxy(
         token="t",
         request_id=0,
-        update_state=None,
         payload=payload,
-        im_factory=im_factory,
+        im_factory=lambda token: FakeAsyncIM(
+            outputs={"url": "https://deployed.example.org"}
+        ),
     )
+    await vre.setup_service()
     assert requests_mock.call_count == 0

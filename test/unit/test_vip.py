@@ -1,5 +1,8 @@
 """Test VIP VRE"""
 
+import json as _json
+
+import httpx
 import pytest
 from unittest.mock import patch
 from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
@@ -88,30 +91,34 @@ def static_api_key():
     settings.vip_api_key = original
 
 
-@patch("app.vres.vip.requests.post")
-def test_post_success(mock_post, vip_payload, mock_vault_key):
+async def test_post_success(vip_payload, mock_vault_key, httpx_mock):
     """Test VIP VRE post function returns /home on success."""
-    mock_post.return_value.status_code = 200
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{VIP_DEFAULT_SERVICE}/rest/executions",
+        status_code=200,
+    )
 
     vrevip = VREVIP(
         token="dummy_token",
         request_id=42,
-        update_state=None,
+        status_store=None,
         payload=vip_payload,
     )
 
-    result = vrevip.post()
+    result = await vrevip.post()
     assert result == f"{VIP_DEFAULT_SERVICE}/home.html"
 
     mock_vault_key.assert_called_once_with("dummy_token", "vip")
 
-    assert mock_post.call_count == 1
-    call_args = mock_post.call_args_list[0]
-    assert call_args[0][0] == f"{VIP_DEFAULT_SERVICE}/rest/executions"
-    assert call_args[1]["headers"]["apikey"] == "test_api_key_123"
-    assert call_args[1]["headers"]["Content-Type"] == "application/json"
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 1
+    call = requests[0]
+    assert str(call.url) == f"{VIP_DEFAULT_SERVICE}/rest/executions"
+    assert call.headers["apikey"] == "test_api_key_123"
+    assert call.headers["Content-Type"] == "application/json"
 
-    payload = call_args[1]["json"]
+    payload = _json.loads(call.read())
     assert payload["name"] == "vip-execution-42"
     assert payload["pipelineIdentifier"] == "CQUEST/0.6"
     assert payload["resultsLocation"] == "/vip/Home"
@@ -122,32 +129,36 @@ def test_post_success(mock_post, vip_payload, mock_vault_key):
     }
 
 
-@patch("app.vres.vip.requests.post")
-def test_static_api_key_overrides_vault(mock_post, vip_payload, static_api_key):
+async def test_static_api_key_overrides_vault(vip_payload, static_api_key, httpx_mock):
     """A configured static VIP API key skips the vault lookup entirely."""
-    mock_post.return_value.status_code = 200
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{VIP_DEFAULT_SERVICE}/rest/executions",
+        status_code=200,
+    )
 
     vrevip = VREVIP(
         token="dummy_token",
         request_id=42,
-        update_state=None,
+        status_store=None,
         payload=vip_payload,
     )
 
     with patch("app.vres.vip.vault_get_api_key") as m_vault:
-        result = vrevip.post()
+        result = await vrevip.post()
 
     assert result == f"{VIP_DEFAULT_SERVICE}/home.html"
     m_vault.assert_not_called()
-    assert mock_post.call_args[1]["headers"]["apikey"] == "static-test-key"
+    call = httpx_mock.get_requests()[0]
+    assert call.headers["apikey"] == "static-test-key"
 
 
-def test_vault_key_not_found(vip_payload):
+async def test_vault_key_not_found(vip_payload):
     """Test VREConfigurationError raised when vault does not contain the key."""
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=vip_payload,
     )
 
@@ -156,7 +167,7 @@ def test_vault_key_not_found(vip_payload):
         side_effect=VREConfigurationError("Secret 'vip' not found in vault"),
     ):
         with pytest.raises(VREConfigurationError) as exc:
-            vrevip.post()
+            await vrevip.post()
         assert "not found in vault" in str(exc.value)
 
 
@@ -171,7 +182,7 @@ def test_missing_pipeline_identifier():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=payload,
     )
 
@@ -180,24 +191,25 @@ def test_missing_pipeline_identifier():
     assert "Missing pipelineIdentifier" in str(exc.value)
 
 
-@patch("app.vres.vip.requests.post")
-def test_api_error(mock_post, vip_payload, mock_vault_key):
+async def test_api_error(vip_payload, mock_vault_key, httpx_mock):
     """Test ExternalServiceError raised when VIP API returns an error."""
-    mock_post.return_value.status_code = 500
-    mock_post.return_value.text = "Internal Server Error"
-    mock_post.return_value.raise_for_status.side_effect = __import__(
-        "requests"
-    ).HTTPError("500 Server Error")
+    for _ in range(4):  # 5xx responses are retried per-call
+        httpx_mock.add_response(
+            method="POST",
+            url=f"{VIP_DEFAULT_SERVICE}/rest/executions",
+            status_code=500,
+            text="Internal Server Error",
+        )
 
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=vip_payload,
     )
 
     with pytest.raises(ExternalServiceError) as exc:
-        vrevip.post()
+        await vrevip.post()
     assert "VIP API call failed" in str(exc.value)
 
 
@@ -206,7 +218,7 @@ def test_get_default_service():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=None,
     )
     assert vrevip.get_default_service() == VIP_DEFAULT_SERVICE
@@ -217,7 +229,7 @@ def test_input_values_mapping(vip_payload):
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=vip_payload,
     )
 
@@ -259,7 +271,7 @@ def test_input_values_fallback_to_id():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=payload,
     )
 
@@ -297,7 +309,7 @@ def test_input_name_wins_over_file_name():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=payload,
     )
 
@@ -333,7 +345,7 @@ def test_scalar_input_included():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=payload,
     )
 
@@ -362,7 +374,7 @@ def test_unresolvable_input_is_skipped():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=payload,
     )
 

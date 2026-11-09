@@ -49,7 +49,9 @@ def main() -> None:
     print("-" * 60)
 
     try:
-        value = vault_get_api_key(access_token, key_id)
+        import asyncio
+
+        value = asyncio.run(vault_get_api_key(access_token, key_id))
         print(f"\n✅ Success — retrieved secret for '{key_id}':")
         print(f"   {value}")
     except Exception as exc:

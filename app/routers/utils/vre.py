@@ -21,18 +21,21 @@ async def parse_zipfile(zipfile: UploadFile):
 
     metadata = None
     file_bytes_map: dict[str, bytes] = {}
-    with io.BytesIO(file_content) as file_like:
-        with zf.ZipFile(file_like) as zfile:
-            for filename in zfile.namelist():
-                if filename == "ro-crate-metadata.json":
-                    with zfile.open(filename) as file:
-                        metadata = file.read()
-                else:
-                    with zfile.open(filename) as file:
-                        file_bytes_map[filename] = file.read()
-        if metadata is None:
-            raise HTTPException(
-                status_code=400, detail="ro-crate-metadata.json not found in zip"
-            )
+    try:
+        with io.BytesIO(file_content) as file_like:
+            with zf.ZipFile(file_like) as zfile:
+                for filename in zfile.namelist():
+                    if filename == "ro-crate-metadata.json":
+                        with zfile.open(filename) as file:
+                            metadata = file.read()
+                    else:
+                        with zfile.open(filename) as file:
+                            file_bytes_map[filename] = file.read()
+    except zf.BadZipFile as bad_zip:
+        raise HTTPException(status_code=400, detail=f"Invalid zip file: {bad_zip}")
+    if metadata is None:
+        raise HTTPException(
+            status_code=400, detail="ro-crate-metadata.json not found in zip"
+        )
     rocrate_json = parse_json_metadata(metadata)
     return (rocrate_json, file_bytes_map)

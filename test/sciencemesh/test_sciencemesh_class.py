@@ -39,14 +39,23 @@ def main():
 
     # Create VREScienceMesh instance
     try:
-        vre = vre_factory(crate)
+        import asyncio
+        from vre_rocrate import VREPayloadBuilder
+
+        payload = VREPayloadBuilder.build(crate)
+        vre = vre_factory(
+            token="dummy-token",
+            request_id="manual-test",
+            status_store=None,
+            payload=payload,
+        )
         print(f"Service URL: {vre.get_default_service()}")
     except Exception as e:
         print(f"Error creating VREScienceMesh: {e}")
         return
 
     try:
-        vre.post()
+        asyncio.run(vre.post())
 
         # Verify the share was received
         time.sleep(1)

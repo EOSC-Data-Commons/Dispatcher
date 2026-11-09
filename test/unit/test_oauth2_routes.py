@@ -8,6 +8,7 @@ from fastapi_sso.sso.base import OpenID
 
 from app import security
 from app.checkin import LoginProvider
+from app.credentials import InMemoryCredentialStore
 from app.routers import auth as auth_router
 from app.security import oauth2_scheme
 from fixtures.jwt_helper import make_token
@@ -109,12 +110,12 @@ def app(monkeypatch):
         return _FakeSSO(redirect_uri)
 
     login_events = []
+
+    async def fake_on_login_tokens(store, sub, access, refresh):
+        login_events.append((sub, access, refresh))
+
     monkeypatch.setattr(auth_router, "build_sso", fake_build)
-    monkeypatch.setattr(
-        security,
-        "on_login_tokens",
-        lambda sub, access, refresh: login_events.append((sub, access, refresh)),
-    )
+    monkeypatch.setattr(security, "on_login_tokens", fake_on_login_tokens)
 
     app = FastAPI()
     app.include_router(auth_router.router)
@@ -167,3 +168,28 @@ async def test_logout_deletes_session_cookie(app):
     cookie = response.headers["set-cookie"]
     assert security.SESSION_COOKIE in cookie
     assert "Max-Age=0" in cookie or "1970" in cookie
+
+
+@pytest.mark.asyncio
+async def test_redirect_endpoint_captures_tokens_into_credential_store(monkeypatch):
+    """The real seam (not the monkeypatched one): with a credential store
+    on app.state, the login callback persists the issued tokens (D2)."""
+    monkeypatch.setattr(
+        auth_router, "build_sso", lambda redirect_uri: _FakeSSO(redirect_uri)
+    )
+    app = FastAPI()
+    app.include_router(auth_router.router)
+    store = InMemoryCredentialStore()
+    app.state.credentials = store
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport, base_url="https://test"
+    ) as client:
+        response = await client.get("/oauth2/egi-checkin/token", follow_redirects=False)
+
+    assert response.status_code == 303
+    record = await store.get("sub@egi.eu")
+    assert record is not None
+    assert record.access_token == "access-tok"
+    assert record.refresh_token == "refresh-tok"

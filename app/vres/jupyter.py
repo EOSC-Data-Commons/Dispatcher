@@ -1,12 +1,16 @@
+import asyncio
 import json
 from typing import Any, Dict, Optional
+
+import httpx
+
 from .base_vre import VRE, vre_factory
-import requests
 import logging
 from app import exceptions
+from app import http as app_http
+from app.config import settings
 from vre_rocrate import JUPYTER_PROGRAMMING_LANGUAGE
 from app.constants import JUPYTER_DEFAULT_SERVICE
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -21,18 +25,21 @@ class VREJupyter(VRE):
             "Accept": "application/json",
         }
 
-    def post(self):
-        user_name = self._get_username()
-        self._start_jupyter_server(user_name)
-        self.update_task_status("Jupyter server starting")
-        api_token = self._create_api_token(user_name)
+    async def post(self):
+        await self.setup_service()
+        user_name = await self._get_username()
+        await self._start_jupyter_server(user_name)
+        await self.update_task_status("Jupyter server starting")
+        api_token = await self._create_api_token(user_name)
         notebook_name, notebook_content = self._get_notebook_from_crate()
-        self._wait_for_server_creation()
-        self.upload_notebook(notebook_content, notebook_name, user_name, api_token)
+        await self._wait_for_server_creation()
+        await self.upload_notebook(
+            notebook_content, notebook_name, user_name, api_token
+        )
         return f"{self.get_default_service()}/user/{user_name}"
 
-    def _get_username(self):
-        userinfo = self._get_userinfo()
+    async def _get_username(self):
+        userinfo = await self._get_userinfo()
         user_name = userinfo.get("name")
         if not user_name:
             raise exceptions.VREAuthenticationError(
@@ -40,35 +47,38 @@ class VREJupyter(VRE):
             )
         return user_name
 
-    def _get_userinfo(self):
+    async def _get_userinfo(self):
         userinfo_url = f"{self.get_default_service()}/services/jwt/user"
-        response = requests.get(
+        response = await app_http.get(
             userinfo_url, headers=self._get_headers("Bearer", self.token)
         )
-        response.raise_for_status()
         return response.json()
 
-    def _start_jupyter_server(self, user_name):
+    async def _start_jupyter_server(self, user_name):
         url = f"{self.get_default_service()}/services/jwt/users/{user_name}/servers/"
-        response = requests.post(url, headers=self._get_headers("Bearer", self.token))
-        response.raise_for_status()
+        try:
+            await app_http.post(url, headers=self._get_headers("Bearer", self.token))
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to start Jupyter server: {e}")
+            raise exceptions.ExternalServiceError(
+                f"Jupyter server start failed: {e}"
+            ) from e
 
-    def _create_api_token(self, username: Optional[str] = None) -> str:
+    async def _create_api_token(self, username: Optional[str] = None) -> str:
         """Create a new API token for Jupyter Server API access."""
         url = f"{self.get_default_service()}/services/jwt/users/{username}/tokens"
 
         try:
-            response = requests.post(
+            response = await app_http.post(
                 url, headers=self._get_headers("Bearer", self.token)
             )
-            response.raise_for_status()
             token_data = response.json()
             logger.debug(f"Token data: {token_data}")
             api_token = token_data.get("token")
             if not api_token:
                 raise exceptions.InvalidResponseError("Token not found in response")
             return api_token
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             logger.error(f"Failed to create API token: {e}")
             raise exceptions.ExternalServiceError(f"Token creation failed: {e}")
 
@@ -82,16 +92,27 @@ class VREJupyter(VRE):
                     return fref.id, content
         raise exceptions.VREConfigurationError("No .ipynb notebook found in crate")
 
-    def _wait_for_server_creation(self):
-        info = self._get_userinfo()
+    async def _wait_for_server_creation(self):
+        """Bounded readiness wait (fixes the previously unbounded poll loop)."""
+        max_time = settings.jupyter_wait_max_time
+        poll = settings.jupyter_poll_interval
+        waited = 0
+        while waited < max_time:
+            info = await self._get_userinfo()
+            servers = info.get("servers") or {}
+            server_ready = (info.get("server") is not None) and servers.get("", {}).get(
+                "ready", False
+            )
+            if server_ready:
+                logger.info("Jupyter server is ready.")
+                return
+            await asyncio.sleep(poll)
+            waited += poll
+        raise exceptions.ExternalServiceError(
+            f"Jupyter server did not become ready within {max_time}s"
+        )
 
-        while (info.get("server") is None) or (
-            info.get("servers").get("").get("ready") == False
-        ):
-            time.sleep(10)
-            info = self._get_userinfo()
-
-    def upload_notebook(
+    async def upload_notebook(
         self,
         notebook_content: Dict[str, Any],
         filename: str,
@@ -109,12 +130,13 @@ class VREJupyter(VRE):
         }
 
         try:
-            response = requests.put(url, headers=headers, data=json.dumps(payload))
-            response.raise_for_status()
+            response = await app_http.put(
+                url, headers=headers, content=json.dumps(payload)
+            )
             return response.json()
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             logger.error(f"Failed to upload notebook: {e}")
-            raise exceptions.ServiceError(f"Upload failed: {e}")
+            raise exceptions.ExternalServiceError(f"Upload failed: {e}") from e
 
 
 vre_factory.register(JUPYTER_PROGRAMMING_LANGUAGE, VREJupyter)
