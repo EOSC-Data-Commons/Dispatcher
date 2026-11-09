@@ -248,7 +248,7 @@ def test_synchronous_service_uses_run():
 
     run_args = client.run_service.call_args
     assert run_args.args == ("cowsay-a1b2c3d4",)
-    assert os.path.basename(run_args.kwargs["input_path"]) == "input.txt"
+    assert os.path.basename(run_args.kwargs["file_content"]) == b'{"message": "Hello"}'
     assert run_args.kwargs["timeout"] == 300
     client.upload_url.assert_not_called()
 
@@ -278,7 +278,7 @@ def test_client_remove_and_run_service(requests_mock, tmp_path):
     assert delete.called
     input_file = tmp_path / "in.txt"
     input_file.write_bytes(b"hello")
-    client.run_service("svc", input_path=str(input_file), timeout=5)
+    client.run_service("svc", file_content=b"hello", timeout=5)
     assert run.last_request.body == b"aGVsbG8="
 
 

@@ -36,7 +36,12 @@ class OscarClientProtocol(Protocol):
 
     def remove_service(self, name: str): ...
 
-    def run_service(self, name: str, input_path=None, timeout=None): ...
+    def run_service(
+        self,
+        name: str,
+        file_content: str | bytes | None = None,
+        timeout: int | None = None,
+    ): ...
 
     def upload_url(
         self, service_name: str, provider: str, url: str, remote_path: str
@@ -94,19 +99,19 @@ class OscarClient:
         except Exception as ex:
             logger.error(f"Error deleting OSCAR service {name}: {ex}")
 
-    def run_service(self, name, input_path=None, timeout=None):
+    def run_service(self, name, file_content=None, timeout=None):
         """Synchronously invoke a service sending a file as base64 body."""
         data = None
-        if input_path:
-            with open(input_path, "rb") as stream:
-                data = base64.b64encode(stream.read())
-        return self._request(
+        if file_content:
+            data = base64.b64encode(file_content)
+        resp = self._request(
             "POST",
             f"/run/{name}",
             timeout=timeout,
             data=data,
             headers={"Content-Type": "application/json"},
         )
+        resp.raise_for_status()
 
     def _get_storage_credentials(self, service_name, provider):
         """Resolve credentials for a '<type>.<name>' storage provider."""
@@ -250,19 +255,6 @@ class VREOSCAR(VRE):
             raise VREConfigurationError("Missing service name in OSCAR FDL")
         return service
 
-    def _write_input_file(self, directory, file_reference):
-        source = file_reference.url or file_reference.id
-        filename = os.path.basename(urlparse(source).path) or file_reference.name
-        content = file_reference.properties.get("content")
-        if content is None:
-            content = self._fetch_file(source, as_binary=True)
-        if isinstance(content, str):
-            content = content.encode()
-        local_path = os.path.join(directory, filename)
-        with open(local_path, "wb") as stream:
-            stream.write(content)
-        return local_path
-
     def _fetch_file(self, url, as_binary=False):
         try:
             response = requests.get(url, timeout=60)
@@ -355,21 +347,23 @@ class VREOSCAR(VRE):
         if not all_upload_successful:
             raise ExternalServiceError("One or more OSCAR input files failed to upload")
 
+    def _get_file_content(self, file_reference):
+        content = file_reference.properties.get("content")
+        if content is None:
+            source = file_reference.url or file_reference.id
+            content = self._fetch_file(source, as_binary=True)
+        return content
+
     def _invoke_service(self, service_name, files):
         all_invoke_successful = True
         for file_reference in files:
             try:
-                with tempfile.TemporaryDirectory(
-                    prefix="dispatcher-oscar-"
-                ) as directory:
-                    local_path = self._write_input_file(directory, file_reference)
-                    resp = self.client.run_service(
-                        service_name,
-                        input_path=local_path,
-                        timeout=OSCAR_RUN_TIMEOUT,
-                    )
-                    resp.raise_for_status()
-                    logger.debug(f"OSCAR service {service_name} invoked successfully")
+                self.client.run_service(
+                    service_name,
+                    file_content=self._get_file_content(file_reference),
+                    timeout=OSCAR_RUN_TIMEOUT,
+                )
+                logger.debug(f"OSCAR service {service_name} invoked successfully")
             except Exception as ex:
                 all_invoke_successful = False
                 logger.error(f"Error invoking OSCAR service: {ex}")
