@@ -3,14 +3,11 @@ import json
 import logging
 import os
 import secrets
-import tempfile
-from typing import Callable, Protocol, runtime_checkable
 from urllib.parse import urljoin, urlparse
 
 import boto3
 import requests
 import yaml
-from botocore.exceptions import BotoCoreError, ClientError
 
 from .base_vre import VRE, vre_factory
 from app.exceptions import (
@@ -26,26 +23,6 @@ from app.constants import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-@runtime_checkable
-class OscarClientProtocol(Protocol):
-    """Minimal contract of the OSCAR client used by VREOSCAR."""
-
-    def create_service(self, service_definition: dict): ...
-
-    def remove_service(self, name: str): ...
-
-    def run_service(
-        self,
-        name: str,
-        file_content: str | bytes | None = None,
-        timeout: int | None = None,
-    ): ...
-
-    def upload_url(
-        self, service_name: str, provider: str, url: str, remote_path: str
-    ): ...
 
 
 class OscarClient:
@@ -170,18 +147,11 @@ class VREOSCAR(VRE):
     def __init__(
         self,
         token=None,
-        oscar_client_factory: Callable[[str, str], OscarClientProtocol] | None = None,
         **kwargs,
     ):
         super().__init__(token=token, **kwargs)
         self.fdl_json = None
-        factory = oscar_client_factory or self._default_oscar_client_factory
-        self.client = factory(self.svc_url, self.token)
-        if not isinstance(self.client, OscarClientProtocol):
-            raise VREConfigurationError(
-                "Injected OSCAR client factory must return an object "
-                "implementing OscarClientProtocol"
-            )
+        self.client = OscarClient(self.svc_url, self.token)
 
     def get_default_service(self):
         return OSCAR_DEFAULT_SERVICE
@@ -264,10 +234,6 @@ class VREOSCAR(VRE):
             return response.text
         except Exception as ex:
             raise ExternalDataSourceError("Network error while fetching files.") from ex
-
-    @staticmethod
-    def _default_oscar_client_factory(endpoint, token):
-        return OscarClient(endpoint, token)
 
     def _service_is_async(self, fdl_json):
         return "input" in fdl_json
