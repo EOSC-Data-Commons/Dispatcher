@@ -3,10 +3,11 @@
 import json
 import os
 import pytest
-from unittest.mock import MagicMock, patch
+from requests.exceptions import HTTPError
+from unittest.mock import MagicMock, create_autospec, patch
 from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
 from app.constants import OSCAR_DEFAULT_SERVICE
-from app.vres.oscar import VREOSCAR
+from app.vres.oscar import VREOSCAR, OscarClient
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from vre_rocrate import (
     VREPayload,
@@ -20,6 +21,16 @@ def load_json(file_name):
     abs_file_path = os.path.join(os.path.dirname(__file__), file_name)
     with open(abs_file_path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def create_vre_with_client(payload, client, token="tok"):
+    with patch("app.vres.oscar.OscarClient", return_value=client):
+        return VREOSCAR(
+            token=token,
+            request_id=0,
+            update_state=MagicMock(),
+            payload=payload,
+        )
 
 
 @patch("app.vres.oscar.requests.get")
@@ -44,16 +55,8 @@ def test_lifecycle(mock_get):
         ],
         raw_crate={},
     )
-    client = MagicMock()
-    storage_client = client.create_storage_client.return_value
-    storage_provider_client = storage_client._get_client.return_value
-    vreoscar = VREOSCAR(
-        token="dummy_token",
-        request_id=0,
-        update_state=None,
-        payload=payload,
-        oscar_client_factory=lambda _url, _token: client,
-    )
+    client = create_autospec(OscarClient, instance=True)
+    vreoscar = create_vre_with_client(payload, client, token="dummy_token")
     fdl = load_json("../fixtures/cowsay.json")
     fdl_yaml = """functions:
   oscar:
@@ -95,24 +98,51 @@ def test_lifecycle(mock_get):
         result = vreoscar.post()
 
     service_name = "cowsay-a1b2c3d4"
-    assert result == f"{OSCAR_DEFAULT_SERVICE}/system/services/{service_name}"
+    assert result == OSCAR_DEFAULT_SERVICE
     created_service = client.create_service.call_args.args[0]
     assert created_service["name"] == service_name
     assert created_service["script"] == fdl["script"]
-    client.create_storage_client.assert_called_once_with(service_name)
-    storage_client._get_client.assert_called_once_with("minio.default")
-    storage_provider_client.upload_url.assert_called_once_with(
+    client.upload_url.assert_called_once_with(
+        service_name,
+        "minio.default",
         "https://example-files.online-convert.com/document/txt/example.txt",
-        "cowsay/input/example.txt",
+        f"{service_name}/input/example.txt",
     )
-    storage_client.upload_file.assert_not_called()
     requested_urls = [call.args[0] for call in mock_get.call_args_list]
     assert any(url.endswith("fdl.yml") for url in requested_urls)
     assert any(url.endswith("script.sh") for url in requested_urls)
     assert not any(url.endswith("ro-crate-metadata.json") for url in requested_urls)
 
-    vreoscar.delete()
-    client.remove_service.assert_called_once_with(service_name)
+
+@pytest.mark.parametrize(
+    ("runtime_platform", "expected_endpoint"),
+    [
+        (None, OSCAR_DEFAULT_SERVICE),
+        ("https://oscar.custom.example", "https://oscar.custom.example"),
+    ],
+)
+def test_client_is_created_from_service_url_and_token(
+    runtime_platform, expected_endpoint
+):
+    payload = VREPayload(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(
+            id="#wf",
+            type="SoftwareSourceCode",
+            runtime_platform=runtime_platform,
+        ),
+        raw_crate={},
+    )
+    client = create_autospec(OscarClient, instance=True)
+    with patch("app.vres.oscar.OscarClient", return_value=client) as client_factory:
+        VREOSCAR(
+            token="dummy_token",
+            request_id=0,
+            update_state=MagicMock(),
+            payload=payload,
+        )
+    client_factory.assert_called_once_with(expected_endpoint, "dummy_token")
 
 
 def test_fdl_in_rocrate():
@@ -126,7 +156,7 @@ def test_fdl_in_rocrate():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        update_state=MagicMock(),
         payload=payload,
     )
 
@@ -149,7 +179,7 @@ def test_oscar_creation_error(mock_get):
         return response
 
     mock_get.side_effect = get_side_effect
-    client = MagicMock()
+    client = create_autospec(OscarClient, instance=True)
     client.create_service.side_effect = RuntimeError("Bad Request")
 
     payload = VREPayload(
@@ -160,13 +190,7 @@ def test_oscar_creation_error(mock_get):
         ),
         raw_crate={},
     )
-    vreoscar = VREOSCAR(
-        token="dummy_token",
-        request_id=0,
-        update_state=None,
-        payload=payload,
-        oscar_client_factory=lambda _url, _token: client,
-    )
+    vreoscar = create_vre_with_client(payload, client, token="dummy_token")
 
     with pytest.raises(ExternalServiceError) as exc:
         vreoscar.post()
@@ -185,7 +209,7 @@ def test_script_fetch_error():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
-        update_state=None,
+        update_state=MagicMock(),
         payload=payload,
     )
     fdl = "functions:\n  oscar:\n    - cluster:\n" "        name: test-service\n"
@@ -216,26 +240,202 @@ def test_synchronous_service_uses_run():
         ],
         raw_crate={},
     )
-    client = MagicMock()
-    vreoscar = VREOSCAR(
-        token="dummy_token",
-        request_id=0,
-        update_state=None,
-        payload=payload,
-        oscar_client_factory=lambda _url, _token: client,
-    )
+    client = create_autospec(OscarClient, instance=True)
+    vreoscar = create_vre_with_client(payload, client, token="dummy_token")
     fdl = {
-        "name": "cowsay",
+        "name": "cowsay-a1b2c3d4",
         "image": "ghcr.io/grycap/cowsay",
         "script": "#!/bin/sh\necho test\n",
     }
 
     with patch.object(vreoscar, "_get_fdl_from_crate", return_value=fdl):
-        with patch("app.vres.oscar.secrets.token_hex", return_value="a1b2c3d4"):
-            vreoscar.post()
+        vreoscar.post()
 
     run_args = client.run_service.call_args
     assert run_args.args == ("cowsay-a1b2c3d4",)
-    assert os.path.basename(run_args.kwargs["input"]) == "input.txt"
+    assert os.path.basename(run_args.kwargs["file_content"]) == b'{"message": "Hello"}'
     assert run_args.kwargs["timeout"] == 300
-    client.create_storage_client.assert_not_called()
+    client.upload_url.assert_not_called()
+
+
+ENDPOINT = "https://oscar.example.org"
+
+
+def test_client_create_service(requests_mock):
+    requests_mock.get(f"{ENDPOINT}/system/services/svc", status_code=404)
+    post = requests_mock.post(f"{ENDPOINT}/system/services", status_code=201)
+    OscarClient(ENDPOINT, "tok").create_service({"name": "svc"})
+    assert post.last_request.headers["Authorization"] == "Bearer tok"
+    assert post.last_request.json() == {"name": "svc"}
+
+
+def test_client_create_existing_service(requests_mock):
+    requests_mock.get(f"{ENDPOINT}/system/services/svc", status_code=200)
+    with pytest.raises(ValueError):
+        OscarClient(ENDPOINT, "tok").create_service({"name": "svc"})
+
+
+def test_client_remove_and_run_service(requests_mock, tmp_path):
+    delete = requests_mock.delete(f"{ENDPOINT}/system/services/svc")
+    run = requests_mock.post(f"{ENDPOINT}/run/svc", text="ok")
+    client = OscarClient(ENDPOINT, "tok")
+    client.remove_service("svc")
+    assert delete.called
+    input_file = tmp_path / "in.txt"
+    input_file.write_bytes(b"hello")
+    client.run_service("svc", file_content=b"hello", timeout=5)
+    assert run.last_request.body == b"aGVsbG8="
+
+
+@patch("app.vres.oscar.boto3.client")
+def test_client_upload_url(mock_boto, requests_mock):
+    requests_mock.get(f"{ENDPOINT}/system/services/svc", json={"storage_providers": {}})
+    requests_mock.get(
+        f"{ENDPOINT}/system/config",
+        json={
+            "minio_provider": {
+                "endpoint": "https://minio.example.org",
+                "region": "",
+                "verify": True,
+                "access_key": "ak",
+                "secret_key": "sk",
+            }
+        },
+    )
+    requests_mock.get(
+        "https://files.example.org/a.txt",
+        content=b"data",
+        headers={"content-type": "text/plain"},
+    )
+    ok = OscarClient(ENDPOINT, "tok").upload_url(
+        "svc", "minio.default", "https://files.example.org/a.txt", "bucket/in/a.txt"
+    )
+    assert ok is None
+    assert mock_boto.call_args.kwargs["endpoint_url"] == "https://minio.example.org"
+    assert mock_boto.call_args.kwargs["region_name"] is None
+    upload = mock_boto.return_value.upload_fileobj
+    assert upload.call_args.args[1:] == ("bucket", "in/a.txt")
+    assert upload.call_args.kwargs["ExtraArgs"] == {"ContentType": "text/plain"}
+
+
+def test_client_upload_url_download_error(requests_mock):
+    requests_mock.get(f"{ENDPOINT}/system/services/svc", json={"storage_providers": {}})
+    requests_mock.get(
+        f"{ENDPOINT}/system/config", json={"minio_provider": {"endpoint": ""}}
+    )
+    requests_mock.get("https://files.example.org/a.txt", status_code=404)
+    with patch("app.vres.oscar.boto3.client"):
+        with pytest.raises(HTTPError):
+            OscarClient(ENDPOINT, "tok").upload_url(
+                "svc", "minio.default", "https://files.example.org/a.txt", "b/a.txt"
+            )
+
+
+def test_async_uploads_attempt_all_files_and_raise_when_one_fails():
+    payload = VREPayload(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
+        files=[
+            FileReference(
+                id="https://files.example.org/one.txt",
+                name="one.txt",
+                encoding_format="text/plain",
+                url="https://files.example.org/one.txt",
+            ),
+            FileReference(
+                id="https://files.example.org/two.txt",
+                name="two.txt",
+                encoding_format="text/plain",
+                url="https://files.example.org/two.txt",
+            ),
+        ],
+        raw_crate={},
+    )
+    client = create_autospec(OscarClient, instance=True)
+    client.upload_url.side_effect = [RuntimeError("upload failed"), None]
+    vre = create_vre_with_client(payload, client)
+
+    with pytest.raises(
+        ExternalServiceError, match="One or more OSCAR input files failed to upload"
+    ):
+        vre._upload_input_files(
+            "svc", {"input": [{"provider": "minio", "path": "bucket/in"}]}
+        )
+
+    assert client.upload_url.call_count == 2
+
+
+def test_async_upload_exception_does_not_skip_later_files():
+    payload = VREPayload(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
+        files=[
+            FileReference(
+                id="https://files.example.org/one.txt",
+                name="one.txt",
+                encoding_format="text/plain",
+                url="https://files.example.org/one.txt",
+            ),
+            FileReference(
+                id="https://files.example.org/two.txt",
+                name="two.txt",
+                encoding_format="text/plain",
+                url="https://files.example.org/two.txt",
+            ),
+        ],
+        raw_crate={},
+    )
+    client = create_autospec(OscarClient, instance=True)
+    client.upload_url.side_effect = [RuntimeError("upload failed"), True]
+    vre = create_vre_with_client(payload, client)
+
+    with pytest.raises(ExternalServiceError):
+        vre._upload_input_files(
+            "svc", {"input": [{"provider": "minio", "path": "bucket/in"}]}
+        )
+
+    assert client.upload_url.call_count == 2
+
+
+def test_enforce_input_bucket_overrides_user_supplied_bucket():
+    """An FDL cannot point to an arbitrary bucket; it must use the service name."""
+    fdl_json = {
+        "name": "svc-a1b2c3d4",
+        "input": [
+            {"storage_provider": "minio", "path": "attacker-bucket/in"},
+            {"provider": "s3.mybucket", "path": "other-bucket/nested/in"},
+            {"provider": "minio", "path": "no-key-bucket"},
+            {"provider": "webdav", "path": "unchanged/in"},
+        ],
+    }
+
+    VREOSCAR._enforce_input_bucket(fdl_json, "svc-a1b2c3d4")
+
+    assert fdl_json["input"][0]["path"] == "svc-a1b2c3d4/in"
+    assert fdl_json["input"][1]["path"] == "svc-a1b2c3d4/in"
+    assert fdl_json["input"][2]["path"] == "svc-a1b2c3d4/no-key-bucket"
+    assert fdl_json["input"][3]["path"] == "unchanged/in"
+
+
+def test_post_removes_created_service_after_invocation_failure():
+    payload = VREPayload(
+        vre_type=OSCAR_PROGRAMMING_LANGUAGE,
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
+        workflow=WorkflowDescriptor(id="#wf", type="SoftwareSourceCode"),
+        raw_crate={},
+    )
+    client = create_autospec(OscarClient, instance=True)
+    vre = create_vre_with_client(payload, client)
+    fdl = {
+        "name": "svc-deadbeef",
+        "input": [{"provider": "minio", "path": "svc-deadbeef/in"}],
+    }
+    with patch.object(vre, "_get_fdl_from_crate", return_value=fdl), patch.object(
+        vre, "_upload_input_files", side_effect=ExternalServiceError("upload failed")
+    ):
+        with pytest.raises(ExternalServiceError, match="upload failed"):
+            vre.post()
+
+    client.remove_service.assert_called_once_with("svc-deadbeef")
