@@ -16,6 +16,7 @@ from fastapi import FastAPI
 
 from app.routers import requests, auth, anonymous_requests, healthz
 from app.config import settings
+from app.credentials import SQLiteCredentialStore
 from app.logging_config import setup_logging
 from app.middleware.request_logging import RequestLoggingMiddleware
 
@@ -37,9 +38,15 @@ async def lifespan(app: FastAPI):
     logger.info(f"Log level: {settings.log_level}")
     logger.info(f"EGI Checkin environment: {settings.egi_checkin_env}")
     logger.info(f"Host: {settings.host}")
-    yield
-    # Shutdown
-    logger.info("Dispatcher service shutting down...")
+    credentials = SQLiteCredentialStore(settings.db_path)
+    await credentials.connect()
+    app.state.credentials = credentials
+    try:
+        yield
+    finally:
+        # Shutdown
+        logger.info("Dispatcher service shutting down...")
+        await credentials.aclose()
 
 
 app = FastAPI(title="Dispatcher Service", lifespan=lifespan)

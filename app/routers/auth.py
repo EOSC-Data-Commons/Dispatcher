@@ -51,8 +51,14 @@ async def checkin_redirect(request: Request):
     if not access_token:
         raise SSOLoginError(500, "provider returned no access_token")
 
-    # Refresh-token capture seam for the (future) janitor — see the v4 plan.
-    security.on_login_tokens(openid.id if openid else None, access_token, refresh_token)
+    # Refresh-token capture (v4 plan, D2): persist the login tokens into
+    # the per-user credential store for later cleanup-side exchange.
+    await security.on_login_tokens(
+        getattr(request.app.state, "credentials", None),
+        openid.id if openid else None,
+        access_token,
+        refresh_token,
+    )
 
     response = RedirectResponse(settings.redirect_uri or "/docs", status_code=303)
     response.set_cookie(
