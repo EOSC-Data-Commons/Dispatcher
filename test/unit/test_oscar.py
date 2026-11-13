@@ -106,7 +106,7 @@ def test_lifecycle(mock_get):
         service_name,
         "minio.default",
         "https://example-files.online-convert.com/document/txt/example.txt",
-        "cowsay/input/example.txt",
+        f"{service_name}/input/example.txt",
     )
     requested_urls = [call.args[0] for call in mock_get.call_args_list]
     assert any(url.endswith("fdl.yml") for url in requested_urls)
@@ -243,14 +243,13 @@ def test_synchronous_service_uses_run():
     client = create_autospec(OscarClient, instance=True)
     vreoscar = create_vre_with_client(payload, client, token="dummy_token")
     fdl = {
-        "name": "cowsay",
+        "name": "cowsay-a1b2c3d4",
         "image": "ghcr.io/grycap/cowsay",
         "script": "#!/bin/sh\necho test\n",
     }
 
     with patch.object(vreoscar, "_get_fdl_from_crate", return_value=fdl):
-        with patch("app.vres.oscar.secrets.token_hex", return_value="a1b2c3d4"):
-            vreoscar.post()
+        vreoscar.post()
 
     run_args = client.run_service.call_args
     assert run_args.args == ("cowsay-a1b2c3d4",)
@@ -400,6 +399,26 @@ def test_async_upload_exception_does_not_skip_later_files():
     assert client.upload_url.call_count == 2
 
 
+def test_enforce_input_bucket_overrides_user_supplied_bucket():
+    """An FDL cannot point to an arbitrary bucket; it must use the service name."""
+    fdl_json = {
+        "name": "svc-a1b2c3d4",
+        "input": [
+            {"storage_provider": "minio", "path": "attacker-bucket/in"},
+            {"provider": "s3.mybucket", "path": "other-bucket/nested/in"},
+            {"provider": "minio", "path": "no-key-bucket"},
+            {"provider": "webdav", "path": "unchanged/in"},
+        ],
+    }
+
+    VREOSCAR._enforce_input_bucket(fdl_json, "svc-a1b2c3d4")
+
+    assert fdl_json["input"][0]["path"] == "svc-a1b2c3d4/in"
+    assert fdl_json["input"][1]["path"] == "svc-a1b2c3d4/in"
+    assert fdl_json["input"][2]["path"] == "svc-a1b2c3d4/no-key-bucket"
+    assert fdl_json["input"][3]["path"] == "unchanged/in"
+
+
 def test_post_removes_created_service_after_invocation_failure():
     payload = VREPayload(
         vre_type=OSCAR_PROGRAMMING_LANGUAGE,
@@ -409,10 +428,11 @@ def test_post_removes_created_service_after_invocation_failure():
     )
     client = create_autospec(OscarClient, instance=True)
     vre = create_vre_with_client(payload, client)
-    fdl = {"name": "svc", "input": [{"provider": "minio", "path": "bucket/in"}]}
-    with patch.object(vre, "_get_fdl_from_crate", return_value=fdl), patch(
-        "app.vres.oscar.secrets.token_hex", return_value="deadbeef"
-    ), patch.object(
+    fdl = {
+        "name": "svc-deadbeef",
+        "input": [{"provider": "minio", "path": "svc-deadbeef/in"}],
+    }
+    with patch.object(vre, "_get_fdl_from_crate", return_value=fdl), patch.object(
         vre, "_upload_input_files", side_effect=ExternalServiceError("upload failed")
     ):
         with pytest.raises(ExternalServiceError, match="upload failed"):

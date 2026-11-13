@@ -182,7 +182,27 @@ class VREOSCAR(VRE):
         fdl_json = self._extract_oscar_service(fdl)
         fdl_json["script"] = script
 
+        service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
+        fdl_json["name"] = service_name
+
+        # Check input paths to avoid setting the bucket name
+        self._enforce_input_bucket(fdl_json, service_name)
+
         return fdl_json
+
+    @staticmethod
+    def _enforce_input_bucket(fdl_json, service_name):
+        inputs = fdl_json.get("input", [])
+        for item in inputs:
+            provider = item.get("storage_provider", item.get("provider", "minio"))
+            if provider == "minio":
+                provider = "minio.default"
+            provider_type = provider.split(".")[0]
+
+            if provider_type not in ("minio", "s3"):
+                continue
+            folder = os.path.basename(item.get("path", ""))
+            item["path"] = f"{service_name}/{folder}"
 
     @staticmethod
     def _crate_base_url(crate_url):
@@ -241,8 +261,7 @@ class VREOSCAR(VRE):
     def post(self):
         fdl_json = self._get_fdl_from_crate()
         self.fdl_json = fdl_json
-        service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
-        fdl_json["name"] = service_name
+        service_name = fdl_json["name"]
 
         self.update_task_status(f"Creating OSCAR service {service_name}")
         logger.debug(f"FDL: {json.dumps(fdl_json)}")
