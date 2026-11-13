@@ -1,5 +1,18 @@
 """Domain-specific exceptions for VRE operations"""
 
+import httpx
+
+
+class TransientHTTPError(httpx.HTTPStatusError):
+    """HTTP response status worth retrying (408, 429, 5xx).
+
+    Raised by the shared HTTP helpers in :mod:`app.http`; carries the full
+    ``request``/``response`` like any :class:`httpx.HTTPStatusError` so
+    callers can uniformly map HTTP failures to domain errors.
+    """
+
+    pass
+
 
 class VREError(Exception):
     """Base exception for all VRE-related errors"""

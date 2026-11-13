@@ -16,6 +16,25 @@ class Settings(BaseSettings):
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
 
+    # IM wait bounds (used by the dispatcher-side async IM wrapper)
+    im_max_time: int = 36000  # seconds; 10 h
+    im_sleep: int = 30  # seconds between IM state polls
+    im_max_retries: int = 3  # tolerated consecutive "unknown" IM states
+    im_ssl_verify: bool = (
+        True  # verify the IM endpoint's TLS cert (disable for dev/self-signed)
+    )
+
+    # Async-execution state store (see plans/async-execution-architecture-v3.md)
+    status_ttl: int = 86400  # seconds; uniform record TTL from creation
+
+    # Shared HTTP client + per-call retry policy
+    http_default_timeout: float = 30.0
+    http_max_connections: int = 100
+    http_max_keepalive_connections: int = 20
+    http_retry_attempts: int = 4
+    http_retry_min_backoff: float = 1.0  # seconds
+    http_retry_max_backoff: float = 30.0  # seconds
+
     # Vault (EGI Secret Store) configuration
     vault_url: str = ""
     vault_jwt_mount: str = "jwt"

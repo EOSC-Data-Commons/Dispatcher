@@ -33,6 +33,25 @@ from app.services.im import IM
 pytest_plugins = ["pytest_asyncio"]
 
 
+@pytest.fixture(autouse=True)
+def _fast_http_retries(monkeypatch):
+    """No real sleeps behind the tenacity retry policy in tests."""
+    monkeypatch.setattr(settings, "http_retry_attempts", 4)
+    monkeypatch.setattr(settings, "http_retry_min_backoff", 0.0)
+    monkeypatch.setattr(settings, "http_retry_max_backoff", 0.0)
+
+
+@pytest.fixture(autouse=True)
+async def _reset_shared_http_client():
+    """Each test gets its own shared httpx client, created lazily inside the
+    test so it binds to the test's pytest-httpx mock transport."""
+    from app import http as app_http
+
+    await app_http.close_http_client()
+    yield
+    await app_http.close_http_client()
+
+
 def _build_payload(crate: DummyCrate, lang_id: str) -> VREPayload:
     """Build a VREPayload from a DummyCrate for tests."""
     main = crate.main_entity
