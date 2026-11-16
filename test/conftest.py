@@ -1,7 +1,7 @@
 # test/conftest.py
 from pathlib import Path
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from fixtures.dummy_crate import (
     DummyEntity,
     DummyCrate,
@@ -28,7 +28,6 @@ from vre_rocrate import (
     FileReference,
     FormalParameter,
 )
-from app.services.im import IM
 
 pytest_plugins = ["pytest_asyncio"]
 
@@ -230,7 +229,7 @@ def galaxy_vre(dummy_galaxy_crate):
     vre = VREGalaxy(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=_build_payload(dummy_galaxy_crate, GALAXY_PROGRAMMING_LANGUAGE),
     )
     vre.svc_url = "https://usegalaxy.eu/"
@@ -242,7 +241,7 @@ def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
     vre = VREGalaxy(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=_build_payload(dummy_galaxy_crate_onedata, GALAXY_PROGRAMMING_LANGUAGE),
     )
     vre.svc_url = "https://usegalaxy.eu/"
@@ -274,7 +273,7 @@ def binder_vre(dummy_binder_crate):
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=_build_payload(dummy_binder_crate, BINDER_PROGRAMMING_LANGUAGE),
     )
     vre.svc_url = "https://mybinder.org"
@@ -300,7 +299,7 @@ def binder_vre_with_doi():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -326,7 +325,7 @@ def binder_vre_github_only():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -352,7 +351,7 @@ def binder_vre_github_with_branch():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -383,7 +382,7 @@ def binder_vre_not_repo_only():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -420,7 +419,7 @@ def binder_vre_not_repo_only_with_remote():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -446,7 +445,7 @@ def binder_vre_no_url():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -472,7 +471,7 @@ def binder_vre_gitlab_only():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -498,7 +497,7 @@ def binder_vre_zenodo_url():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -542,7 +541,7 @@ def sciencemesh_vre():
     vre = VREScienceMesh(
         token="test-access-token",
         request_id=0,
-        update_state=None,
+        status_store=None,
         payload=package,
     )
     vre.svc_url = "https://sciencemesh.example.org"
@@ -594,14 +593,21 @@ def mock_token_user():
 
 
 @pytest.fixture
-def mock_requests_post():
-    with patch("requests.post") as _mock:
-        yield _mock
-
-
-@pytest.fixture
-def im_service(mock_settings):
-    im = IM("test_token")
-    im.client = Mock()
-    im.inf_id = "test_inf_id"
-    return im
+def mock_settings(monkeypatch):
+    """IM-related settings used by the async IM wrapper tests."""
+    monkeypatch.setattr(settings, "im_endpoint", "http://test.endpoint")
+    monkeypatch.setattr(
+        settings,
+        "im_cloud_provider",
+        {
+            "type": "openstack",
+            "host": "test.host",
+            "username": "test_user",
+            "auth_version": "3.x_oidc_access_token",
+            "tenant": "test_tenant",
+        },
+    )
+    monkeypatch.setattr(settings, "im_max_time", 600)
+    monkeypatch.setattr(settings, "im_max_retries", 5)
+    monkeypatch.setattr(settings, "im_sleep", 1)
+    yield settings

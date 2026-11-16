@@ -6,16 +6,17 @@ caller's access token (~1 h) is long gone. At login we therefore capture
 the EGI refresh token plus the access token, keyed by OIDC ``sub``;
 :meth:`CredentialStore.upsert` is fed from the
 :func:`app.security.on_login_tokens` login seam, and cleanup exchanges the
-refresh token for a fresh access token (:func:`exchange_refresh_token`)
-whenever it needs IM credentials.
+refresh token for a fresh access token (:func:`app.credentials.exchange` —
+D3) whenever it needs IM credentials.
 
-Two backends behind the :class:`CredentialStore` protocol:
+Two backends behind the :class:`CredentialStore` protocol, mirroring
+:mod:`app.status_store`:
 
-- :class:`SQLiteCredentialStore` — production. One SQLite file
-  (``settings.db_path``; the async-execution task registry will share it,
-  keeping one file to back up and one permission class to protect). Owns
-  its own connection (WAL allows several) and a single idempotent
-  ``CREATE TABLE`` — no ``user_version`` migrations here.
+- :class:`SQLiteCredentialStore` — production. Same SQLite file as the
+  task records (``settings.db_path``): one file to back up, one permission
+  class to protect. Owns its own connection (WAL allows several) and a
+  single idempotent ``CREATE TABLE`` — no ``user_version`` migrations here,
+  the status store owns that pragma on the shared file.
 - :class:`InMemoryCredentialStore` — tests.
 """
 
@@ -30,6 +31,7 @@ from typing import Protocol, runtime_checkable
 import aiosqlite
 import httpx
 
+from app import http as app_http
 from app.checkin import token_endpoint
 from app.config import settings
 
@@ -119,7 +121,7 @@ def _iso(value: datetime) -> str:
 
 
 class SQLiteCredentialStore:
-    """SQLite backend; one file, owned connection, idempotent schema."""
+    """SQLite backend; same file as the task records by default."""
 
     def __init__(self, db_path: str):
         self._db_path = db_path
@@ -229,7 +231,7 @@ class InMemoryCredentialStore:
 
 
 # ---------------------------------------------------------------------------
-# Refresh exchange
+# Refresh exchange (D3)
 # ---------------------------------------------------------------------------
 
 
@@ -244,13 +246,15 @@ async def exchange_refresh_token(
     """Exchange ``sub``'s stored refresh token for a fresh access token.
 
     Reads the user's row, POSTs ``grant_type=refresh_token`` to the
-    Check-in token endpoint, and writes the rotated refresh token back to
-    the store (EGI rotates on every exchange; a provider that reuses
-    tokens keeps the old one via the upsert COALESCE).
+    Check-in token endpoint through the shared http/tenacity layer
+    (transient failures retry; an ``invalid_grant`` 4xx fails fast), and
+    writes the rotated refresh token back to the store (EGI rotates on
+    every exchange; a provider that reuses tokens keeps the old one via
+    the upsert COALESCE).
 
     Returns the fresh access token, or None when the user has no captured
-    refresh token or the exchange failed (transport error, rotated out /
-    revoked) — callers log and retry on their next scan (v4 §8.4).
+    refresh token or the exchange was rejected (rotated out / revoked) —
+    callers log and retry on the next scan (v4 §8.4).
     """
     record = await store.get(sub)
     if record is None or record.refresh_token is None:
@@ -267,8 +271,7 @@ async def exchange_refresh_token(
         "client_secret": client_secret or settings.client_secret,
     }
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(url, data=form)
+        response = await app_http.post(url, data=form, raise_for_status=False)
     except httpx.HTTPError as exc:
         logger.warning("Refresh-token exchange for %s failed: %s", sub, exc)
         return None

@@ -1,7 +1,8 @@
 from .base_vre import VRE, vre_factory
-import requests
+import httpx
 import logging
 from app import exceptions
+from app import http as app_http
 from app.config import settings
 from app.vres.utils.vault import vault_get_api_key
 from vre_rocrate import FileReference, VIP_PROGRAMMING_LANGUAGE
@@ -18,30 +19,30 @@ class VREVIP(VRE):
         # VIP REST API lists public pipelines without authentication
         return f"{self.svc_url}/rest/pipelines?public"
 
-    def post(self) -> str:
+    async def post(self) -> str:
+        svc_url = await self.setup_service()
         if settings.vip_api_key:
             logger.info("Using statically configured VIP API key (no vault lookup)")
             api_key = settings.vip_api_key
         else:
-            api_key = vault_get_api_key(self.token, "vip")
+            api_key = await vault_get_api_key(self.token, "vip")
 
         payload = self._build_payload()
         headers = {
             "apikey": api_key,
             "Content-Type": "application/json",
         }
-        url = f"{self.svc_url}/rest/executions"
+        url = f"{svc_url}/rest/executions"
 
         logger.info("Creating VIP execution: %s", payload["name"])
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
-            response.raise_for_status()
-        except requests.RequestException as e:
+            await app_http.post(url, headers=headers, json=payload, timeout=60)
+        except httpx.HTTPError as e:
             logger.error("VIP API request failed: %s", e)
             raise exceptions.ExternalServiceError("VIP API call failed") from e
 
         # VIP API returns no response body on success
-        return f"{self.svc_url}/home.html"
+        return f"{svc_url}/home.html"
 
     def _build_payload(self) -> dict:
         name = self._get_execution_name()

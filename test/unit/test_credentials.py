@@ -10,6 +10,7 @@ from app.credentials import (
     SQLiteCredentialStore,
     exchange_refresh_token,
 )
+from app.status_store import InMemoryStatusStore, SQLiteStatusStore
 
 _DEV_TOKEN_ENDPOINT = (
     "https://aai-dev.egi.eu/auth/realms/egi/protocol/openid-connect/token"
@@ -93,6 +94,28 @@ async def test_access_token_ttl_is_set():
     delta = (record.expires_at - record.updated_at).total_seconds()
     assert delta == ACCESS_TOKEN_TTL
     assert record.is_expired(now=record.expires_at)
+
+
+async def test_sqlite_store_shares_the_status_store_file(tmp_path):
+    """Production runs both stores on one SQLite file (one backup, one
+    permission class) — they must coexist."""
+    db = str(tmp_path / "dispatcher.db")
+
+    status = SQLiteStatusStore(db)
+    await status.connect()
+    creds = SQLiteCredentialStore(db)
+    await creds.connect()
+
+    from app.status_store import TaskRecord
+
+    await status.create(TaskRecord(task_id="t-1", kind="k"))
+    await creds.upsert("sub-1", "access-1", "refresh-1")
+
+    assert (await status.get("t-1")).task_id == "t-1"
+    assert (await creds.get("sub-1")).access_token == "access-1"
+
+    await creds.aclose()
+    await status.aclose()
 
 
 async def test_sqlite_file_hygiene_600(tmp_path):
@@ -209,10 +232,11 @@ async def test_exchange_on_rejected_grant_returns_none_and_keeps_row(httpx_mock)
 async def test_exchange_on_transport_error_returns_none(httpx_mock):
     store = InMemoryCredentialStore()
     await store.upsert("sub-1", "old-access", "old-refresh")
-    httpx_mock.add_exception(
-        httpx.ConnectError("connection refused"),
-        method="POST",
-        url=_DEV_TOKEN_ENDPOINT,
-    )
+    for _ in range(4):  # transport errors are retried (conftest: 4 attempts)
+        httpx_mock.add_exception(
+            httpx.ConnectError("connection refused"),
+            method="POST",
+            url=_DEV_TOKEN_ENDPOINT,
+        )
 
     assert await exchange_refresh_token(store, "sub-1") is None

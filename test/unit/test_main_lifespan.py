@@ -1,34 +1,37 @@
-"""Lifespan wiring smoke test: the per-user credential store comes up with
-the app (so logins can capture refresh tokens from the first one) and is
-closed on shutdown."""
+"""Lifespan wiring smoke test: shared HTTP client, SQLite store, task
+registry and recovery manager come up with the app (single uvicorn worker
+model), and the old Celery dependencies are gone from the app graph."""
 
-import ssl
+import asyncio
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
-from app.credentials import SQLiteCredentialStore
+from app.status_store import SQLiteStatusStore
 
 
 @pytest.fixture
 def app(monkeypatch, tmp_path):
-    monkeypatch.setattr(settings, "db_path", str(tmp_path / "credentials.db"))
-    # app.main loads the TLS cert chain at import time; this test exercises
-    # store wiring, not TLS.
-    monkeypatch.setattr(
-        ssl.SSLContext, "load_cert_chain", lambda self, *args, **kwargs: None
-    )
+    monkeypatch.setattr(settings, "db_path", str(tmp_path / "lifespan.db"))
+    monkeypatch.setattr(settings, "janitor_interval", 3600)
     from app.main import app
 
     yield app
 
 
-def test_lifespan_wires_and_closes_credential_store(app):
-    with TestClient(app):
-        store = app.state.credentials
-        assert isinstance(store, SQLiteCredentialStore)
-        assert store._conn is not None
+def test_lifespan_wires_store_registry_and_http_client(app):
+    from app import http as app_http
 
-    # Closed on shutdown.
-    assert app.state.credentials._conn is None
+    with TestClient(app):
+        assert isinstance(app.state.status_store, SQLiteStatusStore)
+        assert app.state.tasks == {}
+        assert app_http.get_http_client() is not None
+
+    assert app_http._client is None  # closed on shutdown
+
+
+def test_celery_is_not_part_of_the_app():
+    """P5: the Celery tier is deleted from the code path entirely."""
+    with pytest.raises(ModuleNotFoundError):
+        import app.celery  # noqa: F401
