@@ -1,35 +1,18 @@
 services:
-  redis:
-    image: redis:7
-
   web:
+    # Single uvicorn worker by design: flows run as in-process asyncio tasks
+    # (see plans/async-execution-architecture-v3.md). No Celery/Redis tier.
     build: .
     command: uvicorn app.main:app --host 0.0.0.0 --port {{api.port}} --ssl-keyfile {{nginx.cert}}/privkey.pem --ssl-certfile {{nginx.cert}}/fullchain.pem --log-level debug --reload 
     volumes:
       - ./app:/usr/src/app
       - ./nginx/certbot/conf:{{nginx.cert}}
+      - dispatcher-data:{{ (dispatcher.db_path | default('/data/dispatcher.db')) | dirname }}
+      - git-repos-volume:/{{git.repos}}
     environment:
-      - CELERY_BROKER_URL=redis://redis:{{ redis.port }}/0
-      - CELERY_RESULT_BACKEND=redis://redis:{{ redis.port }}/0
       - ENV=local
     depends_on:
-      - redis
       - certgen
-
-  worker:
-    build: .
-    command: celery -A app.celery.worker.celery worker --loglevel=info 
-    volumes:
-      - git-repos-volume:/{{git.repos}}
-      - .:/usr/src
-    user: "celery" 
-    environment:
-      - CELERY_BROKER_URL=redis://redis:{{ redis.port }}/0
-      - CELERY_RESULT_BACKEND=redis://redis:{{ redis.port }}/0
-      - ENV=development
-    depends_on:
-      - web
-      - redis
 
   nginx:
     image: nginxinc/nginx-unprivileged:latest
@@ -75,3 +58,4 @@ networks:
 volumes:
   git-repos-volume:
   fcgi-socket:
+  dispatcher-data:

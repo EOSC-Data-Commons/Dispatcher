@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from .base_vre import VRE, vre_factory
 import os
 import urllib.parse
@@ -21,11 +23,13 @@ class VREBinder(VRE):
     def get_default_service(self):
         return BINDER_DEFAULT_SERVICE
 
-    def post(self) -> str:
+    async def post(self) -> str:
+        await self.setup_service()
         if self.payload.is_repository_only:
             workflow_url = self.payload.workflow.url
             return self._build_binder_url(workflow_url)
-        return self._build_local_git_repo()
+        # Blocking filesystem/git work keeps the event loop free via to_thread.
+        return await asyncio.to_thread(self._build_local_git_repo)
 
     def _build_binder_url(self, url: str) -> str:
         """Construct BinderHub URL from GitHub or Zenodo URL.
@@ -109,14 +113,17 @@ class VREBinder(VRE):
             f.write("I am here\n")
 
     def _initialize_temporary_git_repo(self, repo_path):
-        os.chdir(repo_path)
+        """Init a git repo and commit the whole working tree.
 
+        Runs entirely inside ``repo_path`` (no process-wide ``chdir``) so it
+        stays safe under ``asyncio.to_thread`` concurrency.
+        """
         repo = git.Repo.init(repo_path)
         with repo.config_writer() as git_config:
             git_config.set_value("user", "email", "dispatcher@dispatcher.com")
             git_config.set_value("user", "name", "dispatcher")
 
-        repo.index.add("*")
+        repo.git.add(all=True)
 
         repo.index.commit("on the fly")
 

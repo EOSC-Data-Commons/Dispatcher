@@ -9,8 +9,40 @@ The implementation of ROCrate parsing together with minimalistic specification o
 The endpoint accepts requests at the paths:
 - `/requests/zip_rocrate`: POST, ROCrate as a zip file in the body
 - `/requests/metadata_rocrate`: POST, only the `ro-crate-metatada.json` in the body
+- `/requests/{task_id}`: GET, task status; DELETE, cancel the flow and/or tear down delivered infrastructure (owner-enforced)
+- `/requests/`: GET, list the caller's tasks
+- `/anon_requests/...`: same POST/GET/DELETE for anonymous access (owner-less records keyed by bearer task_id)
 
-On successful completition, a URL pointing to the prepared environment is returned.
+Every POST returns `202 {task_id}` immediately; the flow executes in the
+background and the client polls `GET /requests/{task_id}` for
+`{task_id, status, stage?, result?, error?}` (`PENDING → PROGRESS →
+SUCCESS | FAILURE | DESTROYED`; on success the result carries the URL of
+the prepared environment). An invalid RO-Crate is rejected synchronously
+with `400`, an unknown task_id yields `404`, and reading or deleting
+another user's task yields `403`. `DESTROYED` marks delivered
+infrastructure the user tore down via DELETE.
+
+## Architecture (async execution)
+
+Since the async-execution rewrite (see
+[`plans/async-execution-architecture-v3.md`](plans/async-execution-architecture-v3.md)),
+the dispatcher is a **single async runtime**: every flow runs as an
+`asyncio` task inside the uvicorn process that received the POST, with all
+outbound HTTP going through a shared `httpx` client with per-call tenacity
+retries (transient errors only) and bounded poll loops. There is **no
+Celery worker tier and no Redis** anymore.
+
+Task status, owner identity, and the IM infrastructure registry persist in
+a single **SQLite file** (WAL mode, `synchronous=FULL`, `aiosqlite` access,
+`PRAGMA user_version` migrations; setting `db_path`). A recovery manager
+(janitor) runs at startup and every `janitor_interval` seconds: IM-in-flight
+flows are resumed from their persisted `im_inf_id` (the IM server keeps
+provisioning), stale heartbeats are marked `FAILED("worker lost")`, and
+undestroyed infrastructure of failed flows is reaped.
+
+Deploy with **one uvicorn worker** (no `--workers N`): live flows live in
+the receiving worker's memory, so the "does anyone own this flow?" liveness
+check must stay unambiguous; flows are I/O-bound and one core suffices.
 
 ### VRE provider healthcheck
 

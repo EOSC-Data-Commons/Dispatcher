@@ -16,8 +16,7 @@ class Settings(BaseSettings):
     im_max_time: int = {{ im.wait.max_time }}
     im_sleep: int = {{ im.wait.sleep }}
     im_max_retries: int = {{ im.wait.max_retries }}
-
-    redis_port: int = {{ redis.port }}
+    im_ssl_verify: bool = {{ im.ssl_verify | default(true) }}
 
     vre_healthcheck_enabled: bool = {{ api.vre_healthcheck_enabled | default(true) }}
     vre_healthcheck_timeout: float = {{ api.vre_healthcheck_timeout | default(3.0) }}
@@ -31,6 +30,35 @@ class Settings(BaseSettings):
 
     # Static VIP API key override (dev instances without vault access).
     vip_api_key: str = "{{ vip_api_key | default('') }}"
+
+    # Async-execution state store (see plans/async-execution-architecture-v3.md)
+    db_path: str = "{{ dispatcher.db_path | default('/data/dispatcher.db') }}"
+    status_ttl: int = {{ task_store.status_ttl | default(86400) }}
+    janitor_interval: int = {{ task_store.janitor_interval | default(60) }}
+    stale_task_timeout: int = {{ task_store.stale_task_timeout | default(3600) }}
+    reap_failure_threshold: int = {{ task_store.reap_failure_threshold | default(5) }}
+    # TTL-destroy of delivered VMs. Keep OFF by default (None). A filter default
+    # like `| default(None)` renders as an EMPTY string under jinja2-cli (which
+    # is a SyntaxError), so always use this if/else guard that emits a literal.
+{% if task_store.infra_max_lifetime is defined and task_store.infra_max_lifetime is not none %}
+    infra_max_lifetime: int | None = {{ task_store.infra_max_lifetime }}
+{% else %}
+    infra_max_lifetime: int | None = None
+{% endif %}
+
+    # Shared HTTP client + per-call retry policy
+    http_default_timeout: int = {{ http_client.default_timeout | default(30) }}
+    http_max_connections: int = {{ http_client.max_connections | default(100) }}
+    http_max_keepalive_connections: int = {{ http_client.max_keepalive_connections | default(20) }}
+    http_retry_attempts: int = {{ http_client.retry_attempts | default(4) }}
+    http_retry_min_backoff: int = {{ http_client.retry_min_backoff | default(1) }}
+    http_retry_max_backoff: int = {{ http_client.retry_max_backoff | default(30) }}
+
+    # Bounded poll loops for orchestrated flows
+    jupyter_poll_interval: int = {{ jupyter.poll_interval | default(10) }}
+    jupyter_wait_max_time: int = {{ jupyter.wait_max_time | default(900) }}
+    mddash_poll_interval: int = {{ mddash.poll_interval | default(5) }}
+    mddash_wait_max_time: int = {{ mddash.wait_max_time | default(600) }}
 
     log_level: str = "{{ logging.level | default('INFO') }}"
     log_format: str = "{{ logging.format | default('text') }}"
