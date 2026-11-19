@@ -8,6 +8,7 @@ services:
     volumes:
       - ./app:/usr/src/app
       - ./nginx/certbot/conf:{{nginx.cert}}
+      - ./ocm:/etc/ocm:ro
     environment:
       - CELERY_BROKER_URL=redis://redis:{{ redis.port }}/0
       - CELERY_RESULT_BACKEND=redis://redis:{{ redis.port }}/0
@@ -22,6 +23,7 @@ services:
     volumes:
       - git-repos-volume:/{{git.repos}}
       - .:/usr/src
+      - ./ocm:/etc/ocm:ro
     user: "celery" 
     environment:
       - CELERY_BROKER_URL=redis://redis:{{ redis.port }}/0

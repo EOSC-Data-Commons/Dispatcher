@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.routers import requests, auth, anonymous_requests, healthz
+from app.routers import requests, auth, anonymous_requests, healthz, wellknown
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware.request_logging import RequestLoggingMiddleware
@@ -51,6 +51,7 @@ app.add_middleware(RequestLoggingMiddleware)
 app.include_router(healthz.router)
 app.include_router(requests.router)
 app.include_router(auth.router)
+app.include_router(wellknown.router)
 if settings.anonymous_requests_enabled:
     app.include_router(anonymous_requests.router)
 
