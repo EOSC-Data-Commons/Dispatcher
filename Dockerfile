@@ -9,20 +9,21 @@ ENV PYTHONDONTWRITEBYTECODE=1
 #Prevents Python from buffering stdout and stderr
 ENV PYTHONUNBUFFERED=1
 
-# Upgrade pip
-RUN pip install --upgrade pip
+# Install uv from the official image (pinned for reproducibility)
+COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /uvx /usr/local/bin/
 
-# Copy requirements and dispatcher code (vre-rocrate is optional for local builds)
+# Copy requirements first so dependency installation is cached separately
+# from the application code.
 COPY requirements.txt /usr/src
+
+# Install dependencies (vre-rocrate from the github URL in requirements.txt).
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements.txt
+
 COPY . /usr/src
 
-# Install dependencies.
-# If vre-rocrate/ directory was copied into the build context (e.g. by source_local role),
-# install it from there. Otherwise install from the github URL in requirements.txt.
+# If vre-rocrate/ was copied into the build context (e.g. by the source_local
+# ansible role), override the github install with the local editable install.
 RUN if [ -d "/usr/src/vre-rocrate" ]; then \
-    pip install --no-cache-dir -e /usr/src/vre-rocrate && \
-    grep -v "vre-rocrate" requirements.txt > /tmp/requirements-no-vre.txt && \
-    pip install --no-cache-dir -r /tmp/requirements-no-vre.txt; \
-    else \
-    pip install --no-cache-dir -r requirements.txt; \
+    uv pip install --system --no-deps -e /usr/src/vre-rocrate; \
     fi

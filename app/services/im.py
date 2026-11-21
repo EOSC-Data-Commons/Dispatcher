@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 
 class IM:
-
     GET_DATA_NODE_TEMPLATE = {
         "type": "tosca.nodes.SoftwareComponent",
         "interfaces": {
