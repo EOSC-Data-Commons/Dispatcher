@@ -1,11 +1,11 @@
+import base64
 import json
 import logging
 import os
 import secrets
-import tempfile
-from oscar_python.client import Client
 from urllib.parse import urljoin, urlparse
 
+import boto3
 import requests
 import yaml
 
@@ -16,18 +16,142 @@ from app.exceptions import (
     ExternalDataSourceError,
 )
 from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
-from app.constants import OSCAR_DEFAULT_SERVICE
+from app.constants import (
+    OSCAR_DEFAULT_SERVICE,
+    OSCAR_RUN_TIMEOUT,
+    OSCAR_DEFAULT_TIMEOUT,
+)
 
 logger = logging.getLogger(__name__)
 
 
+class OscarClient:
+    """Minimal OSCAR REST API client authenticated with an OIDC token."""
+
+    def __init__(self, endpoint, token, verify=True, timeout=OSCAR_DEFAULT_TIMEOUT):
+        self.endpoint = endpoint.rstrip("/")
+        self.token = token
+        self.verify = verify
+        self.timeout = timeout
+
+    def _request(self, method, path, token=None, timeout=None, **kwargs):
+        headers = {"Authorization": f"Bearer {token or self.token}"}
+        headers.update(kwargs.pop("headers", {}))
+        response = requests.request(
+            method,
+            f"{self.endpoint}{path}",
+            headers=headers,
+            verify=self.verify,
+            timeout=timeout or self.timeout,
+            **kwargs,
+        )
+        response.raise_for_status()
+        return response
+
+    def get_service(self, name):
+        return self._request("GET", f"/system/services/{name}")
+
+    def create_service(self, service_definition):
+        exists = requests.get(
+            f"{self.endpoint}/system/services/{service_definition['name']}",
+            headers={"Authorization": f"Bearer {self.token}"},
+            verify=self.verify,
+            timeout=self.timeout,
+        )
+        if exists.status_code == 200:
+            raise ValueError(
+                f"A service with name '{service_definition['name']}' "
+                "is already present on the cluster"
+            )
+        return self._request(
+            "POST",
+            "/system/services",
+            data=json.dumps(service_definition),
+            headers={"Content-Type": "application/json"},
+        )
+
+    def remove_service(self, name):
+        try:
+            return self._request("DELETE", f"/system/services/{name}")
+        except Exception as ex:
+            logger.error(f"Error deleting OSCAR service {name}: {ex}")
+
+    def run_service(self, name, file_content=None, timeout=None):
+        """Synchronously invoke a service sending a file as base64 body."""
+        data = None
+        if file_content:
+            data = base64.b64encode(file_content)
+        resp = self._request(
+            "POST",
+            f"/run/{name}",
+            timeout=timeout,
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        resp.raise_for_status()
+
+    def _get_storage_credentials(self, service_name, provider):
+        """Resolve credentials for a '<type>.<name>' storage provider."""
+        provider_type, _, provider_name = provider.partition(".")
+        if provider_type == "minio" and provider_name == "default":
+            # Get default MinIO credentials the cluster config.
+            return self._request("GET", "/system/config").json()["minio_provider"]
+        service = self.get_service(service_name).json()
+        credentials = (
+            (service.get("storage_providers") or {})
+            .get(provider_type, {})
+            .get(provider_name)
+        )
+        if credentials is None:
+            raise ValueError(
+                f'Storage provider "{provider}" is not defined in service "{service_name}"'
+            )
+        return credentials
+
+    def upload_url(self, service_name, provider, url, remote_path):
+        """Stream the content of a URL to '<bucket>/<key>' in a service's S3/MinIO provider.
+
+        Returns True on success and False otherwise.
+        """
+        provider_type = provider.split(".")[0]
+        if provider_type not in ("minio", "s3"):
+            raise ValueError(f'Unsupported storage provider type "{provider_type}"')
+        creds = self._get_storage_credentials(service_name, provider)
+
+        bucket, _, key = remote_path.lstrip("/").partition("/")
+        if not bucket or not key:
+            raise ValueError(f"Invalid remote path '{remote_path}'")
+
+        endpoint = creds.get("endpoint")
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            region_name=creds.get("region") or None,
+            verify=creds.get("verify", True),
+            aws_access_key_id=creds.get("access_key"),
+            aws_secret_access_key=creds.get("secret_key"),
+        )
+        logger.debug(f"Uploading from URL '{url}' to bucket '{bucket}' key '{key}'")
+        with requests.get(url, stream=True, timeout=(5, 60)) as response:
+            response.raise_for_status()
+            response.raw.decode_content = True
+            content_type = response.headers.get(
+                "content-type", "application/octet-stream"
+            )
+            s3.upload_fileobj(
+                response.raw, bucket, key, ExtraArgs={"ContentType": content_type}
+            )
+
+
 class VREOSCAR(VRE):
-    def __init__(self, token=None, oscar_client_factory=None, **kwargs):
+    def __init__(
+        self,
+        token=None,
+        **kwargs,
+    ):
         super().__init__(token=token, **kwargs)
         self.fdl_json = None
-        self._oscar_client_factory = (
-            oscar_client_factory or self._default_oscar_client_factory
-        )
+        self.client = OscarClient(self.svc_url, self.token)
 
     def get_default_service(self):
         return OSCAR_DEFAULT_SERVICE
@@ -58,7 +182,27 @@ class VREOSCAR(VRE):
         fdl_json = self._extract_oscar_service(fdl)
         fdl_json["script"] = script
 
+        service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
+        fdl_json["name"] = service_name
+
+        # Check input paths to avoid setting the bucket name
+        self._enforce_input_bucket(fdl_json, service_name)
+
         return fdl_json
+
+    @staticmethod
+    def _enforce_input_bucket(fdl_json, service_name):
+        inputs = fdl_json.get("input", [])
+        for item in inputs:
+            provider = item.get("storage_provider", item.get("provider", "minio"))
+            if provider == "minio":
+                provider = "minio.default"
+            provider_type = provider.split(".")[0]
+
+            if provider_type not in ("minio", "s3"):
+                continue
+            folder = os.path.basename(item.get("path", ""))
+            item["path"] = f"{service_name}/{folder}"
 
     @staticmethod
     def _crate_base_url(crate_url):
@@ -101,19 +245,6 @@ class VREOSCAR(VRE):
             raise VREConfigurationError("Missing service name in OSCAR FDL")
         return service
 
-    def _write_input_file(self, directory, file_reference):
-        source = file_reference.url or file_reference.id
-        filename = os.path.basename(urlparse(source).path) or file_reference.name
-        content = file_reference.properties.get("content")
-        if content is None:
-            content = self._fetch_file(source, as_binary=True)
-        if isinstance(content, str):
-            content = content.encode()
-        local_path = os.path.join(directory, filename)
-        with open(local_path, "wb") as stream:
-            stream.write(content)
-        return local_path
-
     def _fetch_file(self, url, as_binary=False):
         try:
             response = requests.get(url, timeout=60)
@@ -124,47 +255,38 @@ class VREOSCAR(VRE):
         except Exception as ex:
             raise ExternalDataSourceError("Network error while fetching files.") from ex
 
-    @staticmethod
-    def _default_oscar_client_factory(endpoint, token):
-        return Client(
-            options={
-                "cluster_id": "dispatcher",
-                "endpoint": endpoint,
-                "oidc_token": token,
-                "ssl": True,
-            }
-        )
-
-    def _get_service_type(self, fdl_json):
-        if "input" in fdl_json:
-            return "asynchronous"
-        return "synchronous"
+    def _service_is_async(self, fdl_json):
+        return "input" in fdl_json
 
     def post(self):
         fdl_json = self._get_fdl_from_crate()
         self.fdl_json = fdl_json
-        service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
-        fdl_json["name"] = service_name
+        service_name = fdl_json["name"]
 
-        logger.info(f"Creating OSCAR service {service_name}")
+        self.update_task_status(f"Creating OSCAR service {service_name}")
         logger.debug(f"FDL: {json.dumps(fdl_json)}")
-        url = self.svc_url
-        client = self._oscar_client_factory(url, self.token)
         try:
-            client.create_service(fdl_json)
+            self.client.create_service(fdl_json)
         except Exception as ex:
             raise ExternalServiceError(f"Error creating OSCAR service: {ex}") from ex
 
-        if self._get_service_type(fdl_json) == "synchronous":
-            self._invoke_service(client, service_name, self.payload.oscar_input_files)
-        else:
-            self._upload_input_files(
-                client, service_name, fdl_json, self.payload.oscar_input_files
+        self.update_task_status(f"Invoking OSCAR service {service_name}")
+        try:
+            if self._service_is_async(fdl_json):
+                self._upload_input_files(service_name, fdl_json)
+            else:
+                self._invoke_service(service_name, self.payload.oscar_input_files)
+        except Exception as ex:
+            logger.error(
+                f"Deleting OSCAR service {service_name} due to invocation errors: {ex}"
             )
+            self.client.remove_service(service_name)
+            raise ex
 
-        return f"{url}/system/services/{service_name}"
+        return self.svc_url
 
-    def _upload_input_files(self, client, service_name, service, files):
+    def _upload_input_files(self, service_name, service):
+        files = self.payload.oscar_input_files
         inputs = service.get("input")
         if not isinstance(inputs, list) or not inputs:
             raise VREConfigurationError("OSCAR service does not define an input path")
@@ -189,44 +311,50 @@ class VREOSCAR(VRE):
         if provider == "minio":
             provider = "minio.default"
 
-        try:
-            storage_client = client.create_storage_client(service_name)
-            for file_reference in files:
-                filename = (
-                    os.path.basename(urlparse(file_reference.url).path)
-                    or file_reference.name
+        all_upload_successful = True
+        for file_reference in files:
+            filename = (
+                os.path.basename(urlparse(file_reference.url).path)
+                or file_reference.name
+            )
+            logger.debug(f"Uploading OSCAR input file {filename}")
+            try:
+                self.client.upload_url(
+                    service_name,
+                    provider,
+                    file_reference.url,
+                    os.path.join(input_path, filename),
                 )
-                storage_client._get_client(provider).upload_url(
-                    file_reference.url, os.path.join(input_path, filename)
-                )
-        except Exception as ex:
-            raise ExternalServiceError(
-                f"Error uploading OSCAR input file: {ex}"
-            ) from ex
+            except Exception as ex:
+                all_upload_successful = False
+                logger.error(f"Error uploading OSCAR input file {filename}: {ex}")
 
-    def _invoke_service(self, client, service_name, files):
+        if not all_upload_successful:
+            raise ExternalServiceError("One or more OSCAR input files failed to upload")
+
+    def _get_file_content(self, file_reference):
+        content = file_reference.properties.get("content")
+        if content is None:
+            source = file_reference.url or file_reference.id
+            content = self._fetch_file(source, as_binary=True)
+        return content
+
+    def _invoke_service(self, service_name, files):
+        all_invoke_successful = True
         for file_reference in files:
             try:
-                with tempfile.TemporaryDirectory(
-                    prefix="dispatcher-oscar-"
-                ) as directory:
-                    local_path = self._write_input_file(directory, file_reference)
-                    client.run_service(service_name, input=local_path, timeout=300)
+                self.client.run_service(
+                    service_name,
+                    file_content=self._get_file_content(file_reference),
+                    timeout=OSCAR_RUN_TIMEOUT,
+                )
+                logger.debug(f"OSCAR service {service_name} invoked successfully")
             except Exception as ex:
-                raise ExternalServiceError(
-                    f"Error invoking OSCAR service: {ex}"
-                ) from ex
+                all_invoke_successful = False
+                logger.error(f"Error invoking OSCAR service: {ex}")
 
-    def delete(self):
-        fdl_json = self._get_fdl_from_crate()
-        service_name = fdl_json["name"]
-
-        logger.info(f"Deleting OSCAR service {service_name}")
-        client = self._oscar_client_factory(self.svc_url, self.token)
-        try:
-            client.remove_service(service_name)
-        except Exception as ex:
-            raise ExternalServiceError(f"Error deleting OSCAR service: {ex}") from ex
+        if not all_invoke_successful:
+            raise ExternalServiceError("One or more OSCAR service invocations failed")
 
 
 vre_factory.register(OSCAR_PROGRAMMING_LANGUAGE, VREOSCAR)
