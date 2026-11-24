@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     anonymous_requests_enabled: bool = True
     im_endpoint: str = ""
     im_cloud_provider: dict = {}
+    # Read by app.celery.worker at import time; the ansible template always
+    # rendered it but the repo-side Settings never declared it (importing
+    # app.main with the repo config crashed with AttributeError).
+    redis_port: int = 6379
 
     # Vault (EGI Secret Store) configuration
     vault_url: str = ""
@@ -29,6 +33,11 @@ class Settings(BaseSettings):
     # Static VIP API key override for dev instances without vault access.
     # Empty means per-user vault lookup (production behavior).
     vip_api_key: str = ""
+
+    # Per-user VRE credential store (v4 async-execution plan, D2): SQLite
+    # file holding the refresh tokens captured at login for out-of-band
+    # lifecycle cleanup (janitor reaps, orphan destroys).
+    db_path: str = "dispatcher.db"
 
     # Logging configuration
     log_level: str = "INFO"
