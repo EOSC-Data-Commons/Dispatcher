@@ -1,7 +1,13 @@
 # test/conftest.py
+import base64
+import time
 from pathlib import Path
 import pytest
 from unittest.mock import Mock, patch
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from fixtures.dummy_crate import (
     DummyEntity,
     DummyCrate,
@@ -18,6 +24,7 @@ from app.vres.sciencemesh import (
     SERVICE_DEEP_LINK,
 )
 from app.config import settings
+from app.routers import wellknown
 from vre_rocrate import (
     BINDER_PROGRAMMING_LANGUAGE,
     SCIENCEMESH_PROGRAMMING_LANGUAGE,
@@ -491,7 +498,37 @@ SCIENCEMESH_SENDER_NAME = "ScienceMesh User"
 
 
 @pytest.fixture
-def sciencemesh_vre():
+def ocm_signing_key(tmp_path, monkeypatch):
+    """The Ed25519 key of RFC 8037, Appendix A, configured as the OCM signing key."""
+    seed = base64.urlsafe_b64decode("nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A=")
+    key = Ed25519PrivateKey.from_private_bytes(seed)
+    path = tmp_path / "signing_key.pem"
+    path.write_bytes(
+        key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
+    monkeypatch.setattr(settings, "ocm_signing_key_file", str(path))
+    return key
+
+
+@pytest.fixture
+def appendix_b_clock(monkeypatch):
+    """Sets the clock to the created parameter of Appendix B of the OCM spec."""
+    monkeypatch.setattr(time, "time", lambda: 1785060500)
+
+
+@pytest.fixture
+def wellknown_client():
+    app = FastAPI()
+    app.include_router(wellknown.router)
+    return TestClient(app)
+
+
+@pytest.fixture
+def sciencemesh_vre(ocm_signing_key):
     from vre_rocrate import FormalParameter
 
     package = VREPayload(
