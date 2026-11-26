@@ -10,12 +10,13 @@ import requests as real_requests
 from unittest.mock import Mock
 
 from app.config import settings
-from app.exceptions import VREUnavailableError
+from app.exceptions import VREConfigurationError, VREUnavailableError
 from app.vres.galaxy import VREGalaxy
 from app.vres.vip import VREVIP
 from app.vres.scipion import VREScipion
 from app.vres.utils.health import check_service_alive
 from app.status_store import InMemoryStatusStore
+from app.vre_runner import resolve_service
 from fakes import FakeAsyncIM
 from vre_rocrate import (
     VREPayload,
@@ -78,6 +79,19 @@ def test_disabled_is_noop(requests_mock):
     assert requests_mock.call_count == 0
 
 
+async def test_post_without_resolution_fails_without_deploying():
+    """Standalone VRE use cannot fall back into service resolution or IM
+    deployment: the runner must supply the URL before provider work."""
+    vre = VREScipion(
+        token="t",
+        request_id=0,
+        status_store=InMemoryStatusStore(),
+        payload=_payload(SCIPION_PROGRAMMING_LANGUAGE),
+    )
+    with pytest.raises(VREConfigurationError, match="URL is not resolved"):
+        await vre.post()
+
+
 async def test_galaxy_probes_version_endpoint(requests_mock, enable_healthcheck):
     requests_mock.get("https://usegalaxy.eu/api/version", status_code=200)
     vre = VREGalaxy(
@@ -86,7 +100,7 @@ async def test_galaxy_probes_version_endpoint(requests_mock, enable_healthcheck)
         status_store=InMemoryStatusStore(),
         payload=_payload(GALAXY_PROGRAMMING_LANGUAGE),
     )
-    await vre.setup_service()
+    await resolve_service(vre)
     assert requests_mock.call_count == 1
 
 
@@ -100,7 +114,7 @@ async def test_vip_probes_public_pipelines(requests_mock, enable_healthcheck):
         status_store=InMemoryStatusStore(),
         payload=_payload(VIP_PROGRAMMING_LANGUAGE),
     )
-    await vre.setup_service()
+    await resolve_service(vre)
     assert requests_mock.call_count == 1
 
 
@@ -113,7 +127,7 @@ async def test_default_hook_probes_service_root(requests_mock, enable_healthchec
         status_store=InMemoryStatusStore(),
         payload=_payload(SCIPION_PROGRAMMING_LANGUAGE),
     )
-    await vre.setup_service()
+    await resolve_service(vre)
     assert requests_mock.call_count == 1
 
 
@@ -129,7 +143,7 @@ async def test_setup_fails_fast_when_provider_down(requests_mock, enable_healthc
         payload=_payload(GALAXY_PROGRAMMING_LANGUAGE),
     )
     with pytest.raises(VREUnavailableError):
-        await vre.setup_service()
+        await resolve_service(vre)
 
 
 async def test_crate_specified_service_url_is_probed(requests_mock, enable_healthcheck):
@@ -143,7 +157,7 @@ async def test_crate_specified_service_url_is_probed(requests_mock, enable_healt
             runtime_platform="https://galaxy.example.org/",
         ),
     )
-    await vre.setup_service()
+    await resolve_service(vre)
     # trailing slash stripped on resolution, Galaxy endpoint appended
     assert requests_mock.call_count == 1
 
@@ -169,9 +183,11 @@ async def test_im_deployed_service_skips_healthcheck(requests_mock, enable_healt
         request_id=0,
         status_store=InMemoryStatusStore(),
         payload=payload,
+    )
+    await resolve_service(
+        vre,
         im_factory=lambda token: FakeAsyncIM(
             outputs={"url": "https://deployed.example.org"}
         ),
     )
-    await vre.setup_service()
     assert requests_mock.call_count == 0

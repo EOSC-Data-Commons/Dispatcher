@@ -53,6 +53,7 @@ def _make_vre(package=None):
         token="dummy_token",
         request_id=42,
         status_store=InMemoryStatusStore(),
+        svc_url=MDDASH_DEFAULT_SERVICE,
         payload=package or _build_package(),
     )
 

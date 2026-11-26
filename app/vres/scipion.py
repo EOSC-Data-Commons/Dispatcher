@@ -11,7 +11,7 @@ class VREScipion(VRE):
         return SCIPION_DEFAULT_SERVICE
 
     async def post(self):
-        return await self.setup_service()
+        return self.require_service_url()
 
 
 vre_factory.register(SCIPION_PROGRAMMING_LANGUAGE, VREScipion)

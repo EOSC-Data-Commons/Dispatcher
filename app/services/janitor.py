@@ -22,7 +22,7 @@ from datetime import datetime
 from app.config import settings
 from app.credentials import CredentialStore, exchange_refresh_token
 from app.status_store import StatusStore, TaskRecord, TaskStatus, _utcnow
-from app.vres.base_vre import AsyncIMProtocol, default_im_factory
+from app.services.im_async import AsyncIMProtocol, default_im_factory
 from typing import Callable
 
 logger = logging.getLogger(__name__)

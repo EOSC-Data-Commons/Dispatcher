@@ -141,7 +141,7 @@ class VREOSCAR(VRE):
         return "synchronous"
 
     async def post(self):
-        url = await self.setup_service()
+        url = self.require_service_url()
         fdl_json = await self._get_fdl_from_crate()
         self.fdl_json = fdl_json
         service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
@@ -235,9 +235,9 @@ class VREOSCAR(VRE):
                 ) from ex
 
     async def delete(self):
-        # Prefer the delivered URL (dispatch.delete_flow hint, or remembered
-        # by post()): the service name is its basename, so teardown needs
-        # no FDL re-download and no setup_service round-trip. The crate
+        # Prefer the delivered URL (runner hint, or remembered by post()):
+        # the service name is its basename, so teardown needs no FDL
+        # re-download and no service-resolution round-trip. The crate
         # fallback exists for direct same-instance use without either.
         delivered = getattr(self, "delivered_url", None)
         if delivered:
@@ -246,7 +246,7 @@ class VREOSCAR(VRE):
         else:
             fdl_json = await self._get_fdl_from_crate()
             service_name = fdl_json["name"]
-            url = await self.setup_service()
+            url = self.require_service_url()
 
         logger.info(f"Deleting OSCAR service {service_name}")
         client = self._oscar_client_factory(url, self.token)

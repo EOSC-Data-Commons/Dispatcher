@@ -16,14 +16,69 @@ contract is cohesive and remains free of HTTP dependencies.
 
 import asyncio
 import logging
-from typing import Callable
+from typing import Awaitable, Callable
 
-from vre_rocrate import VREPayload
+from vre_rocrate import RuntimePlatform, VREPayload
 
+from app.exceptions import VREConfigurationError
+from app.services.im_async import AsyncIMProtocol, default_im_factory
 from app.status_store import StatusStore, TaskRecord, TaskStatus
-from app.vres.base_vre import AsyncIMProtocol, default_im_factory, vre_factory
+from app.vres.base_vre import VRE, vre_factory
 
 logger = logging.getLogger(__name__)
+
+
+async def resolve_service(
+    vre: VRE,
+    *,
+    im_factory: Callable[[str | None], AsyncIMProtocol] | None = None,
+    heartbeat: Callable[[str], Awaitable[None]] | None = None,
+    on_inf_created: Callable[[str], Awaitable[None]] | None = None,
+) -> str:
+    """Resolve ``runtimePlatform`` to a service URL, then healthcheck it.
+
+    This is the single service-resolution/IM-creation site for a flow:
+    ``None`` selects the provider default, a string is a direct URL, and an
+    ``installUrl`` delegates deployment to IM. IM callbacks are supplied by
+    the runner, so infra registration and deployment heartbeats need no
+    cooperation from the VRE. Healthchecks run only for non-IM services.
+    """
+    default_service = vre.get_default_service()
+    dest: str | RuntimePlatform | None = (
+        vre.payload.workflow.runtime_platform if vre.payload is not None else None
+    )
+    deployed_via_im = False
+
+    if dest is None:
+        svc_url = default_service
+    elif isinstance(dest, str):
+        svc_url = dest
+    elif dest.install_url is not None:
+        logger.debug("Resolving service via IM: %s", dest)
+        im_client = (im_factory or default_im_factory)(vre.token)
+        if not isinstance(im_client, AsyncIMProtocol):
+            raise TypeError(
+                "Injected IM factory must return an object implementing AsyncIMProtocol"
+            )
+        try:
+            outputs = await im_client.run(
+                dest,
+                heartbeat=heartbeat,
+                on_inf_created=on_inf_created,
+            )
+        finally:
+            await im_client.aclose()
+        if outputs is None:
+            raise VREConfigurationError("Failed to deploy service via IM")
+        deployed_via_im = True
+        svc_url = outputs.get("url", default_service)
+    else:
+        raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
+
+    vre.svc_url = svc_url.rstrip("/")
+    if not deployed_via_im:
+        await vre.check_health()
+    return vre.svc_url
 
 
 async def execute_flow(
@@ -59,7 +114,20 @@ async def execute_flow(
             request_id=task_id,
             status_store=store,
             payload=payload,
+        )
+
+        async def _im_heartbeat(stage: str) -> None:
+            await store.update(task_id, status=TaskStatus.PROGRESS, stage=stage)
+
+        async def _on_inf_created(inf_id: str) -> None:
+            """Record cleanup's handle the instant create() returns."""
+            await store.update(task_id, im_inf_id=inf_id)
+
+        await resolve_service(
+            vre,
             im_factory=im_factory,
+            heartbeat=_im_heartbeat,
+            on_inf_created=_on_inf_created,
         )
         result = await vre.post()
         # Terminal-success transitions clear the progress stage: the flow is
@@ -106,9 +174,9 @@ async def delete_vre_remote_state_best_effort(
     The crate is gone at DELETE time (v4: never persisted), so the VRE is
     constructed by ``kind`` with the delivered URL as the only hint.
     Skipped for IM-backed flows: the infra destroy above handles their
-    teardown (the VRE state lives on the VM itself), and calling
-    ``delete()`` would needlessly resurrect an IM deployment via
-    ``setup_service()``.
+    teardown (the VRE state lives on the VM itself). VRE ``delete()`` has
+    no IM-creation or service-resolution capability, so teardown cannot
+    resurrect a deployment as a side effect.
     """
     if record.im_inf_id or not record.result or not record.result.get("url"):
         return

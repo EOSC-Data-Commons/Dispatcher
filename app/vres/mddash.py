@@ -46,8 +46,8 @@ class VREMDDash(VRE):
         return MDDASH_DEFAULT_SERVICE
 
     async def post(self):
-        # The service URL is resolved exactly once per flow: here.
-        svc_url = await self.setup_service()
+        # Service resolution is the runner's job, once per flow.
+        svc_url = self.require_service_url()
         await self.update_task_status("logging in to MDDash")
         ctx = await self._login(svc_url)
 

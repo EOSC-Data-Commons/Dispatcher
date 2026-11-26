@@ -1,12 +1,21 @@
+"""Provider adapters: operate an already-resolved external service.
+
+Interpreting ``runtimePlatform``, deploying IM infrastructure, resolving
+the service URL, and registering that infrastructure are flow-runner
+concerns. VRE implementations own only provider defaults, healthcheck
+customization, provider-specific work in ``post()``, and remote teardown in
+``delete()``. In particular, no VRE method can create IM infrastructure —
+including teardown.
+"""
+
 import asyncio
 import logging
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 
-from vre_rocrate import RuntimePlatform, VREPayload
+from vre_rocrate import VREPayload
 
-from app.exceptions import IMError, VREConfigurationError
+from app.exceptions import VREConfigurationError
 from app.status_store import StatusStore, TaskStatus
 
 from .utils.health import check_service_alive
@@ -18,46 +27,12 @@ class ROCrateValidationError(Exception):
     pass
 
 
-@runtime_checkable
-class AsyncIMProtocol(Protocol):
-    """IM contract consumed by VRE service resolution.
-
-    The concrete async wire client lives in the IM repo
-    (``imclient.AsyncIMClient``); the dispatcher-side wrapper
-    (:class:`app.services.im_async.AsyncIM`) adapts it to this protocol.
-    Tests inject ``FakeAsyncIM`` with scripted state transitions.
-    """
-
-    inf_id: str | None
-
-    async def run(
-        self,
-        rp: RuntimePlatform,
-        heartbeat: Callable[[str], Any] | None = None,
-        on_inf_created: Callable[[str], Any] | None = None,
-    ) -> Mapping[str, Any]: ...
-
-    async def destroy(self, inf_id: str | None = None) -> None: ...
-
-    async def aclose(self) -> None: ...
-
-
-def default_im_factory(token: str | None) -> AsyncIMProtocol:
-    """Instantiate the real dispatcher-side async IM wrapper; raises a clean
-    :class:`IMError` when the async IM client package is not installed so
-    development is never blocked on the IM repo's release."""
-    from app.services.im_async import AsyncIM
-
-    return AsyncIM(token)
-
-
 class VRE(ABC):
     def __init__(
         self,
         token: str,
         request_id: str,
         status_store: StatusStore,
-        im_factory: Callable[[str | None], AsyncIMProtocol] | None = None,
         payload: VREPayload | None = None,
         **kwargs,
     ) -> None:
@@ -65,10 +40,9 @@ class VRE(ABC):
         self.token = token
         self._status_store = status_store
         self._request_id = request_id
-        self._im_factory = im_factory or default_im_factory
-        # Lazily resolved on first post(); tests assign `svc_url` directly.
+        # Set by vre_runner.resolve_service before post(); provider unit
+        # tests may set it directly. Teardown uses the delivered_url hint.
         self.svc_url: str | None = None
-        self._deployed_via_im = False
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -82,74 +56,29 @@ class VRE(ABC):
         Override in subclasses to point to a lightweight provider-specific
         endpoint. The default probes the service root URL.
         """
+        return self.require_service_url()
+
+    def require_service_url(self) -> str:
+        """Return the flow-resolved service URL, or fail with a clear error.
+
+        ``execute_flow`` guarantees this before invoking ``post()``. Unlike
+        the retired ``setup_service()``, this method only validates state;
+        it never performs service resolution or deploys infrastructure.
+        """
+        if self.svc_url is None:
+            raise VREConfigurationError(
+                "Service URL is not resolved; run the VRE through execute_flow "
+                "or assign svc_url for a standalone provider test"
+            )
         return self.svc_url
 
     async def check_health(self) -> None:
-        """Fail fast if the VRE provider for the resolved service is
-        unavailable.
+        """Fail fast if the provider for the resolved service is unavailable.
 
-        Skipped for services deployed via the Infrastructure Manager — their
-        URL does not exist before deployment. The sync probe runs in a
-        worker thread so the event loop is never blocked.
+        The runner calls this only for non-IM services. The sync probe runs
+        in a worker thread so the event loop is never blocked.
         """
-        if self._deployed_via_im:
-            return
         await asyncio.to_thread(check_service_alive, self.get_healthcheck_url())
-
-    async def setup_service(self) -> str:
-        """Resolve the service URL once (may run the whole IM sequence),
-        then probe the provider if the URL is direct (not IM-deployed)."""
-        if self.svc_url is None:
-            rp = self._get_runtime_platform()
-            self.svc_url = (await self._resolve_service_url(rp)).rstrip("/")
-            await self.check_health()
-        return self.svc_url
-
-    def _get_runtime_platform(self) -> str | RuntimePlatform | None:
-        """Read runtimePlatform from the VRE payload workflow descriptor."""
-        if self.payload is not None:
-            return self.payload.workflow.runtime_platform
-        return None
-
-    async def _resolve_service_url(self, dest: str | RuntimePlatform | None) -> str:
-        if dest is None:
-            return self.get_default_service()
-
-        # Plain string: direct URL (e.g. runtimePlatform: "https://usegalaxy.eu/")
-        if isinstance(dest, str):
-            return dest
-
-        # RuntimePlatform with installUrl – delegate to Infrastructure Manager.
-        if dest.install_url is not None:
-            logger.debug(f"IM dest {dest}")
-            im_client = self._im_factory(self.token)
-            if not isinstance(im_client, AsyncIMProtocol):
-                raise TypeError(
-                    "Injected IM factory must return an object implementing AsyncIMProtocol"
-                )
-            try:
-                outputs = await im_client.run(
-                    dest,
-                    heartbeat=self.update_task_status,
-                    on_inf_created=self._on_inf_created,
-                )
-            finally:
-                await im_client.aclose()
-            if outputs is None:
-                raise VREConfigurationError("Failed to deploy service via IM")
-            self._deployed_via_im = True
-            return outputs.get("url", self.get_default_service())
-
-        raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
-
-    async def _on_inf_created(self, inf_id: str) -> None:
-        """Persisted the instant create() returns: im_inf_id only (the
-        infrastructure registry — cleanup's handle to the VM).
-
-        The store is guaranteed by construction (``VRE.__init__`` requires
-        it), so the infra-registry invariant ("no VM without a record")
-        cannot be silently broken."""
-        await self._status_store.update(self._request_id, im_inf_id=inf_id)
 
     async def update_task_status(self, stage: str) -> None:
         """Progress write into the status store; also the IM heartbeat —

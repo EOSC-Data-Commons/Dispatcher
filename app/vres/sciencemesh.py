@@ -24,7 +24,7 @@ class VREScienceMesh(VRE):
         return f"https://{SCIENCEMESH_DEFAULT_DOMAIN}"
 
     async def post(self):
-        svc_url = await self.setup_service()
+        svc_url = self.require_service_url()
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = await self.create_ocm_share_request()
 

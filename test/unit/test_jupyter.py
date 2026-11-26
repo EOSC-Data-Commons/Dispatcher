@@ -47,30 +47,33 @@ def _make_vre(payload=None):
         token="dummy_token",
         request_id=7,
         status_store=InMemoryStatusStore(),
+        svc_url=SVC,
         payload=payload,
     )
 
 
-def _register_full_flow(httpx_mock):
+def _register_full_flow(httpx_mock, service=SVC):
     httpx_mock.add_response(
-        method="GET", url=f"{SVC}/services/jwt/user", json={"name": USER}
-    )
-    httpx_mock.add_response(
-        method="POST", url=f"{SVC}/services/jwt/users/{USER}/servers/", status_code=201
+        method="GET", url=f"{service}/services/jwt/user", json={"name": USER}
     )
     httpx_mock.add_response(
         method="POST",
-        url=f"{SVC}/services/jwt/users/{USER}/tokens",
+        url=f"{service}/services/jwt/users/{USER}/servers/",
+        status_code=201,
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{service}/services/jwt/users/{USER}/tokens",
         json={"token": "api-token-1"},
     )
     httpx_mock.add_response(
         method="GET",
-        url=f"{SVC}/services/jwt/user",
+        url=f"{service}/services/jwt/user",
         json={"name": USER, "server": "/user/jane/", "servers": {"": {"ready": True}}},
     )
     httpx_mock.add_response(
         method="PUT",
-        url=f"{SVC}/user/{USER}/api/contents/analysis.ipynb",
+        url=f"{service}/user/{USER}/api/contents/analysis.ipynb",
         json={"path": "analysis.ipynb"},
     )
 
@@ -84,6 +87,17 @@ async def test_post_happy_path(httpx_mock):
     put = httpx_mock.get_requests()[-1]
     assert put.method == "PUT"
     assert put.headers["Authorization"] == "token api-token-1"
+
+
+async def test_post_uses_runner_resolved_service_url(httpx_mock):
+    """Regression: service resolution must affect every Jupyter API call,
+    not just the health probe; the default service is only a fallback."""
+    service = "https://jupyter.example.org"
+    _register_full_flow(httpx_mock, service=service)
+    vre = _make_vre()
+    vre.svc_url = service
+
+    assert await vre.post() == f"{service}/user/{USER}"
 
 
 async def test_username_missing_raises_auth_error(httpx_mock):

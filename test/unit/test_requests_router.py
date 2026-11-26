@@ -87,7 +87,6 @@ def fake_im():
 @pytest.fixture(autouse=True)
 def _inject_im_factory(monkeypatch, fake_im):
     """Flow execution and DELETE teardown create IM clients via the factory."""
-    monkeypatch.setattr("app.vres.base_vre.default_im_factory", lambda token: fake_im)
     monkeypatch.setattr("app.vre_runner.default_im_factory", lambda token: fake_im)
 
 
@@ -386,7 +385,7 @@ async def test_delete_im_backed_flow_skips_vre_teardown(
     store, registry, fake_im, monkeypatch
 ):
     """IM-backed flows rely on the infra destroy for teardown; the VRE hook
-    must NOT fire (calling it would resurrect a deployment via setup_service)."""
+    must NOT fire (teardown has no service-resolution or IM-deploy ability)."""
 
     class _Spy:
         async def delete(self): ...
@@ -429,7 +428,6 @@ async def test_delete_inflight_flow_cancels_and_marks_failure(
             await resume.wait()
 
     blocking = _Blocking()
-    monkeypatch.setattr("app.vres.base_vre.default_im_factory", lambda token: blocking)
     monkeypatch.setattr("app.vre_runner.default_im_factory", lambda token: blocking)
 
     app = _make_app(store, registry)

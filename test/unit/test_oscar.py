@@ -90,6 +90,7 @@ async def test_lifecycle(httpx_mock):
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        svc_url=OSCAR_DEFAULT_SERVICE,
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
@@ -126,6 +127,7 @@ async def test_delete_uses_delivered_url_without_fdl_fetch(httpx_mock):
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        svc_url=OSCAR_DEFAULT_SERVICE,
         payload=VREPayload(
             vre_type=OSCAR_PROGRAMMING_LANGUAGE,
             programming_language=OSCAR_PROGRAMMING_LANGUAGE,
@@ -154,6 +156,7 @@ async def test_fdl_in_rocrate():
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        svc_url=OSCAR_DEFAULT_SERVICE,
         payload=payload,
     )
 
@@ -182,6 +185,7 @@ async def test_oscar_creation_error(httpx_mock):
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        svc_url=OSCAR_DEFAULT_SERVICE,
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
@@ -204,6 +208,7 @@ async def test_script_fetch_error():
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        svc_url=OSCAR_DEFAULT_SERVICE,
         payload=payload,
     )
     fdl = "functions:\n  oscar:\n    - cluster:\n" "        name: test-service\n"
@@ -241,6 +246,7 @@ async def test_synchronous_service_uses_run():
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        svc_url=OSCAR_DEFAULT_SERVICE,
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )

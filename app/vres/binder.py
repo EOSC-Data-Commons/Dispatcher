@@ -24,7 +24,7 @@ class VREBinder(VRE):
         return BINDER_DEFAULT_SERVICE
 
     async def post(self) -> str:
-        await self.setup_service()
+        self.require_service_url()
         if self.payload.is_repository_only:
             workflow_url = self.payload.workflow.url
             return self._build_binder_url(workflow_url)

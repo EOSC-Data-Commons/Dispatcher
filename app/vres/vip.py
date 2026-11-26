@@ -17,10 +17,10 @@ class VREVIP(VRE):
 
     def get_healthcheck_url(self) -> str:
         # VIP REST API lists public pipelines without authentication
-        return f"{self.svc_url}/rest/pipelines?public"
+        return f"{self.require_service_url()}/rest/pipelines?public"
 
     async def post(self) -> str:
-        svc_url = await self.setup_service()
+        svc_url = self.require_service_url()
         if settings.vip_api_key:
             logger.info("Using statically configured VIP API key (no vault lookup)")
             api_key = settings.vip_api_key

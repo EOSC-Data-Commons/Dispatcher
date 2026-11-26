@@ -26,7 +26,7 @@ class VREJupyter(VRE):
         }
 
     async def post(self):
-        await self.setup_service()
+        svc_url = self.require_service_url()
         user_name = await self._get_username()
         await self._start_jupyter_server(user_name)
         await self.update_task_status("Jupyter server starting")
@@ -36,7 +36,7 @@ class VREJupyter(VRE):
         await self.upload_notebook(
             notebook_content, notebook_name, user_name, api_token
         )
-        return f"{self.get_default_service()}/user/{user_name}"
+        return f"{svc_url}/user/{user_name}"
 
     async def _get_username(self):
         userinfo = await self._get_userinfo()
@@ -48,14 +48,14 @@ class VREJupyter(VRE):
         return user_name
 
     async def _get_userinfo(self):
-        userinfo_url = f"{self.get_default_service()}/services/jwt/user"
+        userinfo_url = f"{self.svc_url}/services/jwt/user"
         response = await app_http.get(
             userinfo_url, headers=self._get_headers("Bearer", self.token)
         )
         return response.json()
 
     async def _start_jupyter_server(self, user_name):
-        url = f"{self.get_default_service()}/services/jwt/users/{user_name}/servers/"
+        url = f"{self.svc_url}/services/jwt/users/{user_name}/servers/"
         try:
             await app_http.post(url, headers=self._get_headers("Bearer", self.token))
         except httpx.HTTPError as e:
@@ -66,7 +66,7 @@ class VREJupyter(VRE):
 
     async def _create_api_token(self, username: Optional[str] = None) -> str:
         """Create a new API token for Jupyter Server API access."""
-        url = f"{self.get_default_service()}/services/jwt/users/{username}/tokens"
+        url = f"{self.svc_url}/services/jwt/users/{username}/tokens"
 
         try:
             response = await app_http.post(
@@ -120,7 +120,7 @@ class VREJupyter(VRE):
         api_token,
     ) -> Dict[str, Any]:
         """Upload a notebook file to the user's Jupyter server."""
-        url = f"{self.get_default_service()}/user/{username}/api/contents/{filename}"
+        url = f"{self.svc_url}/user/{username}/api/contents/{filename}"
 
         headers = self._get_headers("token", api_token)
         payload = {

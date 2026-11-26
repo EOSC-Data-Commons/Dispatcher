@@ -20,7 +20,7 @@ retired synchronous implementation.
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Any, Awaitable, Callable, Mapping, Protocol, runtime_checkable
 
 import httpx
 import yaml
@@ -41,6 +41,33 @@ Heartbeat = Callable[[str], Awaitable[None]]
 #: Called the instant ``create()`` returns, so ``im_inf_id`` is persisted
 #: before the infrastructure can outlive its record.
 OnInfCreated = Callable[[str], Awaitable[None]]
+
+
+@runtime_checkable
+class AsyncIMProtocol(Protocol):
+    """IM contract consumed by flow lifecycle and recovery management.
+
+    The dispatcher-side wrapper below adapts the IM repo's wire client to
+    this protocol. Tests inject ``FakeAsyncIM`` with scripted transitions.
+    """
+
+    inf_id: str | None
+
+    async def run(
+        self,
+        rp: RuntimePlatform,
+        heartbeat: Callable[[str], Any] | None = None,
+        on_inf_created: Callable[[str], Any] | None = None,
+    ) -> Mapping[str, Any]: ...
+
+    async def destroy(self, inf_id: str | None = None) -> None: ...
+
+    async def aclose(self) -> None: ...
+
+
+def default_im_factory(token: str | None) -> AsyncIMProtocol:
+    """Instantiate the real async IM wrapper (adapter for the wire client)."""
+    return AsyncIM(token)
 
 
 async def _noop_heartbeat(_stage: str) -> None:
@@ -118,8 +145,8 @@ class AsyncIM:
     """Async IM orchestrator implementing the dispatcher's ``AsyncIMProtocol``.
 
     The wrapped HTTP client is injectable for tests; any owned client
-    resources are released via :meth:`aclose` (invoked by the VRE layer in a
-    ``finally``).
+    resources are released via :meth:`aclose` (invoked by the flow runner or
+    recovery manager in a ``finally``).
     """
 
     def __init__(self, access_token: str | None, client: Any | None = None):

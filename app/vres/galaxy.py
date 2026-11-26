@@ -21,10 +21,10 @@ class VREGalaxy(VRE):
 
     def get_healthcheck_url(self) -> str:
         # Galaxy exposes an unauthenticated lightweight version endpoint
-        return f"{self.svc_url}/api/version"
+        return f"{self.require_service_url()}/api/version"
 
     async def post(self):
-        await self.setup_service()
+        self.require_service_url()
         data = await self._prepare_workflow_data()
         response_data = await self._send_workflow_request(data)
         landing_id = self._extract_landing_id(response_data)

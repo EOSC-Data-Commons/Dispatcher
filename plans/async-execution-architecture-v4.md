@@ -192,6 +192,10 @@ Listed so nobody re-argues them in review:
 - Operate one uvicorn worker (liveness unambiguous; everything is I/O-bound).
 - VRE interface has `delete()` (no-op default; real teardown where the VRE
   creates remote state — OSCAR deletes its cluster service).
+- `vre_runner` owns runtimePlatform interpretation, service resolution and
+  IM creation (including `im_inf_id` registration and wait heartbeats).
+  VREs operate an already-resolved URL; `post()`/`delete()` cannot deploy
+  infrastructure or resurrect it as a teardown side effect.
 - IM create is called with `asyncr=True` (never block on allocation).
 - IM endpoint TLS verify defaults true (`im_ssl_verify`).
 - IM-repo PR rules: exceptions not tuples; no self-assigned version bump;
