@@ -6,7 +6,7 @@
   "capabilities": [
     "http-sig"
   ],
-  "jwksUri": "https://{{ inventory_hostname }}/.well-known/jwks.json",
+  "jwksUri": "https://{{ inventory_hostname }}{{ ocm.jwks_path }}",
   "resourceTypes": [
     {
       "name": "ro-crate",

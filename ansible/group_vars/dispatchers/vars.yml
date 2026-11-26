@@ -32,6 +32,11 @@ api:
   environment: demo # dev, demo, prod
   anonymous_requests: true
 
+ocm:
+  dir: ocm # holds the OCM signing key, under dispatcher.dir on the host
+  etc: /etc/ocm # where the web and worker containers mount ocm.dir
+  jwks_path: /.well-known/jwks.json
+
 vault:
   url: https://secrets.egi.eu
   jwt_mount: jwt

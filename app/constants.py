@@ -30,4 +30,3 @@ SCM_SHARE_WITH_INPUT_PARAM = "Shared With"
 
 # OCM HTTP Message Signatures (RFC 9421). The OCM spec requires this tag on the signature.
 OCM_SIGNATURE_TAG = "ocm"
-OCM_JWKS_PATH = "/.well-known/jwks.json"
