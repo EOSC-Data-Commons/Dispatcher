@@ -225,7 +225,7 @@ def test_factory_uses_registered_default_service():
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
-        kind=VIP_PROGRAMMING_LANGUAGE,
+        programming_language=VIP_PROGRAMMING_LANGUAGE,
     )
     assert vrevip.svc_url == VIP_DEFAULT_SERVICE
 

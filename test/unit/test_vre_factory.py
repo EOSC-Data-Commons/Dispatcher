@@ -28,6 +28,7 @@ def test_factory_creates_sciencemesh_vre():
         token="test-token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        programming_language=SCIENCEMESH_PROGRAMMING_LANGUAGE,
         svc_url="https://example.org",
         payload=_make_package(SCIENCEMESH_PROGRAMMING_LANGUAGE),
     )
@@ -39,6 +40,7 @@ def test_factory_creates_binder_vre():
         token="test-token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        programming_language=BINDER_PROGRAMMING_LANGUAGE,
         svc_url="https://example.org",
         payload=_make_package(BINDER_PROGRAMMING_LANGUAGE),
     )
@@ -50,6 +52,7 @@ def test_factory_creates_galaxy_vre():
         token="test-token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        programming_language=GALAXY_PROGRAMMING_LANGUAGE,
         svc_url="https://example.org",
         payload=_make_package(GALAXY_PROGRAMMING_LANGUAGE),
     )
@@ -61,6 +64,7 @@ def test_factory_creates_oscar_vre():
         token="test-token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        programming_language=OSCAR_PROGRAMMING_LANGUAGE,
         svc_url="https://example.org",
         payload=_make_package(OSCAR_PROGRAMMING_LANGUAGE),
     )
@@ -73,6 +77,7 @@ def test_factory_errors_on_unkown_vre_type():
             token="test-token",
             request_id=0,
             status_store=InMemoryStatusStore(),
+            programming_language="random programming language",
             svc_url="https://example.org",
             payload=_make_package("random programming language"),
         )

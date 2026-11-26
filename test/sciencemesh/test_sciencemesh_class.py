@@ -48,6 +48,7 @@ def main():
             token="dummy-token",
             request_id="manual-test",
             status_store=InMemoryStatusStore(),
+            programming_language=payload.programming_language,
             payload=payload,
         )
         print(f"Service URL: {vre.svc_url}")

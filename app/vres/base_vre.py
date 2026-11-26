@@ -109,27 +109,21 @@ class VREFactory:
         token: str,
         request_id: str,
         status_store: StatusStore,
+        programming_language: str,
         svc_url: str | None = None,
         payload: VREPayload | None = None,
-        kind: str | None = None,
         **kwargs,
     ) -> VRE:
-        """Construct a VRE, using its registered default when no URL is given.
+        """Construct the provider for ``programming_language``.
 
-        Dispatch passes ``payload`` (the language is read from it);
-        DELETE-time teardown passes ``kind`` instead — the crate is gone by
-        then, and the VRE only needs its ``delivered_url`` hint (v4 D1).
+        Uses its registered default when no URL is given. Execution reads the
+        language from its payload; DELETE-time teardown reads the persisted
+        task kind because the crate is gone by then (v4 D1).
         """
-        if payload is None:
-            if kind is None:
-                raise ValueError("payload is required (or kind for teardown)")
-            elang = kind
-        else:
-            elang = payload.programming_language
-        if not self.is_registered(elang):
-            raise ValueError(f"Unsupported workflow language {elang}")
+        if not self.is_registered(programming_language):
+            raise ValueError(f"Unsupported workflow language {programming_language}")
 
-        vre_class, default_service = self.table[elang]
+        vre_class, default_service = self.table[programming_language]
         if svc_url is None:
             svc_url = default_service
         logger.debug(f"Selected VRE {vre_class}")

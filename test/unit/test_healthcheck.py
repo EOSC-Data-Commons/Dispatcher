@@ -57,6 +57,7 @@ async def _resolved_vre(payload, im_factory=None):
         token="t",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        programming_language=payload.programming_language,
         svc_url=svc_url,
         payload=payload,
     )

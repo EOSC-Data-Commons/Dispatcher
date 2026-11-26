@@ -123,6 +123,7 @@ async def execute_flow(
             token=token,
             request_id=task_id,
             status_store=store,
+            programming_language=payload.programming_language,
             svc_url=svc_url,
             payload=payload,
         )
@@ -185,7 +186,7 @@ async def delete_vre_remote_state_best_effort(
             token=token,
             request_id=record.task_id,
             status_store=store,
-            kind=record.kind,
+            programming_language=record.kind,
             # Teardown has no runtimePlatform to resolve. Its last known
             # remote URL satisfies the construction invariant; delete() uses
             # the matching delivered_url hint rather than issuing post().

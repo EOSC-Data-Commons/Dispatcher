@@ -127,7 +127,7 @@ def test_factory_uses_registered_default_service():
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
-        kind=MDDASH_PROGRAMMING_LANGUAGE,
+        programming_language=MDDASH_PROGRAMMING_LANGUAGE,
     )
     assert vre.svc_url == MDDASH_DEFAULT_SERVICE.rstrip("/")
 
