@@ -1,6 +1,7 @@
 import uuid
 from unittest.mock import patch
 import pytest
+from app.status_store import InMemoryStatusStore
 from app.exceptions import (
     MissingOCMParameters,
     ScienceMeshAPIError,
@@ -108,7 +109,7 @@ async def test_resource_id_is_deterministic_from_crate(
     other = VREScienceMesh(
         token="test-access-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=type(vre.payload)(
             vre_type=vre.payload.vre_type,
             programming_language=vre.payload.programming_language,

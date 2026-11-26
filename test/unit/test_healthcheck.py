@@ -15,6 +15,7 @@ from app.vres.galaxy import VREGalaxy
 from app.vres.vip import VREVIP
 from app.vres.scipion import VREScipion
 from app.vres.utils.health import check_service_alive
+from app.status_store import InMemoryStatusStore
 from fakes import FakeAsyncIM
 from vre_rocrate import (
     VREPayload,
@@ -82,6 +83,7 @@ async def test_galaxy_probes_version_endpoint(requests_mock, enable_healthcheck)
     vre = VREGalaxy(
         token="t",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=_payload(GALAXY_PROGRAMMING_LANGUAGE),
     )
     await vre.setup_service()
@@ -95,6 +97,7 @@ async def test_vip_probes_public_pipelines(requests_mock, enable_healthcheck):
     vre = VREVIP(
         token="t",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=_payload(VIP_PROGRAMMING_LANGUAGE),
     )
     await vre.setup_service()
@@ -107,6 +110,7 @@ async def test_default_hook_probes_service_root(requests_mock, enable_healthchec
     vre = VREScipion(
         token="t",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=_payload(SCIPION_PROGRAMMING_LANGUAGE),
     )
     await vre.setup_service()
@@ -121,6 +125,7 @@ async def test_setup_fails_fast_when_provider_down(requests_mock, enable_healthc
     vre = VREGalaxy(
         token="t",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=_payload(GALAXY_PROGRAMMING_LANGUAGE),
     )
     with pytest.raises(VREUnavailableError):
@@ -132,6 +137,7 @@ async def test_crate_specified_service_url_is_probed(requests_mock, enable_healt
     vre = VREGalaxy(
         token="t",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=_payload(
             GALAXY_PROGRAMMING_LANGUAGE,
             runtime_platform="https://galaxy.example.org/",
@@ -161,6 +167,7 @@ async def test_im_deployed_service_skips_healthcheck(requests_mock, enable_healt
     vre = VREGalaxy(
         token="t",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=payload,
         im_factory=lambda token: FakeAsyncIM(
             outputs={"url": "https://deployed.example.org"}

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from vre_rocrate import OSCAR_PROGRAMMING_LANGUAGE
 from app.constants import OSCAR_DEFAULT_SERVICE
 from app.vres.oscar import VREOSCAR
+from app.status_store import InMemoryStatusStore
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from vre_rocrate import (
     VREPayload,
@@ -88,6 +89,7 @@ async def test_lifecycle(httpx_mock):
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
@@ -123,6 +125,7 @@ async def test_delete_uses_delivered_url_without_fdl_fetch(httpx_mock):
     vre = VREOSCAR(
         token="dummy_token",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=VREPayload(
             vre_type=OSCAR_PROGRAMMING_LANGUAGE,
             programming_language=OSCAR_PROGRAMMING_LANGUAGE,
@@ -150,6 +153,7 @@ async def test_fdl_in_rocrate():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=payload,
     )
 
@@ -177,6 +181,7 @@ async def test_oscar_creation_error(httpx_mock):
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )
@@ -198,6 +203,7 @@ async def test_script_fetch_error():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=payload,
     )
     fdl = "functions:\n  oscar:\n    - cluster:\n" "        name: test-service\n"
@@ -234,6 +240,7 @@ async def test_synchronous_service_uses_run():
     vreoscar = VREOSCAR(
         token="dummy_token",
         request_id=0,
+        status_store=InMemoryStatusStore(),
         payload=payload,
         oscar_client_factory=lambda _url, _token: client,
     )

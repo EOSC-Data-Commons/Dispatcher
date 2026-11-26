@@ -9,6 +9,7 @@ from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
 from app.config import settings
 from app.constants import VIP_DEFAULT_SERVICE
 from app.vres.vip import VREVIP
+from app.status_store import InMemoryStatusStore
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from vre_rocrate import (
     VREPayload,
@@ -102,7 +103,7 @@ async def test_post_success(vip_payload, mock_vault_key, httpx_mock):
     vrevip = VREVIP(
         token="dummy_token",
         request_id=42,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=vip_payload,
     )
 
@@ -140,7 +141,7 @@ async def test_static_api_key_overrides_vault(vip_payload, static_api_key, httpx
     vrevip = VREVIP(
         token="dummy_token",
         request_id=42,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=vip_payload,
     )
 
@@ -158,7 +159,7 @@ async def test_vault_key_not_found(vip_payload):
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=vip_payload,
     )
 
@@ -182,7 +183,7 @@ def test_missing_pipeline_identifier():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=payload,
     )
 
@@ -204,7 +205,7 @@ async def test_api_error(vip_payload, mock_vault_key, httpx_mock):
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=vip_payload,
     )
 
@@ -218,7 +219,7 @@ def test_get_default_service():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=None,
     )
     assert vrevip.get_default_service() == VIP_DEFAULT_SERVICE
@@ -229,7 +230,7 @@ def test_input_values_mapping(vip_payload):
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=vip_payload,
     )
 
@@ -271,7 +272,7 @@ def test_input_values_fallback_to_id():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=payload,
     )
 
@@ -309,7 +310,7 @@ def test_input_name_wins_over_file_name():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=payload,
     )
 
@@ -345,7 +346,7 @@ def test_scalar_input_included():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=payload,
     )
 
@@ -374,7 +375,7 @@ def test_unresolvable_input_is_skipped():
     vrevip = VREVIP(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=payload,
     )
 

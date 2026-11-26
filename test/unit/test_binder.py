@@ -49,7 +49,10 @@ async def test_post_git_commit(binder_vre, tmpdir):
 async def test_post_permission_denied(binder_vre):
     settings.git_repos = "/"
 
-    with pytest.raises(PermissionError):
+    # EACCES on Linux (PermissionError); EROFS on the read-only system
+    # volume of macOS (plain OSError). PermissionError is an OSError
+    # subclass, so both platforms assert "the repo dir cannot be created".
+    with pytest.raises(OSError):
         await binder_vre.post()
 
 

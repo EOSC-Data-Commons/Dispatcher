@@ -11,6 +11,7 @@ from fixtures.dummy_crate import (
     ONE_DATA_FILE,
 )
 from app.constants import SCIENCEMESH_DEFAULT_DOMAIN
+from app.status_store import InMemoryStatusStore
 from app.vres.galaxy import VREGalaxy
 from app.vres.binder import VREBinder
 from app.vres.sciencemesh import (
@@ -229,7 +230,7 @@ def galaxy_vre(dummy_galaxy_crate):
     vre = VREGalaxy(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=_build_payload(dummy_galaxy_crate, GALAXY_PROGRAMMING_LANGUAGE),
     )
     vre.svc_url = "https://usegalaxy.eu/"
@@ -241,7 +242,7 @@ def galaxy_vre_onedata(dummy_galaxy_crate_onedata):
     vre = VREGalaxy(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=_build_payload(dummy_galaxy_crate_onedata, GALAXY_PROGRAMMING_LANGUAGE),
     )
     vre.svc_url = "https://usegalaxy.eu/"
@@ -273,7 +274,7 @@ def binder_vre(dummy_binder_crate):
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=_build_payload(dummy_binder_crate, BINDER_PROGRAMMING_LANGUAGE),
     )
     vre.svc_url = "https://mybinder.org"
@@ -299,7 +300,7 @@ def binder_vre_with_doi():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -325,7 +326,7 @@ def binder_vre_github_only():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -351,7 +352,7 @@ def binder_vre_github_with_branch():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -382,7 +383,7 @@ def binder_vre_not_repo_only():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -419,7 +420,7 @@ def binder_vre_not_repo_only_with_remote():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -445,7 +446,7 @@ def binder_vre_no_url():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -471,7 +472,7 @@ def binder_vre_gitlab_only():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -497,7 +498,7 @@ def binder_vre_zenodo_url():
     vre = VREBinder(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package,
     )
     vre.svc_url = "https://mybinder.org"
@@ -541,7 +542,7 @@ def sciencemesh_vre():
     vre = VREScienceMesh(
         token="test-access-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package,
     )
     vre.svc_url = "https://sciencemesh.example.org"

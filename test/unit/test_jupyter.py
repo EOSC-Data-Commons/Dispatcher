@@ -7,6 +7,7 @@ import pytest
 from app.config import settings
 from app.constants import JUPYTER_DEFAULT_SERVICE
 from app.vres.jupyter import VREJupyter
+from app.status_store import InMemoryStatusStore
 from app.exceptions import (
     ExternalServiceError,
     VREAuthenticationError,
@@ -45,7 +46,7 @@ def _make_vre(payload=None):
     return VREJupyter(
         token="dummy_token",
         request_id=7,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=payload,
     )
 

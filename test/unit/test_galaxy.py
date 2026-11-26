@@ -1,6 +1,7 @@
 # test/unit/test_galaxy.py
 import pytest
 from app import constants
+from app.status_store import InMemoryStatusStore
 from app.exceptions import (
     GalaxyAPIError,
     WorkflowURLError,
@@ -46,7 +47,9 @@ async def test_request_state_keys_are_workflow_input_names():
         ],
         raw_crate={},
     )
-    vre = VREGalaxy(token="t", request_id=0, status_store=None, payload=package)
+    vre = VREGalaxy(
+        token="t", request_id=0, status_store=InMemoryStatusStore(), payload=package
+    )
 
     request_state = (await vre._prepare_workflow_data())["request_state"]
     assert set(request_state.keys()) == {"reads"}
@@ -166,7 +169,7 @@ def _galaxy_vre_for_url(url, tool_version=None):
     vre = VREGalaxy(
         token="test-token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=VREPayload(
             vre_type="galaxy",
             programming_language="galaxy",

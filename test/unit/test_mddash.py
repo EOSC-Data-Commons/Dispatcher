@@ -10,6 +10,7 @@ from vre_rocrate import MDDASH_PROGRAMMING_LANGUAGE
 from app.config import settings
 from app.constants import MDDASH_DEFAULT_SERVICE
 from app.vres.mddash import VREMDDash, MDDashContext
+from app.status_store import InMemoryStatusStore
 from app.exceptions import (
     VREConfigurationError,
     VREAuthenticationError,
@@ -51,7 +52,7 @@ def _make_vre(package=None):
     return VREMDDash(
         token="dummy_token",
         request_id=42,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=package or _build_package(),
     )
 
@@ -124,7 +125,7 @@ async def test_get_default_service():
     vre = VREMDDash(
         token="dummy_token",
         request_id=0,
-        status_store=None,
+        status_store=InMemoryStatusStore(),
         payload=None,
     )
     assert vre.get_default_service() == MDDASH_DEFAULT_SERVICE

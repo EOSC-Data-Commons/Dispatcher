@@ -16,6 +16,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, project_root)
 
 from app.vres.base_vre import vre_factory
+from app.status_store import InMemoryStatusStore
 from app.vres.sciencemesh import VREScienceMesh
 
 
@@ -46,7 +47,7 @@ def main():
         vre = vre_factory(
             token="dummy-token",
             request_id="manual-test",
-            status_store=None,
+            status_store=InMemoryStatusStore(),
             payload=payload,
         )
         print(f"Service URL: {vre.get_default_service()}")

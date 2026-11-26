@@ -56,7 +56,7 @@ class VRE(ABC):
         self,
         token: str,
         request_id: str,
-        status_store: StatusStore | None = None,
+        status_store: StatusStore,
         im_factory: Callable[[str | None], AsyncIMProtocol] | None = None,
         payload: VREPayload | None = None,
         **kwargs,
@@ -146,24 +146,14 @@ class VRE(ABC):
         """Persisted the instant create() returns: im_inf_id only (the
         infrastructure registry — cleanup's handle to the VM).
 
-        A missing store here silently breaks the infra-registry invariant
-        ("no VM without a record") — it must always be audible."""
-        if self._status_store is None:
-            logger.warning(
-                "No status store: skipping infra bookkeeping for task %s "
-                "(inf_id=%s would not be recorded)",
-                self._request_id,
-                inf_id,
-            )
-            return
+        The store is guaranteed by construction (``VRE.__init__`` requires
+        it), so the infra-registry invariant ("no VM without a record")
+        cannot be silently broken."""
         await self._status_store.update(self._request_id, im_inf_id=inf_id)
 
     async def update_task_status(self, stage: str) -> None:
         """Progress write into the status store; also the IM heartbeat —
         every write refreshes ``updated_at`` (the janitor's liveness signal)."""
-        if self._status_store is None:
-            logger.debug("No status store: progress stage %r not recorded", stage)
-            return
         await self._status_store.update(
             self._request_id, status=TaskStatus.PROGRESS, stage=stage
         )
@@ -207,7 +197,7 @@ class VREFactory:
         self,
         token: str,
         request_id: str,
-        status_store: StatusStore | None = None,
+        status_store: StatusStore,
         payload: VREPayload | None = None,
         kind: str | None = None,
         **kwargs,
@@ -215,7 +205,11 @@ class VREFactory:
         """Construct a VRE. Dispatch passes ``payload`` (the language is
         read from it); DELETE-time teardown passes ``kind`` instead — the
         crate is gone by then, and the VRE only needs its ``delivered_url``
-        hint (v4 D1)."""
+        hint (v4 D1).
+
+        ``status_store`` is required on every path: a VRE always writes
+        flow progress (and, on the IM path, the infra-registry handle), so
+        there is deliberately no store-less construction."""
         if payload is None:
             if kind is None:
                 raise ValueError("payload is required (or kind for teardown)")
