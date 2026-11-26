@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class VREVIP(VRE):
-    def get_default_service(self) -> str:
+    @classmethod
+    def get_default_service(cls) -> str:
         return VIP_DEFAULT_SERVICE
 
     def get_healthcheck_url(self) -> str:

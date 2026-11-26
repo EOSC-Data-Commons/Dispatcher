@@ -30,7 +30,8 @@ class VREOSCAR(VRE):
             oscar_client_factory or self._default_oscar_client_factory
         )
 
-    def get_default_service(self):
+    @classmethod
+    def get_default_service(cls):
         return OSCAR_DEFAULT_SERVICE
 
     async def _get_fdl_from_crate(self):

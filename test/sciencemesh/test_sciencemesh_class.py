@@ -48,6 +48,7 @@ def main():
             token="dummy-token",
             request_id="manual-test",
             status_store=InMemoryStatusStore(),
+            svc_url=VREScienceMesh.get_default_service(),
             payload=payload,
         )
         print(f"Service URL: {vre.get_default_service()}")

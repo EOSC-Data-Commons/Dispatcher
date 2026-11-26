@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class VREJupyter(VRE):
-    def get_default_service(self):
+    @classmethod
+    def get_default_service(cls):
         return JUPYTER_DEFAULT_SERVICE
 
     def _get_headers(self, token_type, token):

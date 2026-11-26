@@ -42,7 +42,8 @@ class VREMDDash(VRE):
         self.wait_max_time = settings.mddash_wait_max_time
         self.poll_interval = settings.mddash_poll_interval
 
-    def get_default_service(self):
+    @classmethod
+    def get_default_service(cls):
         return MDDASH_DEFAULT_SERVICE
 
     async def post(self):

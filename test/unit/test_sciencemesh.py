@@ -110,6 +110,7 @@ async def test_resource_id_is_deterministic_from_crate(
         token="test-access-token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        svc_url=vre.svc_url,
         payload=type(vre.payload)(
             vre_type=vre.payload.vre_type,
             programming_language=vre.payload.programming_language,

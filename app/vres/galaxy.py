@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class VREGalaxy(VRE):
-    def get_default_service(self):
+    @classmethod
+    def get_default_service(cls):
         return GALAXY_DEFAULT_SERVICE
 
     def get_healthcheck_url(self) -> str:

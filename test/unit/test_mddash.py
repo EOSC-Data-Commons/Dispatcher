@@ -127,6 +127,7 @@ async def test_get_default_service():
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        svc_url=MDDASH_DEFAULT_SERVICE,
         payload=None,
     )
     assert vre.get_default_service() == MDDASH_DEFAULT_SERVICE

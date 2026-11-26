@@ -20,7 +20,8 @@ SERVICE_DEEP_LINK = "/files/data-repositories"
 
 
 class VREScienceMesh(VRE):
-    def get_default_service(self):
+    @classmethod
+    def get_default_service(cls):
         return f"https://{SCIENCEMESH_DEFAULT_DOMAIN}"
 
     async def post(self):

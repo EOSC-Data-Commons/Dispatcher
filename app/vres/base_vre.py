@@ -15,7 +15,6 @@ from abc import ABC, abstractmethod
 
 from vre_rocrate import VREPayload
 
-from app.exceptions import VREConfigurationError
 from app.status_store import StatusStore, TaskStatus
 
 from .utils.health import check_service_alive
@@ -33,6 +32,7 @@ class VRE(ABC):
         token: str,
         request_id: str,
         status_store: StatusStore,
+        svc_url: str,
         payload: VREPayload | None = None,
         **kwargs,
     ) -> None:
@@ -40,14 +40,15 @@ class VRE(ABC):
         self.token = token
         self._status_store = status_store
         self._request_id = request_id
-        # Set by vre_runner.resolve_service before post(); provider unit
-        # tests may set it directly. Teardown uses the delivered_url hint.
-        self.svc_url: str | None = None
+        # Resolution completes before construction, so an initialized VRE can
+        # always operate its provider without a setup/validation phase.
+        self.svc_url = svc_url.rstrip("/")
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    @classmethod
     @abstractmethod
-    def get_default_service(self) -> str:
+    def get_default_service(cls) -> str:
         pass
 
     def get_healthcheck_url(self) -> str:
@@ -59,17 +60,7 @@ class VRE(ABC):
         return self.require_service_url()
 
     def require_service_url(self) -> str:
-        """Return the flow-resolved service URL, or fail with a clear error.
-
-        ``execute_flow`` guarantees this before invoking ``post()``. Unlike
-        the retired ``setup_service()``, this method only validates state;
-        it never performs service resolution or deploys infrastructure.
-        """
-        if self.svc_url is None:
-            raise VREConfigurationError(
-                "Service URL is not resolved; run the VRE through execute_flow "
-                "or assign svc_url for a standalone provider test"
-            )
+        """Return the service URL supplied at construction."""
         return self.svc_url
 
     async def check_health(self) -> None:
@@ -122,23 +113,13 @@ class VREFactory:
             raise ValueError(f"{vre_type} already registered")
         self.table[vre_type] = cls
 
-    def __call__(
+    def get_class(
         self,
-        token: str,
-        request_id: str,
-        status_store: StatusStore,
+        *,
         payload: VREPayload | None = None,
         kind: str | None = None,
-        **kwargs,
-    ):
-        """Construct a VRE. Dispatch passes ``payload`` (the language is
-        read from it); DELETE-time teardown passes ``kind`` instead — the
-        crate is gone by then, and the VRE only needs its ``delivered_url``
-        hint (v4 D1).
-
-        ``status_store`` is required on every path: a VRE always writes
-        flow progress (and, on the IM path, the infra-registry handle), so
-        there is deliberately no store-less construction."""
+    ) -> type[VRE]:
+        """Select the provider adapter without constructing it."""
         if payload is None:
             if kind is None:
                 raise ValueError("payload is required (or kind for teardown)")
@@ -147,12 +128,31 @@ class VREFactory:
             elang = payload.programming_language
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
-        logger.debug(f"elang {elang}")
-        logger.debug(self.table[elang])
-        return self.table[elang](
+        return self.table[elang]
+
+    def __call__(
+        self,
+        token: str,
+        request_id: str,
+        status_store: StatusStore,
+        svc_url: str,
+        payload: VREPayload | None = None,
+        kind: str | None = None,
+        **kwargs,
+    ) -> VRE:
+        """Construct a fully initialized VRE around a resolved service URL.
+
+        Dispatch passes ``payload`` (the language is read from it);
+        DELETE-time teardown passes ``kind`` instead — the crate is gone by
+        then, and the VRE only needs its ``delivered_url`` hint (v4 D1).
+        """
+        vre_class = self.get_class(payload=payload, kind=kind)
+        logger.debug(f"Selected VRE {vre_class}")
+        return vre_class(
             token=token,
             request_id=request_id,
             status_store=status_store,
+            svc_url=svc_url,
             payload=payload,
             **kwargs,
         )

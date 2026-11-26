@@ -194,7 +194,9 @@ Listed so nobody re-argues them in review:
   creates remote state — OSCAR deletes its cluster service).
 - `vre_runner` owns runtimePlatform interpretation, service resolution and
   IM creation (including `im_inf_id` registration and wait heartbeats).
-  VREs operate an already-resolved URL; `post()`/`delete()` cannot deploy
+  It selects the provider class and resolves the URL before constructing the
+  VRE; `svc_url` is a required constructor argument, followed by the provider
+  healthcheck for non-IM services. Thus `post()`/`delete()` cannot deploy
   infrastructure or resurrect it as a teardown side effect.
 - IM create is called with `asyncr=True` (never block on allocation).
 - IM endpoint TLS verify defaults true (`im_ssl_verify`).

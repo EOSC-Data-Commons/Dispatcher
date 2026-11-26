@@ -48,7 +48,11 @@ async def test_request_state_keys_are_workflow_input_names():
         raw_crate={},
     )
     vre = VREGalaxy(
-        token="t", request_id=0, status_store=InMemoryStatusStore(), payload=package
+        token="t",
+        request_id=0,
+        status_store=InMemoryStatusStore(),
+        svc_url=constants.GALAXY_DEFAULT_SERVICE,
+        payload=package,
     )
 
     request_state = (await vre._prepare_workflow_data())["request_state"]
@@ -170,6 +174,7 @@ def _galaxy_vre_for_url(url, tool_version=None):
         token="test-token",
         request_id=0,
         status_store=InMemoryStatusStore(),
+        svc_url="https://usegalaxy.eu/",
         payload=VREPayload(
             vre_type="galaxy",
             programming_language="galaxy",

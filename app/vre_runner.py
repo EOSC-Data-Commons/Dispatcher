@@ -29,24 +29,25 @@ logger = logging.getLogger(__name__)
 
 
 async def resolve_service(
-    vre: VRE,
+    vre_class: type[VRE],
     *,
+    token: str,
+    payload: VREPayload,
     im_factory: Callable[[str | None], AsyncIMProtocol] | None = None,
     heartbeat: Callable[[str], Awaitable[None]] | None = None,
     on_inf_created: Callable[[str], Awaitable[None]] | None = None,
-) -> str:
-    """Resolve ``runtimePlatform`` to a service URL, then healthcheck it.
+) -> tuple[str, bool]:
+    """Resolve ``runtimePlatform`` before constructing the provider adapter.
 
     This is the single service-resolution/IM-creation site for a flow:
     ``None`` selects the provider default, a string is a direct URL, and an
     ``installUrl`` delegates deployment to IM. IM callbacks are supplied by
     the runner, so infra registration and deployment heartbeats need no
-    cooperation from the VRE. Healthchecks run only for non-IM services.
+    cooperation from the VRE. The boolean reports whether IM deployed the
+    service; the runner skips healthchecks for that case.
     """
-    default_service = vre.get_default_service()
-    dest: str | RuntimePlatform | None = (
-        vre.payload.workflow.runtime_platform if vre.payload is not None else None
-    )
+    default_service = vre_class.get_default_service()
+    dest: str | RuntimePlatform | None = payload.workflow.runtime_platform
     deployed_via_im = False
 
     if dest is None:
@@ -55,7 +56,7 @@ async def resolve_service(
         svc_url = dest
     elif dest.install_url is not None:
         logger.debug("Resolving service via IM: %s", dest)
-        im_client = (im_factory or default_im_factory)(vre.token)
+        im_client = (im_factory or default_im_factory)(token)
         if not isinstance(im_client, AsyncIMProtocol):
             raise TypeError(
                 "Injected IM factory must return an object implementing AsyncIMProtocol"
@@ -75,10 +76,7 @@ async def resolve_service(
     else:
         raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
 
-    vre.svc_url = svc_url.rstrip("/")
-    if not deployed_via_im:
-        await vre.check_health()
-    return vre.svc_url
+    return svc_url.rstrip("/"), deployed_via_im
 
 
 async def execute_flow(
@@ -109,12 +107,7 @@ async def execute_flow(
     """
     try:
         await store.update(task_id, status=TaskStatus.PROGRESS, stage="dispatching")
-        vre = vre_factory(
-            token=token,
-            request_id=task_id,
-            status_store=store,
-            payload=payload,
-        )
+        vre_class = vre_factory.get_class(payload=payload)
 
         async def _im_heartbeat(stage: str) -> None:
             await store.update(task_id, status=TaskStatus.PROGRESS, stage=stage)
@@ -123,12 +116,23 @@ async def execute_flow(
             """Record cleanup's handle the instant create() returns."""
             await store.update(task_id, im_inf_id=inf_id)
 
-        await resolve_service(
-            vre,
+        svc_url, deployed_via_im = await resolve_service(
+            vre_class,
+            token=token,
+            payload=payload,
             im_factory=im_factory,
             heartbeat=_im_heartbeat,
             on_inf_created=_on_inf_created,
         )
+        vre = vre_factory(
+            token=token,
+            request_id=task_id,
+            status_store=store,
+            svc_url=svc_url,
+            payload=payload,
+        )
+        if not deployed_via_im:
+            await vre.check_health()
         result = await vre.post()
         # Terminal-success transitions clear the progress stage: the flow is
         # done, there is no "current step" anymore (a frozen in-flight stage
@@ -181,15 +185,19 @@ async def delete_vre_remote_state_best_effort(
     if record.im_inf_id or not record.result or not record.result.get("url"):
         return
     try:
+        delivered_url = record.result["url"]
         vre = vre_factory(
             token=token,
             request_id=record.task_id,
             status_store=store,
             kind=record.kind,
-            # Teardown hint: the URL post() already delivered. Lets VREs
-            # skip re-deriving their remote resource (e.g. OSCAR needs no
-            # FDL re-download to learn its service name).
-            delivered_url=record.result.get("url"),
+            # Teardown has no runtimePlatform to resolve. Its last known
+            # remote URL satisfies the construction invariant; delete() uses
+            # the matching delivered_url hint rather than issuing post().
+            svc_url=delivered_url,
+            # Lets VREs skip re-deriving their remote resource (e.g. OSCAR
+            # needs no FDL re-download to learn its service name).
+            delivered_url=delivered_url,
         )
         await vre.delete()
         logger.info(
