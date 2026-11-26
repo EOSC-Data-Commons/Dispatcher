@@ -86,11 +86,9 @@ def fake_im():
 
 @pytest.fixture(autouse=True)
 def _inject_im_factory(monkeypatch, fake_im):
-    """Routers/dispatch create IM clients through default_im_factory."""
+    """Flow execution and DELETE teardown create IM clients via the factory."""
     monkeypatch.setattr("app.vres.base_vre.default_im_factory", lambda token: fake_im)
-    monkeypatch.setattr(
-        "app.routers.utils.dispatch.default_im_factory", lambda token: fake_im
-    )
+    monkeypatch.setattr("app.vre_runner.default_im_factory", lambda token: fake_im)
 
 
 async def _client(app):
@@ -363,7 +361,7 @@ async def test_delete_non_im_flow_invokes_vre_teardown(store, registry, monkeypa
             seen["deleted"] += 1
 
     monkeypatch.setattr(
-        "app.routers.utils.dispatch.vre_factory",
+        "app.vre_runner.vre_factory",
         lambda **kwargs: _Spy(),
     )
     await store.create(
@@ -395,7 +393,7 @@ async def test_delete_im_backed_flow_skips_vre_teardown(
 
     called = []
     monkeypatch.setattr(
-        "app.routers.utils.dispatch.vre_factory",
+        "app.vre_runner.vre_factory",
         lambda **kwargs: called.append(True) or _Spy(),
     )
 
@@ -432,9 +430,7 @@ async def test_delete_inflight_flow_cancels_and_marks_failure(
 
     blocking = _Blocking()
     monkeypatch.setattr("app.vres.base_vre.default_im_factory", lambda token: blocking)
-    monkeypatch.setattr(
-        "app.routers.utils.dispatch.default_im_factory", lambda token: blocking
-    )
+    monkeypatch.setattr("app.vre_runner.default_im_factory", lambda token: blocking)
 
     app = _make_app(store, registry)
     async with await _client(app) as client:

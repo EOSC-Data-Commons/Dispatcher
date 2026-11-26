@@ -1,13 +1,17 @@
-"""Shared flow executor: one asyncio orchestrator per flow, zero Celery.
+"""HTTP-independent VRE flow lifecycle: execution and remote teardown.
 
-Spawned as an ``asyncio.Task`` by the dispatching handler; the live handle
-sits in the process-local task registry.  Status transitions (PENDING ->
-PROGRESS -> SUCCESS | FAILURE) are written to the :class:`StatusStore` —
-every write refreshes ``updated_at``, the janitor's heartbeat signal.
+A flow is spawned as an ``asyncio.Task`` by the dispatching handler; its
+live handle sits in the process-local task registry. Status transitions
+(PENDING -> PROGRESS -> SUCCESS | FAILURE) are written to the
+:class:`StatusStore` — every write refreshes ``updated_at``, the janitor's
+heartbeat signal.
 
 A flow interrupted by ``DELETE`` (task cancellation) propagates
 ``CancelledError`` untouched: the DELETE handler owns the final status
 write (DESTROYED vs FAILURE "cancelled by user"), so the two never race.
+The best-effort IM and VRE remote-teardown helpers for that DELETE live
+here beside execution, not in the router adapter, so the lifecycle
+contract is cohesive and remains free of HTTP dependencies.
 """
 
 import asyncio
@@ -16,8 +20,8 @@ from typing import Callable
 
 from vre_rocrate import VREPayload
 
-from app.status_store import StatusStore, TaskStatus
-from app.vres.base_vre import AsyncIMProtocol, vre_factory
+from app.status_store import StatusStore, TaskRecord, TaskStatus
+from app.vres.base_vre import AsyncIMProtocol, default_im_factory, vre_factory
 
 logger = logging.getLogger(__name__)
 
@@ -76,3 +80,52 @@ async def execute_flow(
         await store.update(task_id, status=TaskStatus.FAILURE, error=str(exc))
     finally:
         registry.pop(task_id, None)
+
+
+async def destroy_infra_best_effort(inf_id: str, token: str) -> None:
+    """Destroy an IM infrastructure, logging (never raising) failures —
+    e.g. an expired user token on late DELETE (documented limitation)."""
+    try:
+        im = default_im_factory(token)
+        try:
+            await im.destroy(inf_id)
+        finally:
+            await im.aclose()
+        logger.info("Infra %s destroyed on user request", inf_id)
+    except Exception:
+        logger.exception("Failed to destroy infra %s on user request", inf_id)
+
+
+async def delete_vre_remote_state_best_effort(
+    token: str, record: TaskRecord, store: StatusStore
+) -> None:
+    """Invoke the VRE's own ``delete()`` teardown (remote state left by
+    ``post()`` on shared infrastructure — e.g. OSCAR cluster services),
+    best-effort: failures are logged, never raised.
+
+    The crate is gone at DELETE time (v4: never persisted), so the VRE is
+    constructed by ``kind`` with the delivered URL as the only hint.
+    Skipped for IM-backed flows: the infra destroy above handles their
+    teardown (the VRE state lives on the VM itself), and calling
+    ``delete()`` would needlessly resurrect an IM deployment via
+    ``setup_service()``.
+    """
+    if record.im_inf_id or not record.result or not record.result.get("url"):
+        return
+    try:
+        vre = vre_factory(
+            token=token,
+            request_id=record.task_id,
+            status_store=store,
+            kind=record.kind,
+            # Teardown hint: the URL post() already delivered. Lets VREs
+            # skip re-deriving their remote resource (e.g. OSCAR needs no
+            # FDL re-download to learn its service name).
+            delivered_url=record.result.get("url"),
+        )
+        await vre.delete()
+        logger.info(
+            "VRE session torn down for task %s (kind=%s)", record.task_id, record.kind
+        )
+    except Exception:
+        logger.exception("VRE delete() failed for task %s", record.task_id)
