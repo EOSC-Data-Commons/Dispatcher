@@ -16,10 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 class VREJupyter(VRE):
-    @classmethod
-    def get_default_service(cls):
-        return JUPYTER_DEFAULT_SERVICE
-
     def _get_headers(self, token_type, token):
         return {
             "Authorization": f"{token_type} {token}",
@@ -27,7 +23,7 @@ class VREJupyter(VRE):
         }
 
     async def post(self):
-        svc_url = self.require_service_url()
+        svc_url = self.svc_url
         user_name = await self._get_username()
         await self._start_jupyter_server(user_name)
         await self.update_task_status("Jupyter server starting")
@@ -140,4 +136,4 @@ class VREJupyter(VRE):
             raise exceptions.ExternalServiceError(f"Upload failed: {e}") from e
 
 
-vre_factory.register(JUPYTER_PROGRAMMING_LANGUAGE, VREJupyter)
+vre_factory.register(JUPYTER_PROGRAMMING_LANGUAGE, VREJupyter, JUPYTER_DEFAULT_SERVICE)

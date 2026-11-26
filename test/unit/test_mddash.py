@@ -10,6 +10,7 @@ from vre_rocrate import MDDASH_PROGRAMMING_LANGUAGE
 from app.config import settings
 from app.constants import MDDASH_DEFAULT_SERVICE
 from app.vres.mddash import VREMDDash, MDDashContext
+from app.vres.base_vre import vre_factory
 from app.status_store import InMemoryStatusStore
 from app.exceptions import (
     VREConfigurationError,
@@ -121,16 +122,14 @@ def _register_full_flow(httpx_mock):
 # ---------------------------------------------------------------------------
 
 
-async def test_get_default_service():
-    """get_default_service returns MDDASH_DEFAULT_SERVICE."""
-    vre = VREMDDash(
+def test_factory_uses_registered_default_service():
+    vre = vre_factory(
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
-        svc_url=MDDASH_DEFAULT_SERVICE,
-        payload=None,
+        kind=MDDASH_PROGRAMMING_LANGUAGE,
     )
-    assert vre.get_default_service() == MDDASH_DEFAULT_SERVICE
+    assert vre.svc_url == MDDASH_DEFAULT_SERVICE.rstrip("/")
 
 
 async def test_post_success(httpx_mock):

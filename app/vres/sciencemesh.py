@@ -20,12 +20,8 @@ SERVICE_DEEP_LINK = "/files/data-repositories"
 
 
 class VREScienceMesh(VRE):
-    @classmethod
-    def get_default_service(cls):
-        return f"https://{SCIENCEMESH_DEFAULT_DOMAIN}"
-
     async def post(self):
-        svc_url = self.require_service_url()
+        svc_url = self.svc_url
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         data = await self.create_ocm_share_request()
 
@@ -103,4 +99,8 @@ class VREScienceMesh(VRE):
         return sender_userid + "@" + ocm_sending_server
 
 
-vre_factory.register(SCIENCEMESH_PROGRAMMING_LANGUAGE, VREScienceMesh)
+vre_factory.register(
+    SCIENCEMESH_PROGRAMMING_LANGUAGE,
+    VREScienceMesh,
+    f"https://{SCIENCEMESH_DEFAULT_DOMAIN}",
+)

@@ -48,10 +48,9 @@ def main():
             token="dummy-token",
             request_id="manual-test",
             status_store=InMemoryStatusStore(),
-            svc_url=VREScienceMesh.get_default_service(),
             payload=payload,
         )
-        print(f"Service URL: {vre.get_default_service()}")
+        print(f"Service URL: {vre.svc_url}")
     except Exception as e:
         print(f"Error creating VREScienceMesh: {e}")
         return

@@ -12,16 +12,12 @@ logger = logging.getLogger(__name__)
 
 
 class VREVIP(VRE):
-    @classmethod
-    def get_default_service(cls) -> str:
-        return VIP_DEFAULT_SERVICE
-
     def get_healthcheck_url(self) -> str:
         # VIP REST API lists public pipelines without authentication
-        return f"{self.require_service_url()}/rest/pipelines?public"
+        return f"{self.svc_url}/rest/pipelines?public"
 
     async def post(self) -> str:
-        svc_url = self.require_service_url()
+        svc_url = self.svc_url
         if settings.vip_api_key:
             logger.info("Using statically configured VIP API key (no vault lookup)")
             api_key = settings.vip_api_key
@@ -105,4 +101,4 @@ class VREVIP(VRE):
         return mapped
 
 
-vre_factory.register(VIP_PROGRAMMING_LANGUAGE, VREVIP)
+vre_factory.register(VIP_PROGRAMMING_LANGUAGE, VREVIP, VIP_DEFAULT_SERVICE)

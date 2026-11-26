@@ -23,35 +23,32 @@ from vre_rocrate import RuntimePlatform, VREPayload
 from app.exceptions import VREConfigurationError
 from app.services.im_async import AsyncIMProtocol, default_im_factory
 from app.status_store import StatusStore, TaskRecord, TaskStatus
-from app.vres.base_vre import VRE, vre_factory
+from app.vres.base_vre import vre_factory
 
 logger = logging.getLogger(__name__)
 
 
 async def resolve_service(
-    vre_class: type[VRE],
     *,
     token: str,
     payload: VREPayload,
     im_factory: Callable[[str | None], AsyncIMProtocol] | None = None,
     heartbeat: Callable[[str], Awaitable[None]] | None = None,
     on_inf_created: Callable[[str], Awaitable[None]] | None = None,
-) -> tuple[str, bool]:
+) -> tuple[str | None, bool]:
     """Resolve ``runtimePlatform`` before constructing the provider adapter.
 
-    This is the single service-resolution/IM-creation site for a flow:
-    ``None`` selects the provider default, a string is a direct URL, and an
-    ``installUrl`` delegates deployment to IM. IM callbacks are supplied by
-    the runner, so infra registration and deployment heartbeats need no
-    cooperation from the VRE. The boolean reports whether IM deployed the
-    service; the runner skips healthchecks for that case.
+    ``None`` selects the registered provider default, a string is a direct
+    URL, and an ``installUrl`` delegates deployment to IM. IM callbacks are
+    supplied by the runner, so infra registration and deployment heartbeats
+    need no cooperation from the VRE. The boolean reports whether IM deployed
+    the service; the runner skips healthchecks for that case.
     """
-    default_service = vre_class.get_default_service()
     dest: str | RuntimePlatform | None = payload.workflow.runtime_platform
     deployed_via_im = False
 
     if dest is None:
-        svc_url = default_service
+        svc_url = None
     elif isinstance(dest, str):
         svc_url = dest
     elif dest.install_url is not None:
@@ -72,11 +69,11 @@ async def resolve_service(
         if outputs is None:
             raise VREConfigurationError("Failed to deploy service via IM")
         deployed_via_im = True
-        svc_url = outputs.get("url", default_service)
+        svc_url = outputs.get("url")
     else:
         raise VREConfigurationError(f"Invalid runtimePlatform: {dest!r}")
 
-    return svc_url.rstrip("/"), deployed_via_im
+    return svc_url.rstrip("/") if svc_url is not None else None, deployed_via_im
 
 
 async def execute_flow(
@@ -107,7 +104,6 @@ async def execute_flow(
     """
     try:
         await store.update(task_id, status=TaskStatus.PROGRESS, stage="dispatching")
-        vre_class = vre_factory.get_class(payload=payload)
 
         async def _im_heartbeat(stage: str) -> None:
             await store.update(task_id, status=TaskStatus.PROGRESS, stage=stage)
@@ -117,7 +113,6 @@ async def execute_flow(
             await store.update(task_id, im_inf_id=inf_id)
 
         svc_url, deployed_via_im = await resolve_service(
-            vre_class,
             token=token,
             payload=payload,
             im_factory=im_factory,

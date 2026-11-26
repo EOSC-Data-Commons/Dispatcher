@@ -30,10 +30,6 @@ class VREOSCAR(VRE):
             oscar_client_factory or self._default_oscar_client_factory
         )
 
-    @classmethod
-    def get_default_service(cls):
-        return OSCAR_DEFAULT_SERVICE
-
     async def _get_fdl_from_crate(self):
         if self.fdl_json:
             return self.fdl_json
@@ -142,7 +138,7 @@ class VREOSCAR(VRE):
         return "synchronous"
 
     async def post(self):
-        url = self.require_service_url()
+        url = self.svc_url
         fdl_json = await self._get_fdl_from_crate()
         self.fdl_json = fdl_json
         service_name = f'{fdl_json["name"]}-{secrets.token_hex(4)}'
@@ -247,7 +243,7 @@ class VREOSCAR(VRE):
         else:
             fdl_json = await self._get_fdl_from_crate()
             service_name = fdl_json["name"]
-            url = self.require_service_url()
+            url = self.svc_url
 
         logger.info(f"Deleting OSCAR service {service_name}")
         client = self._oscar_client_factory(url, self.token)
@@ -257,4 +253,4 @@ class VREOSCAR(VRE):
             raise ExternalServiceError(f"Error deleting OSCAR service: {ex}") from ex
 
 
-vre_factory.register(OSCAR_PROGRAMMING_LANGUAGE, VREOSCAR)
+vre_factory.register(OSCAR_PROGRAMMING_LANGUAGE, VREOSCAR, OSCAR_DEFAULT_SERVICE)

@@ -96,7 +96,7 @@ def test_all_init_exports_are_registered_in_factory():
     This test catches cases where a VRE is imported but not registered.
     """
     exports = _get_init_exports()
-    registered = set(vre_factory.table.values())
+    registered = {cls for cls, _default_service in vre_factory.table.values()}
 
     unregistered = [name for name, cls in exports.items() if cls not in registered]
 

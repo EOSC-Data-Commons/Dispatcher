@@ -9,6 +9,7 @@ from vre_rocrate import VIP_PROGRAMMING_LANGUAGE
 from app.config import settings
 from app.constants import VIP_DEFAULT_SERVICE
 from app.vres.vip import VREVIP
+from app.vres.base_vre import vre_factory
 from app.status_store import InMemoryStatusStore
 from app.exceptions import VREConfigurationError, ExternalServiceError
 from vre_rocrate import (
@@ -219,16 +220,14 @@ async def test_api_error(vip_payload, mock_vault_key, httpx_mock):
     assert "VIP API call failed" in str(exc.value)
 
 
-def test_get_default_service():
-    """Test get_default_service returns VIP_DEFAULT_SERVICE."""
-    vrevip = VREVIP(
+def test_factory_uses_registered_default_service():
+    vrevip = vre_factory(
         token="dummy_token",
         request_id=0,
         status_store=InMemoryStatusStore(),
-        svc_url=VIP_DEFAULT_SERVICE,
-        payload=None,
+        kind=VIP_PROGRAMMING_LANGUAGE,
     )
-    assert vrevip.get_default_service() == VIP_DEFAULT_SERVICE
+    assert vrevip.svc_url == VIP_DEFAULT_SERVICE
 
 
 def test_input_values_mapping(vip_payload):

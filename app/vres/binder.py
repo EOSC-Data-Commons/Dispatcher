@@ -20,12 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class VREBinder(VRE):
-    @classmethod
-    def get_default_service(cls):
-        return BINDER_DEFAULT_SERVICE
-
     async def post(self) -> str:
-        self.require_service_url()
         if self.payload.is_repository_only:
             workflow_url = self.payload.workflow.url
             return self._build_binder_url(workflow_url)
@@ -291,4 +286,4 @@ class VREBinder(VRE):
             logger.warning(f"Failed to clone remote repository {url}: {e}")
 
 
-vre_factory.register(BINDER_PROGRAMMING_LANGUAGE, VREBinder)
+vre_factory.register(BINDER_PROGRAMMING_LANGUAGE, VREBinder, BINDER_DEFAULT_SERVICE)

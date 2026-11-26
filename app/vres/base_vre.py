@@ -2,9 +2,9 @@
 
 Interpreting ``runtimePlatform``, deploying IM infrastructure, resolving
 the service URL, and registering that infrastructure are flow-runner
-concerns. VRE implementations own only provider defaults, healthcheck
-customization, provider-specific work in ``post()``, and remote teardown in
-``delete()``. In particular, no VRE method can create IM infrastructure —
+concerns. Provider registrations carry default URLs; VRE implementations own
+healthcheck customization, provider-specific work in ``post()``, and remote
+teardown in ``delete()``. In particular, no VRE method can create IM infrastructure —
 including teardown.
 """
 
@@ -46,21 +46,12 @@ class VRE(ABC):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    @classmethod
-    @abstractmethod
-    def get_default_service(cls) -> str:
-        pass
-
     def get_healthcheck_url(self) -> str:
         """URL probed by check_health() to verify provider availability.
 
         Override in subclasses to point to a lightweight provider-specific
         endpoint. The default probes the service root URL.
         """
-        return self.require_service_url()
-
-    def require_service_url(self) -> str:
-        """Return the service URL supplied at construction."""
         return self.svc_url
 
     async def check_health(self) -> None:
@@ -98,7 +89,7 @@ class VRE(ABC):
 
 class VREFactory:
     instance: "VREFactory | None" = None
-    table: dict[str, type] = {}
+    table: dict[str, tuple[type[VRE], str]] = {}
 
     def __new__(cls, *args, **kwargs):
         if not cls.instance:
@@ -108,18 +99,27 @@ class VREFactory:
     def is_registered(self, vre_type):
         return vre_type in self.table
 
-    def register(self, vre_type, cls):
+    def register(self, vre_type, cls, default_service: str):
         if self.is_registered(vre_type):
             raise ValueError(f"{vre_type} already registered")
-        self.table[vre_type] = cls
+        self.table[vre_type] = (cls, default_service)
 
-    def get_class(
+    def __call__(
         self,
-        *,
+        token: str,
+        request_id: str,
+        status_store: StatusStore,
+        svc_url: str | None = None,
         payload: VREPayload | None = None,
         kind: str | None = None,
-    ) -> type[VRE]:
-        """Select the provider adapter without constructing it."""
+        **kwargs,
+    ) -> VRE:
+        """Construct a VRE, using its registered default when no URL is given.
+
+        Dispatch passes ``payload`` (the language is read from it);
+        DELETE-time teardown passes ``kind`` instead — the crate is gone by
+        then, and the VRE only needs its ``delivered_url`` hint (v4 D1).
+        """
         if payload is None:
             if kind is None:
                 raise ValueError("payload is required (or kind for teardown)")
@@ -128,25 +128,10 @@ class VREFactory:
             elang = payload.programming_language
         if not self.is_registered(elang):
             raise ValueError(f"Unsupported workflow language {elang}")
-        return self.table[elang]
 
-    def __call__(
-        self,
-        token: str,
-        request_id: str,
-        status_store: StatusStore,
-        svc_url: str,
-        payload: VREPayload | None = None,
-        kind: str | None = None,
-        **kwargs,
-    ) -> VRE:
-        """Construct a fully initialized VRE around a resolved service URL.
-
-        Dispatch passes ``payload`` (the language is read from it);
-        DELETE-time teardown passes ``kind`` instead — the crate is gone by
-        then, and the VRE only needs its ``delivered_url`` hint (v4 D1).
-        """
-        vre_class = self.get_class(payload=payload, kind=kind)
+        vre_class, default_service = self.table[elang]
+        if svc_url is None:
+            svc_url = default_service
         logger.debug(f"Selected VRE {vre_class}")
         return vre_class(
             token=token,

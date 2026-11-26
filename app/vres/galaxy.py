@@ -16,16 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 class VREGalaxy(VRE):
-    @classmethod
-    def get_default_service(cls):
-        return GALAXY_DEFAULT_SERVICE
-
     def get_healthcheck_url(self) -> str:
         # Galaxy exposes an unauthenticated lightweight version endpoint
-        return f"{self.require_service_url()}/api/version"
+        return f"{self.svc_url}/api/version"
 
     async def post(self):
-        self.require_service_url()
         data = await self._prepare_workflow_data()
         response_data = await self._send_workflow_request(data)
         landing_id = self._extract_landing_id(response_data)
@@ -185,4 +180,4 @@ class VREGalaxy(VRE):
         return f"{url}/workflow_landings/{landing_id}?public={public}"
 
 
-vre_factory.register(GALAXY_PROGRAMMING_LANGUAGE, VREGalaxy)
+vre_factory.register(GALAXY_PROGRAMMING_LANGUAGE, VREGalaxy, GALAXY_DEFAULT_SERVICE)

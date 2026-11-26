@@ -7,12 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 class VREScipion(VRE):
-    @classmethod
-    def get_default_service(cls):
-        return SCIPION_DEFAULT_SERVICE
-
     async def post(self):
-        return self.require_service_url()
+        return self.svc_url
 
 
-vre_factory.register(SCIPION_PROGRAMMING_LANGUAGE, VREScipion)
+vre_factory.register(SCIPION_PROGRAMMING_LANGUAGE, VREScipion, SCIPION_DEFAULT_SERVICE)
