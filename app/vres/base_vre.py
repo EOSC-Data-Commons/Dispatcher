@@ -8,7 +8,6 @@ teardown in ``delete()``. In particular, no VRE method can create IM infrastruct
 including teardown.
 """
 
-import asyncio
 import logging
 import sys
 from abc import ABC, abstractmethod
@@ -57,10 +56,9 @@ class VRE(ABC):
     async def check_health(self) -> None:
         """Fail fast if the provider for the resolved service is unavailable.
 
-        The runner calls this only for non-IM services. The sync probe runs
-        in a worker thread so the event loop is never blocked.
+        The runner calls this only for non-IM services.
         """
-        await asyncio.to_thread(check_service_alive, self.get_healthcheck_url())
+        await check_service_alive(self.get_healthcheck_url())
 
     async def update_task_status(self, stage: str) -> None:
         """Progress write into the status store; also the IM heartbeat —

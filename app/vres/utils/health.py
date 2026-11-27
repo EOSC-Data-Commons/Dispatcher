@@ -7,15 +7,16 @@ immediately instead of hanging on connection or read timeouts.
 
 import logging
 
-import requests
+import httpx
 
 from app import exceptions
+from app import http as app_http
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-def check_service_alive(url: str) -> None:
+async def check_service_alive(url: str) -> None:
     """Probe a VRE provider URL; raise VREUnavailableError if unavailable.
 
     Any HTTP response with status < 500 (including 401/403/404) counts as
@@ -28,8 +29,10 @@ def check_service_alive(url: str) -> None:
     timeout = settings.vre_healthcheck_timeout
     logger.debug("VRE healthcheck GET %s (timeout %.1fs)", url, timeout)
     try:
-        response = requests.get(url, timeout=timeout)
-    except requests.RequestException as e:
+        # Deliberately bypass the general retry helper: this is a single-shot
+        # reachability probe, and even 408/429 responses establish liveness.
+        response = await app_http.get_http_client().get(url, timeout=timeout)
+    except (httpx.HTTPError, httpx.InvalidURL) as e:
         logger.error("VRE healthcheck failed for %s: %s", url, e)
         raise exceptions.VREUnavailableError(
             f"VRE service {url} is unreachable: {e}"
